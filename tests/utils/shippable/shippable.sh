@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+### Environment variables
+
+ANSIBLE_VERSION="temp-2.10-devel"
+PYTHON_VERSION="3.7"
+
+###
+
 set -o pipefail -eux
 
 declare -a args
@@ -68,12 +75,13 @@ else
     export UNSTABLE=""
 fi
 
-virtualenv --python /usr/bin/python3.7 ~/ansible-venv
+virtualenv --python /usr/bin/python${PYTHON_VERSION} ~/ansible-venv
 set +ux
 . ~/ansible-venv/bin/activate
 set -ux
 
-pip install https://github.com/ansible/ansible/archive/devel.tar.gz --disable-pip-version-check
+# Install Ansible
+pip install https://github.com/ansible/ansible/archive/${ANSIBLE_VERSION}.tar.gz --disable-pip-version-check
 
 COLLECTION_DIR="${HOME}/.ansible/ansible_collections/"
 TEST_DIR="${COLLECTION_DIR}/community/libvirt"
