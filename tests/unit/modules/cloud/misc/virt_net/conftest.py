@@ -6,7 +6,7 @@ import pytest
 
 from ansible_collections.community.libvirt.plugins.modules import virt_net
 
-from ansible_collections.community.general.tests.unit.compat import mock
+from ansible_collections.community.libvirt.tests.unit.compat import mock
 
 
 virt_net.libvirt = None
