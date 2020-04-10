@@ -5,8 +5,6 @@ plugins/modules/virt_pool.py validate-modules:doc-missing-type
 plugins/modules/virt.py validate-modules:doc-choices-do-not-match-spec
 plugins/modules/virt.py validate-modules:parameter-type-not-in-doc
 plugins/modules/virt.py validate-modules:undocumented-parameter
-scripts/inventory/libvirt_lxc.py future-import-boilerplate
-scripts/inventory/libvirt_lxc.py metaclass-boilerplate
 tests/unit/mock/path.py future-import-boilerplate
 tests/unit/mock/path.py metaclass-boilerplate
 tests/unit/mock/yaml_helper.py future-import-boilerplate

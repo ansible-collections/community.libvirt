@@ -1,0 +1,7 @@
+---
+- name: Create servers and test libvirt inventory plugin
+  hosts: localhost
+  gather_facts: False
+  tasks:
+    - debug:
+        var: hostvars

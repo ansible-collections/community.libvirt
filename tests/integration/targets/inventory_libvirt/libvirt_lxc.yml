@@ -1,0 +1,2 @@
+plugin: community.libvirt.libvirt
+uri: 'lxc:///'
