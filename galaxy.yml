@@ -1,18 +1,18 @@
 namespace: community
 name: libvirt
 version: 0.1.0
-readme: README.rst
+readme: README.md
 authors:
   - Ansible (https://github.com/ansible)
+  - community.libvirt (https://github.com/ansible-collections/libvirt/graphs/contributors)
 description: null
 license: GPL-3.0
 tags:
   - libvirt
   - lxc
   - qemu
-  - virtualbox
 dependencies: {}
 repository: https://github.com/ansible-collections/libvirt
-documentation: https://github.com/ansible-collections/libvirt/tree/master/docs
+documentation: https://github.com/ansible-collections/libvirt/README.md
 homepage: https://github.com/ansible-collections/libvirt
 issues: https://github.com/ansible-collections/libvirt/issues

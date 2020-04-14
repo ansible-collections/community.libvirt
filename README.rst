@@ -1,2 +1,0 @@
-Ansible Collection: community.libvirt
-=====================================
