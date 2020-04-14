@@ -2,7 +2,7 @@
 
 ### Environment variables
 
-ANSIBLE_VERSION="temp-2.10-devel"
+ANSIBLE_VERSION="devel"
 PYTHON_VERSION="3.7"
 
 ###
