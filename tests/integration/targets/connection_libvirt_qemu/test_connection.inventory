@@ -1,0 +1,6 @@
+[libvirt]
+libvirt-pipelining    ansible_ssh_pipelining=true
+libvirt-no-pipelining ansible_ssh_pipelining=false
+[libvirt:vars]
+ansible_host=lv-ubuntu-wily-amd64
+ansible_connection=community.libvirt.libvirt_qemu
