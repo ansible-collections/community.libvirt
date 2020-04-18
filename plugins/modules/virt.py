@@ -25,6 +25,9 @@ options:
       - name of the guest VM being managed. Note that VM must be previously
         defined with xml.
       - This option is required unless I(command) is C(list_vms) or C(info).
+    type: str
+    aliases:
+      - guest
   state:
     description:
       - Note that there may be some lag for state requests like C(shutdown)
@@ -33,10 +36,12 @@ options:
         state and command are mutually exclusive except when command=list_vms. In
         this case all VMs in specified state will be listed.
     choices: [ destroyed, paused, running, shutdown ]
+    type: str
   command:
     description:
       - In addition to state management, various non-idempotent commands are available.
     choices: [ create, define, destroy, freemem, get_xml, info, list_vms, nodeinfo, pause, shutdown, start, status, stop, undefine, unpause, virttype ]
+    type: str
   autostart:
     description:
       - start VM at host startup.
@@ -45,10 +50,12 @@ options:
     description:
       - libvirt connection uri.
     default: qemu:///system
+    type: str
   xml:
     description:
       - XML document used with the define command.
       - Must be raw XML content using C(lookup). XML cannot be reference to a file.
+    type: str
 requirements:
     - python >= 2.6
     - libvirt-python
@@ -575,7 +582,7 @@ def main():
     module = AnsibleModule(
         argument_spec=dict(
             name=dict(type='str', aliases=['guest']),
-            state=dict(type='str', choices=['destroyed', 'pause', 'running', 'shutdown']),
+            state=dict(type='str', choices=['destroyed', 'paused', 'running', 'shutdown']),
             autostart=dict(type='bool'),
             command=dict(type='str', choices=ALL_COMMANDS),
             uri=dict(type='str', default='qemu:///system'),
