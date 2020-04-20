@@ -12,7 +12,7 @@ tags:
   - lxc
   - qemu
 dependencies: {}
-repository: https://github.com/ansible-collections/libvirt
-documentation: https://github.com/ansible-collections/libvirt/README.md
-homepage: https://github.com/ansible-collections/libvirt
-issues: https://github.com/ansible-collections/libvirt/issues
+repository: https://github.com/ansible-collections/community.libvirt
+documentation: https://github.com/ansible-collections/community.libvirt/README.md
+homepage: https://github.com/ansible-collections/community.libvirt
+issues: https://github.com/ansible-collections/community.libvirt/issues
