@@ -22,13 +22,14 @@ description:
      - Manage I(libvirt) networks.
 options:
     name:
-        required: true
+        required: True
         aliases: ['network']
         description:
             - name of the network being managed. Note that network must be previously
               defined with xml.
+        type: str
     state:
-        required: false
+        required: False
         choices: [ "active", "inactive", "present", "absent" ]
         description:
             - specify which state you want a network to be in.
@@ -37,8 +38,9 @@ options:
               state; if it's missing, you need to specify xml argument.
               If 'inactive', network will be stopped.
               If 'undefined' or 'absent', network will be removed from I(libvirt) configuration.
+        type: str
     command:
-        required: false
+        required: False
         choices: [ "define", "create", "start", "stop", "destroy",
                    "undefine", "get_xml", "list_nets", "facts",
                    "info", "status", "modify"]
@@ -46,20 +48,23 @@ options:
             - in addition to state management, various non-idempotent commands are available.
               See examples.
               Modify was added in version 2.1
+        type: str
     autostart:
-        required: false
+        required: False
         type: bool
         description:
             - Specify if a given network should be started automatically on system boot.
     uri:
-        required: false
+        required: False
         default: "qemu:///system"
         description:
             - libvirt connection uri.
+        type: str
     xml:
-        required: false
+        required: False
         description:
             - XML document used with the define command.
+        type: str
 requirements:
     - "python >= 2.6"
     - "python-libvirt"
@@ -602,7 +607,7 @@ def main():
 
     module = AnsibleModule(
         argument_spec=dict(
-            name=dict(aliases=['network']),
+            name=dict(aliases=['network'], required=True),
             state=dict(choices=['active', 'inactive', 'present', 'absent']),
             command=dict(choices=ALL_COMMANDS),
             uri=dict(default='qemu:///system'),

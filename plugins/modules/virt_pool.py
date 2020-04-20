@@ -27,6 +27,7 @@ options:
         description:
             - name of the storage pool being managed. Note that pool must be previously
               defined with xml.
+        type: str
     state:
         required: false
         choices: [ "active", "inactive", "present", "absent", "undefined", "deleted" ]
@@ -38,14 +39,16 @@ options:
               If 'inactive', pool will be stopped.
               If 'undefined' or 'absent', pool will be removed from I(libvirt) configuration.
               If 'deleted', pool contents will be deleted and then pool undefined.
+        type: str
     command:
         required: false
         choices: [ "define", "build", "create", "start", "stop", "destroy",
                    "delete", "undefine", "get_xml", "list_pools", "facts",
-                   "info", "status" ]
+                   "info", "status", "refresh" ]
         description:
             - in addition to state management, various non-idempotent commands are available.
               See examples.
+        type: str
     autostart:
         required: false
         type: bool
@@ -56,15 +59,18 @@ options:
         default: "qemu:///system"
         description:
             - I(libvirt) connection uri.
+        type: str
     xml:
         required: false
         description:
             - XML document used with the define command.
+        type: str
     mode:
         required: false
         choices: [ 'new', 'repair', 'resize', 'no_overwrite', 'overwrite', 'normal', 'zeroed' ]
         description:
             - Pass additional parameters to 'build' or 'delete' commands.
+        type: str
 requirements:
     - "python >= 2.6"
     - "python-libvirt"
