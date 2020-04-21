@@ -10,19 +10,31 @@ __metaclass__ = type
 
 DOCUMENTATION = """
     author: Jesse Pretorius <jesse@odyssey4.me>
-    connection: libvirt_qemu
-    short_description: Run tasks in libvirt/qemu virtual machines via the qemu agent API
+    connection: community.libvirt.libvirt_qemu
+    short_description: Run tasks on libvirt/qemu virtual machines
     description:
         - Run commands or put/fetch files to libvirt/qemu virtual machines using the qemu agent API.
-        - Currently DOES NOT work with selinux set to enforcing.
+    notes:
+        - Currently DOES NOT work with selinux set to enforcing in the VM.
+        - Requires the qemu-agent installed in the VM.
+        - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-open, guest-file-write, guest-file-close.
     version_added: "2.10"
     options:
       remote_addr:
-        description:
-            - Virtual machine identifier
+        description: Virtual machine name
+        default: inventory_hostname
         vars:
-            - name: ansible_host
-            - name: ansible_libvirt_host
+          - name: ansible_host
+      executable:
+        description: Shell to use for execution inside container
+        default: /bin/sh
+        vars:
+          - name: ansible_executable
+      virt_uri:
+        description: libvirt URI to connect to to access the virtual machine
+        default: qemu:///system
+        vars:
+          - name: ansible_libvirt_uri
 """
 
 import base64
@@ -33,7 +45,7 @@ import shlex
 import traceback
 
 from ansible import constants as C
-from ansible.errors import AnsibleError, AnsibleFileNotFound
+from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNotFound
 from ansible.module_utils._text import to_bytes, to_native, to_text
 from ansible.plugins.connection import ConnectionBase, BUFSIZE
 from ansible.utils.display import Display
@@ -46,11 +58,10 @@ display = Display()
 class Connection(ConnectionBase):
     ''' Local libvirt qemu based connections '''
 
-    transport = 'libvirt'
+    transport = 'community.libvirt.libvirt_qemu'
     # TODO(odyssey4me):
     # Figure out why pipelining does not work and fix it
     has_pipelining = False
-    default_user = 'root'
     has_tty = False
 
     def __init__(self, play_context, new_stdin, *args, **kwargs):
@@ -59,27 +70,25 @@ class Connection(ConnectionBase):
         self._host = self._play_context.remote_addr
         self._executable = self._play_context.executable
 
-        if self._play_context.remote_user is not None and self._play_context.remote_user != 'root':
-            self._display.warning('libvirt does not support remote_user, using virtual machine default: root')
-
-        # TODO(odyssey4me):
-        # Figure out how to enable this to connect to a remote URI.
-        #   - plugins/modules/virt.py has inspiration
-        # Handle libvirt.libvirtError return from libvirt
-        conn = libvirt.open("qemu:///system")
-        if not conn:
-            raise Exception("hypervisor connection failure")
-        self.conn = conn
-
-        domain = conn.lookupByName(self._host)
-        if not domain:
-            raise Exception("domain connection failure")
-        self.domain = domain
-
     def _connect(self):
         ''' connect to the virtual machine; nothing to do here '''
         super(Connection, self)._connect()
         if not self._connected:
+
+            self._virt_uri = self.get_option('virt_uri')
+
+            self._display.vvv(u"CONNECT TO {0}".format(self._virt_uri), host=self._host)
+            try:
+                self.conn = libvirt.open(self._virt_uri)
+            except libvirt.libvirtError as err:
+                raise AnsibleConnectionFailure(to_native(err))
+
+            self._display.vvv(u"FIND DOMAIN {0}".format(self._host), host=self._host)
+            try:
+                self.domain = self.conn.lookupByName(self._host)
+            except libvirt.libvirtError as err:
+                raise AnsibleConnectionFailure(to_native(err))
+
             display.vvv(u"ESTABLISH {0} CONNECTION".format(self.transport), host=self._host)
             self._connected = True
 
