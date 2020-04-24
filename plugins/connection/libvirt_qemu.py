@@ -17,7 +17,7 @@ DOCUMENTATION = """
     notes:
         - Currently DOES NOT work with selinux set to enforcing in the VM.
         - Requires the qemu-agent installed in the VM.
-        - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-open, guest-file-write, guest-file-close.
+        - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-close, guest-file-open, guest-file-read, guest-file-write.
     version_added: "2.10"
     options:
       remote_addr:
@@ -55,6 +55,16 @@ from os.path import exists, getsize
 display = Display()
 
 
+REQUIRED_CAPABILITIES = [
+    {'enabled': True, 'name': 'guest-exec', 'success-response': True},
+    {'enabled': True, 'name': 'guest-exec-status', 'success-response': True},
+    {'enabled': True, 'name': 'guest-file-close', 'success-response': True},
+    {'enabled': True, 'name': 'guest-file-open', 'success-response': True},
+    {'enabled': True, 'name': 'guest-file-read', 'success-response': True},
+    {'enabled': True, 'name': 'guest-file-write', 'success-response': True}
+]
+
+
 class Connection(ConnectionBase):
     ''' Local libvirt qemu based connections '''
 
@@ -88,6 +98,18 @@ class Connection(ConnectionBase):
                 self.domain = self.conn.lookupByName(self._host)
             except libvirt.libvirtError as err:
                 raise AnsibleConnectionFailure(to_native(err))
+
+            request_cap = json.dumps({'execute': 'guest-info'})
+            response_cap = json.loads(libvirt_qemu.qemuAgentCommand(self.domain, request_cap, 5, 0))
+            self.capabilities = response_cap['return']['supported_commands']
+            self._display.vvvvv(u"GUEST CAPABILITIES: {0}".format(self.capabilities), host=self._host)
+            missing_caps = []
+            for cap in REQUIRED_CAPABILITIES:
+                if cap not in self.capabilities:
+                    missing_caps.append(cap['name'])
+            if len(missing_caps) > 0:
+                self._display.vvv(u"REQUIRED CAPABILITIES MISSING: {0}".format(missing_caps), host=self._host)
+                raise AnsibleConnectionFailure('Domain does not have required capabilities')
 
             display.vvv(u"ESTABLISH {0} CONNECTION".format(self.transport), host=self._host)
             self._connected = True
