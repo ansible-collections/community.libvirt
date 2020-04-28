@@ -48,6 +48,7 @@ from ansible import constants as C
 from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNotFound
 from ansible.module_utils._text import to_bytes, to_native, to_text
 from ansible.plugins.connection import ConnectionBase, BUFSIZE
+from ansible.plugins.shell.powershell import _parse_clixml
 from ansible.utils.display import Display
 from functools import partial
 from os.path import exists, getsize
@@ -78,7 +79,15 @@ class Connection(ConnectionBase):
         super(Connection, self).__init__(play_context, new_stdin, *args, **kwargs)
 
         self._host = self._play_context.remote_addr
-        self._executable = self._play_context.executable
+
+        # Windows operates differently from a POSIX connection/shell plugin,
+        # we need to set various properties to ensure SSH on Windows continues
+        # to work
+        if getattr(self._shell, "_IS_WINDOWS", False):
+            self.has_native_async = True
+            self.always_pipeline_modules = True
+            self.module_implementation_preferences = ('.ps1', '.exe', '')
+            self.allow_executable = False
 
     def _connect(self):
         ''' connect to the virtual machine; nothing to do here '''
@@ -121,9 +130,15 @@ class Connection(ConnectionBase):
         self._display.vvv(u"EXEC {0}".format(cmd), host=self._host)
 
         cmd_args_list = shlex.split(to_native(cmd, errors='surrogate_or_strict'))
-        # Remove self._executable from the command list
-        # because it is used for the path argument
-        del cmd_args_list[0]
+
+        if getattr(self._shell, "_IS_WINDOWS", False):
+            # Become method 'runas' is done in the wrapper that is executed,
+            # need to disable sudoable so the bare_run is not waiting for a
+            # prompt that will not occur
+            sudoable = False
+
+            # Generate powershell commands
+            cmd_args_list = self._shell._encode_script(cmd, as_list=True, strict_mode=False, preserve_rc=False)
 
         # TODO(odyssey4me):
         # Implement buffering much like the other connection plugins
@@ -132,9 +147,9 @@ class Connection(ConnectionBase):
         request_exec = {
             'execute': 'guest-exec',
             'arguments': {
-                'path': self._executable,
+                'path': cmd_args_list[0],
                 'capture-output': True,
-                'arg': cmd_args_list
+                'arg': cmd_args_list[1:]
             }
         }
         request_exec_json = json.dumps(request_exec)
@@ -169,17 +184,21 @@ class Connection(ConnectionBase):
         display.vvv(u"GA return: {0}".format(result_status), host=self._host)
 
         if result_status['return'].get('out-data'):
-            stdout = to_text(base64.b64decode(result_status['return']['out-data']))
+            stdout = base64.b64decode(result_status['return']['out-data'])
         else:
-            stdout = ''
+            stdout = b''
 
         if result_status['return'].get('err-data'):
-            stderr = to_text(base64.b64decode(result_status['return']['err-data']))
+            stderr = base64.b64decode(result_status['return']['err-data'])
         else:
-            stderr = ''
+            stderr = b''
 
-        display.vvv(u"GA stdout: {0}".format(stdout), host=self._host)
-        display.vvv(u"GA stderr: {0}".format(stderr), host=self._host)
+        # Decode xml from windows
+        if getattr(self._shell, "_IS_WINDOWS", False) and stdout.startswith(b"#< CLIXML"):
+            stdout = _parse_clixml(stdout)
+
+        display.vvv(u"GA stdout: {0}".format(to_text(stdout)), host=self._host)
+        display.vvv(u"GA stderr: {0}".format(to_text(stderr)), host=self._host)
 
         return result_status['return']['exitcode'], stdout, stderr
 
