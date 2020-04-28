@@ -21,17 +21,31 @@ options:
         description: Libvirt Connection URI
         required: True
         type: str
+    inventory_hostname:
+        description: |
+            What to register as the inventory hostname.
+            If set to 'uuid' the uuid of the server will be used and a
+            group will be created for the server name.
+            If set to 'name' the name of the server will be used unless
+            there are more than one server with the same name in which
+            case the 'uuid' logic will be used.
+            Default is to do 'name'
+        type: string
+        choices:
+            - name
+            - uuid
+        default: "name"
 requirements:
     - "libvirt-python"
 '''
 
 EXAMPLES = r'''
 # Connect to lxc host
-plugin: libvirt
+plugin: community.libvirt.libvirt
 uri: 'lxc:///'
 
-# Connect to qemu host
-plugin: libvirt
+# Connect to qemu
+plugin: community.libvirt.libvirt
 uri: 'qemu:///system'
 '''
 
@@ -76,21 +90,46 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
         }).get(connection.getType())
 
         for server in connection.listAllDomains():
-            hostname = server.name()
-            self.inventory.add_host(hostname)
+            inventory_hostname = dict({
+                'uuid': server.UUIDString(),
+                'name': server.name()
+            }).get(
+                self.get_option('inventory_hostname')
+            )
+
+            inventory_hostname_alias = dict({
+                'name': server.UUIDString(),
+                'uuid': server.name()
+            }).get(
+                self.get_option('inventory_hostname')
+            )
+
+            # TODO(daveol): Fix "Invalid characters were found in group names"
+            # This warning is generated because of uuid's
+            self.inventory.add_host(inventory_hostname)
+            self.inventory.add_group(inventory_hostname_alias)
+            self.inventory.add_child(inventory_hostname_alias, inventory_hostname)
 
             if connection_plugin is not None:
-                self.inventory.set_variable(hostname, 'ansible_libvirt_uri', uri)
-                self.inventory.set_variable(hostname, 'ansible_connection', connection_plugin)
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'ansible_libvirt_uri',
+                    uri
+                )
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'ansible_connection',
+                    connection_plugin
+                )
 
             # Get variables for compose
-            variables = self.inventory.hosts[hostname].get_vars()
+            variables = self.inventory.hosts[inventory_hostname].get_vars()
 
             # Set composed variables
             self._set_composite_vars(
                 self.get_option('compose'),
                 variables,
-                hostname,
+                inventory_hostname,
                 self.get_option('strict'),
             )
 
@@ -98,7 +137,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
             self._add_host_to_composed_groups(
                 self.get_option('groups'),
                 variables,
-                hostname,
+                inventory_hostname,
                 self.get_option('strict'),
             )
 
@@ -106,6 +145,6 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
             self._add_host_to_keyed_groups(
                 self.get_option('keyed_groups'),
                 variables,
-                hostname,
+                inventory_hostname,
                 self.get_option('strict'),
             )
