@@ -6,12 +6,11 @@ authors:
   - Ansible (https://github.com/ansible)
   - community.libvirt (https://github.com/ansible-collections/libvirt/graphs/contributors)
 description: null
-license: GPL-3.0
+license_file: COPYING
 tags:
   - libvirt
   - lxc
   - qemu
-dependencies: {}
 repository: https://github.com/ansible-collections/community.libvirt
 documentation: https://github.com/ansible-collections/community.libvirt/README.md
 homepage: https://github.com/ansible-collections/community.libvirt
