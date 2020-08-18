@@ -1,2 +1,6 @@
+# python stuff
 __pycache__/
 *.py[cod]
+
+# ansible-test stuff
+/tests/output/
