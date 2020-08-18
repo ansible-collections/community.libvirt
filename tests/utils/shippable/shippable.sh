@@ -127,27 +127,6 @@ else
     timeout=45
 fi
 
-# STAR: HACK install dependencies
-
-#ansible-galaxy collection install ansible.windows -p "${COLLECTION_DIR}"
-ansible-galaxy collection install ansible.posix -p "${COLLECTION_DIR}"
-ansible-galaxy collection install community.crypto -p "${COLLECTION_DIR}"
-ansible-galaxy collection install ansible.netcommon -p "${COLLECTION_DIR}"
-
-# unit tests
-ansible-galaxy collection install community.kubernetes -p "${COLLECTION_DIR}"
-ansible-galaxy collection install netbox.netbox -p "${COLLECTION_DIR}"
-ansible-galaxy collection install netapp.ontap -p "${COLLECTION_DIR}"
-ansible-galaxy collection install cisco.meraki -p "${COLLECTION_DIR}"
-ansible-galaxy collection install fortinet.fortios -p "${COLLECTION_DIR}"
-ansible-galaxy collection install junipernetworks.junos -p "${COLLECTION_DIR}"
-ansible-galaxy collection install cisco.aci -p "${COLLECTION_DIR}"
-ansible-galaxy collection install google.cloud -p "${COLLECTION_DIR}"
-ansible-galaxy collection install community.kubernetes -p "${COLLECTION_DIR}"
-ansible-galaxy collection install f5networks.f5_modules -p "${COLLECTION_DIR}"
-
-# END: HACK
-
 ansible-test env --dump --show --timeout "${timeout}" --color -v
 
 "tests/utils/shippable/check_matrix.py"

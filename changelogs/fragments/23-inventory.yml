@@ -1,4 +1,0 @@
----
-major_changes:
-  - removed libvirt_lxc inventory script
-  - added generic libvirt inventory plugin

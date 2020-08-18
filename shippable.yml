@@ -24,15 +24,15 @@ matrix:
 
 #   - env: T=aix/7.2/1
 #   - env: T=osx/10.11/1
-    - env: T=rhel/7.6/1
-    - env: T=rhel/8.1/1
+    - env: T=rhel/7.8/1
+    - env: T=rhel/8.2/1
     - env: T=freebsd/11.1/1
     - env: T=freebsd/12.1/1
     - env: T=linux/centos6/1
     - env: T=linux/centos7/1
     - env: T=linux/centos8/1
-    - env: T=linux/fedora30/1
     - env: T=linux/fedora31/1
+    - env: T=linux/fedora32/1
     - env: T=linux/opensuse15py2/1
     - env: T=linux/opensuse15/1
     - env: T=linux/ubuntu1604/1

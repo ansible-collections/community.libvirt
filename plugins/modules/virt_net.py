@@ -8,11 +8,6 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
-
-
 DOCUMENTATION = '''
 ---
 module: virt_net
@@ -73,69 +68,69 @@ requirements:
 
 EXAMPLES = '''
 # Define a new network
-- virt_net:
+- community.libvirt.virt_net:
     command: define
     name: br_nat
     xml: '{{ lookup("template", "network/bridge.xml.j2") }}'
 
 # Start a network
-- virt_net:
+- community.libvirt.virt_net:
     command: create
     name: br_nat
 
 # List available networks
-- virt_net:
+- community.libvirt.virt_net:
     command: list_nets
 
 # Get XML data of a specified network
-- virt_net:
+- community.libvirt.virt_net:
     command: get_xml
     name: br_nat
 
 # Stop a network
-- virt_net:
+- community.libvirt.virt_net:
     command: destroy
     name: br_nat
 
 # Undefine a network
-- virt_net:
+- community.libvirt.virt_net:
     command: undefine
     name: br_nat
 
 # Gather facts about networks
 # Facts will be available as 'ansible_libvirt_networks'
-- virt_net:
+- community.libvirt.virt_net:
     command: facts
 
 # Gather information about network managed by 'libvirt' remotely using uri
-- virt_net:
+- community.libvirt.virt_net:
     command: info
     uri: '{{ item }}'
   with_items: '{{ libvirt_uris }}'
   register: networks
 
 # Ensure that a network is active (needs to be defined and built first)
-- virt_net:
+- community.libvirt.virt_net:
     state: active
     name: br_nat
 
 # Ensure that a network is inactive
-- virt_net:
+- community.libvirt.virt_net:
     state: inactive
     name: br_nat
 
 # Ensure that a given network will be started at boot
-- virt_net:
+- community.libvirt.virt_net:
     autostart: yes
     name: br_nat
 
 # Disable autostart for a given network
-- virt_net:
+- community.libvirt.virt_net:
     autostart: no
     name: br_nat
 
 # Add a new host in the dhcp pool
-- virt_net:
+- community.libvirt.virt_net:
     name: br_nat
     command: modify
     xml: "<host mac='FC:C2:33:00:6c:3c' name='my_vm' ip='192.168.122.30'/>"

@@ -9,9 +9,6 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
 
 DOCUMENTATION = '''
 ---
@@ -67,7 +64,7 @@ author:
 
 EXAMPLES = '''
 # a playbook task line:
-- virt:
+- community.libvirt.virt:
     name: alpha
     state: running
 
@@ -78,37 +75,37 @@ EXAMPLES = '''
 
 # defining and launching an LXC guest
 - name: define vm
-  virt:
+  community.libvirt.virt:
     command: define
     xml: "{{ lookup('template', 'container-template.xml.j2') }}"
     uri: 'lxc:///'
 - name: start vm
-  virt:
+  community.libvirt.virt:
     name: foo
     state: running
     uri: 'lxc:///'
 
 # setting autostart on a qemu VM (default uri)
 - name: set autostart for a VM
-  virt:
+  community.libvirt.virt:
     name: foo
     autostart: yes
 
 # Defining a VM and making is autostart with host. VM will be off after this task
 - name: define vm from xml and set autostart
-  virt:
+  community.libvirt.virt:
     command: define
     xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
     autostart: yes
 
 # Listing VMs
 - name: list all VMs
-  virt:
+  community.libvirt.virt:
     command: list_vms
   register: all_vms
 
 - name: list only running VMs
-  virt:
+  community.libvirt.virt:
     command: list_vms
     state: running
   register: running_vms
