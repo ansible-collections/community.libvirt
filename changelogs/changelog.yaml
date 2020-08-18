@@ -1,0 +1,10 @@
+ancestor: null
+releases:
+  1.0.0:
+    changes:
+      major_changes:
+      - added generic libvirt inventory plugin
+      - removed libvirt_lxc inventory script
+    fragments:
+    - 23-inventory.yml
+    release_date: '2020-08-18'

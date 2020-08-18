@@ -4,3 +4,6 @@ __pycache__/
 
 # ansible-test stuff
 /tests/output/
+
+# antsibull-changelog stuff
+/changelogs/.plugin-cache.yaml
