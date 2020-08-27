@@ -522,10 +522,9 @@ def core(module):
                 if guest:
                     # there might be a mismatch between quest 'name' in the module and in the xml
                     module.warn("'xml' is given - ignoring 'name'")
-                found_name = re.search('<name>(.*)</name>', xml).groups()
-                if found_name:
-                    domain_name = found_name[0]
-                else:
+                try:
+                    domain_name = re.search('<name>(.*)</name>', xml).groups()[0]
+                except AttributeError:
                     module.fail_json(msg="Could not find domain 'name' in xml")
 
                 # From libvirt docs (https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainDefineXML):
