@@ -10,45 +10,42 @@ __metaclass__ = type
 
 DOCUMENTATION = '''
 ---
-module: virt_pool
-author: "Maciej Delmanowski (@drybjed)"
-short_description: Manage libvirt storage pools
+module: virt_volume
+author: "Leonardo Galli (@galli-leo)"
+short_description: Manage libvirt volumes inside a storage pool
 description:
-    - Manage I(libvirt) storage pools.
+    - Manage I(libvirt) volumes inside a storage pool.
 options:
     name:
         required: false
-        aliases: [ "pool" ]
+        aliases: [ "volume" ]
         description:
-            - name of the storage pool being managed. Note that pool must be previously
+            - name of the volume being managed. Note that the volume must be previously
               defined with xml.
+        type: str
+    pool:
+        required: true
+        description:
+            - name of the storage pool, where the volume is located.
         type: str
     state:
         required: false
-        choices: [ "active", "inactive", "present", "absent", "undefined", "deleted" ]
+        choices: [ "present", "absent", "undefined", "deleted" ]
         description:
-            - specify which state you want a storage pool to be in.
-              If 'active', pool will be started.
-              If 'present', ensure that pool is present but do not change its
+            - specify which state you want a volume to be in.
+              If 'present', ensure that the volume is present but do not change its
               state; if it's missing, you need to specify xml argument.
-              If 'inactive', pool will be stopped.
-              If 'undefined' or 'absent', pool will be removed from I(libvirt) configuration.
-              If 'deleted', pool contents will be deleted and then pool undefined.
+              If 'undefined' or 'absent', volume will be removed from I(libvirt) configuration (logically only!).
+              If 'deleted', volume will be wiped clean and then removed.
         type: str
     command:
         required: false
-        choices: [ "define", "build", "create", "start", "stop", "destroy",
-                   "delete", "undefine", "get_xml", "list_pools", "facts",
-                   "info", "status", "refresh" ]
+        choices: [ "create", "create_from", "delete", "download", "info", "list_volumes", "get_xml",
+                   "resize", "upload", "wipe", "facts"]
         description:
             - in addition to state management, various non-idempotent commands are available.
               See examples.
         type: str
-    autostart:
-        required: false
-        type: bool
-        description:
-            - Specify if a given storage pool should be started automatically on system boot.
     uri:
         required: false
         default: "qemu:///system"
@@ -58,13 +55,13 @@ options:
     xml:
         required: false
         description:
-            - XML document used with the define command.
+            - XML document used with the create command.
         type: str
     mode:
         required: false
         choices: [ 'new', 'repair', 'resize', 'no_overwrite', 'overwrite', 'normal', 'zeroed' ]
         description:
-            - Pass additional parameters to 'build' or 'delete' commands.
+            - Pass additional parameters to 'wipe' command.
         type: str
 requirements:
     - "python >= 2.6"
@@ -168,11 +165,26 @@ VIRT_SUCCESS = 0
 VIRT_UNAVAILABLE = 2
 
 ALL_COMMANDS = []
-ENTRY_COMMANDS = ['create', 'status', 'start', 'stop', 'build', 'delete',
-                  'undefine', 'destroy', 'get_xml', 'define', 'refresh']
-HOST_COMMANDS = ['list_pools', 'facts', 'info']
+ENTRY_COMMANDS = ['create', 'create_from', 'delete', 'download', 'get_xml', 'resize', 'upload',
+                  'wipe']
+HOST_COMMANDS = ['list_volumes', 'facts', 'info']
 ALL_COMMANDS.extend(ENTRY_COMMANDS)
 ALL_COMMANDS.extend(HOST_COMMANDS)
+
+ENTRY_STATE_ACTIVE_MAP = {
+    0: "inactive",
+    1: "active"
+}
+
+ENTRY_STATE_AUTOSTART_MAP = {
+    0: "no",
+    1: "yes"
+}
+
+ENTRY_STATE_PERSISTENT_MAP = {
+    0: "no",
+    1: "yes"
+}
 
 ENTRY_STATE_INFO_MAP = {
     0: "inactive",
@@ -199,28 +211,108 @@ ALL_MODES = []
 ALL_MODES.extend(ENTRY_BUILD_FLAGS_MAP.keys())
 ALL_MODES.extend(ENTRY_DELETE_FLAGS_MAP.keys())
 
-from ansible_collections.community.libvirt.plugins.module_utils.pool import LibvirtConnection
+from ansible_collections.community.libvirt.plugins.module_utils.pool import LibvirtConnection as PoolConnection
 from ansible_collections.community.libvirt.plugins.module_utils.entry import EntryNotFound
 
+class LibvirtConnection(object):
 
-class VirtStoragePool(object):
+    def __init__(self, uri, module, poolid):
 
-    def __init__(self, uri, module):
+        self.module = module
+
+        conn = libvirt.open(uri)
+
+        if not conn:
+            raise Exception("hypervisor connection failure")
+
+        self.conn = conn
+        self.poolid = poolid
+        self.poolConn = PoolConnection(uri, module)
+        self.pool = self.poolConn.find_entry(poolid)
+
+    def find_entry(self, entryid):
+        # entryid = -1 returns a list of everything
+
+        results = []
+
+        for entry in self.pool.listAllVolumes():
+            if entryid == -1:
+                results.append(entry)
+            elif entry.name() == entryid:
+                return entry
+
+        if entryid == -1:
+            return results
+
+        raise EntryNotFound("volume %s not found" % entryid)
+
+    def create(self, entryid, xml):
+        return self.pool.createXML(xml)
+        # try:
+            
+        # except Exception:
+        #     return self.module.exit_json(changed=True)
+
+    def create_from(self, entryid, xml, to_clone):
+        from_vol = self.find_entry(to_clone)
+        try:
+            return self.pool.createXMLFrom(xml, from_vol)
+        except Exception:
+            return self.module.exit_json(changed=True)
+
+    def delete(self, entryid):
+        if not self.module.check_mode:
+            return self.find_entry(entryid).delete()
+        else:
+            if self.find_entry(entryid):
+                return self.module.exit_json(changed=True)
+
+    def wipe(self, entryid, mode):
+        if not self.module.check_mode:
+            return self.find_entry(entryid).wipe()
+        else:
+            if not self.find_entry(entryid):
+                return self.module.exit_json(changed=True)
+
+    def get_status2(self, entry):
+        return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
+
+    def get_status(self, entryid):
+        if not self.module.check_mode:
+            state = self.find_entry(entryid).isActive()
+            return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
+        else:
+            try:
+                state = self.find_entry(entryid).isActive()
+                return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
+            except Exception:
+                return ENTRY_STATE_ACTIVE_MAP.get("inactive", "unknown")
+
+    def get_uuid(self, entryid):
+        return self.find_entry(entryid).UUIDString()
+
+    def get_xml(self, entryid):
+        return self.find_entry(entryid).XMLDesc(0)
+
+    def get_info(self, entryid):
+        return self.find_entry(entryid).info()
+
+
+class VirtVolume(object):
+
+    def __init__(self, uri, module, poolid):
         self.module = module
         self.uri = uri
-        self.conn = LibvirtConnection(self.uri, self.module)
+        self.poolid = poolid
+        self.conn = LibvirtConnection(self.uri, self.module, self.poolid)
 
-    def get_pool(self, entryid):
+    def get_volume(self, entryid):
         return self.conn.find_entry(entryid)
 
-    def list_pools(self, state=None):
+    def list_volumes(self, state=None):
         results = []
         for entry in self.conn.find_entry(-1):
-            if state:
-                if state == self.conn.get_status2(entry):
-                    results.append(entry.name())
-            else:
-                results.append(entry.name())
+            results.append(entry.name())
         return results
 
     def state(self):
@@ -230,47 +322,23 @@ class VirtStoragePool(object):
             results.append("%s %s" % (entry, state_blurb))
         return results
 
-    def autostart(self, entryid):
-        return self.conn.set_autostart(entryid, True)
+    def create(self, entryid, xml):
+        return self.conn.create(entryid, xml)
+    
+    def create_from(self, entryid, xml, to_clone):
+        return self.conn.create_from(entryid, xml, to_clone)
 
-    def get_autostart(self, entryid):
-        return self.conn.get_autostart2(entryid)
-
-    def set_autostart(self, entryid, state):
-        return self.conn.set_autostart(entryid, state)
-
-    def create(self, entryid):
-        return self.conn.create(entryid)
-
-    def start(self, entryid):
-        return self.conn.create(entryid)
-
-    def stop(self, entryid):
-        return self.conn.destroy(entryid)
-
-    def destroy(self, entryid):
-        return self.conn.destroy(entryid)
-
-    def undefine(self, entryid):
-        return self.conn.undefine(entryid)
-
+    def delete(self, entryid):
+        return self.conn.delete(entryid)
+    
     def status(self, entryid):
         return self.conn.get_status(entryid)
 
     def get_xml(self, entryid):
         return self.conn.get_xml(entryid)
 
-    def define(self, entryid, xml):
-        return self.conn.define_from_xml(entryid, xml)
-
-    def build(self, entryid, flags):
-        return self.conn.build(entryid, ENTRY_BUILD_FLAGS_MAP.get(flags, 0))
-
-    def delete(self, entryid, flags):
-        return self.conn.delete(entryid, ENTRY_DELETE_FLAGS_MAP.get(flags, 0))
-
-    def refresh(self, entryid):
-        return self.conn.refresh(entryid)
+    def wipe(self, entryid, flags):
+        return self.conn.wipe(entryid, ENTRY_DELETE_FLAGS_MAP.get(flags, 0))
 
     def info(self):
         return self.facts(facts_mode='info')
@@ -343,17 +411,17 @@ def core(module):
 
     state = module.params.get('state', None)
     name = module.params.get('name', None)
+    pool = module.params.get('pool', None)
     command = module.params.get('command', None)
     uri = module.params.get('uri', None)
     xml = module.params.get('xml', None)
-    autostart = module.params.get('autostart', None)
     mode = module.params.get('mode', None)
 
-    v = VirtStoragePool(uri, module)
+    v = VirtVolume(uri, module, pool)
     res = {}
 
-    if state and command == 'list_pools':
-        res = v.list_pools(state=state)
+    if state and command == 'list_volumes':
+        res = v.list_volumes(state=state)
         if not isinstance(res, dict):
             res = {command: res}
         return VIRT_SUCCESS, res
@@ -363,39 +431,25 @@ def core(module):
             module.fail_json(msg="state change requires a specified name")
 
         res['changed'] = False
-        if state in ['active']:
-            if v.status(name) != 'active':
-                res['changed'] = True
-                res['msg'] = v.start(name)
-        elif state in ['present']:
+        if state in ['present']:
             try:
-                v.get_pool(name)
+                v.get_volume(name)
             except EntryNotFound:
                 if not xml:
-                    module.fail_json(msg="storage pool '" + name + "' not present, but xml not specified")
-                v.define(name, xml)
+                    module.fail_json(msg="volume '" + name + "' not present, but xml not specified")
+                v.create(name, xml)
                 res = {'changed': True, 'created': name}
-        elif state in ['inactive']:
-            entries = v.list_pools()
-            if name in entries:
-                if v.status(name) != 'inactive':
-                    res['changed'] = True
-                    res['msg'] = v.destroy(name)
         elif state in ['undefined', 'absent']:
             entries = v.list_pools()
             if name in entries:
-                if v.status(name) != 'inactive':
-                    v.destroy(name)
                 res['changed'] = True
-                res['msg'] = v.undefine(name)
+                res['msg'] = v.delete(name)
         elif state in ['deleted']:
             entries = v.list_pools()
             if name in entries:
-                if v.status(name) != 'inactive':
-                    v.destroy(name)
-                v.delete(name, mode)
+                v.wipe(name, mode)
                 res['changed'] = True
-                res['msg'] = v.undefine(name)
+                res['msg'] = v.delete(name)
         else:
             module.fail_json(msg="unexpected state")
 
@@ -438,22 +492,6 @@ def core(module):
         else:
             module.fail_json(msg="Command %s not recognized" % command)
 
-    if autostart is not None:
-        if not name:
-            module.fail_json(msg="state change requires a specified name")
-
-        res['changed'] = False
-        if autostart:
-            if not v.get_autostart(name):
-                res['changed'] = True
-                res['msg'] = v.set_autostart(name, True)
-        else:
-            if v.get_autostart(name):
-                res['changed'] = True
-                res['msg'] = v.set_autostart(name, False)
-
-        return VIRT_SUCCESS, res
-
     module.fail_json(msg="expected state or command parameter to be specified")
 
 
@@ -461,12 +499,12 @@ def main():
 
     module = AnsibleModule(
         argument_spec=dict(
-            name=dict(aliases=['pool']),
+            name=dict(aliases=['volume']),
+            pool=dict(required=True),
             state=dict(choices=['active', 'inactive', 'present', 'absent', 'undefined', 'deleted']),
             command=dict(choices=ALL_COMMANDS),
             uri=dict(default='qemu:///system'),
             xml=dict(),
-            autostart=dict(type='bool'),
             mode=dict(choices=ALL_MODES),
         ),
         supports_check_mode=True
