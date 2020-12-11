@@ -130,7 +130,7 @@ stages:
               test: ubuntu1604
             - name: Ubuntu 18.04
               test: ubuntu1804
-  - stage: Docker_2.9
+  - stage: Docker_2_9
     displayName: Docker 2.9
     dependsOn: []
     jobs:
@@ -190,7 +190,7 @@ stages:
               test: freebsd/11.1
             - name: FreeBSD 12.1
               test: freebsd/12.1
-  - stage: Remote_2.9
+  - stage: Remote_2_9
     displayName: Remote 2.9
     dependsOn: []
     jobs:
