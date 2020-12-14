@@ -7,3 +7,4 @@ tests/unit/modules/cloud/misc/virt_net/conftest.py metaclass-boilerplate
 tests/unit/modules/cloud/misc/virt_net/test_virt_net.py future-import-boilerplate
 tests/unit/modules/cloud/misc/virt_net/test_virt_net.py metaclass-boilerplate
 tests/utils/shippable/timing.py shebang
+tests/utils/shippable/check_matrix.py replace-urlopen

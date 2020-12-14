@@ -1,6 +1,7 @@
 # community.libvirt Collection
-<!-- Add CI and code coverage badges here. -->
-<!-- Describe the collection and why a user would want to use it. What does the collection do? -->
+[![Build Status](
+https://dev.azure.com/ansible/community.libvirt/_apis/build/status/CI?branchName=main)](https://dev.azure.com/ansible/community.libvirt/_build?definitionId=27)
+[![Codecov](https://img.shields.io/codecov/c/github/ansible-collections/community.libvirt)](https://codecov.io/gh/ansible-collections/community.libvirt)
 
 This repo hosts the `community.libvirt` Ansible Collection.
 
