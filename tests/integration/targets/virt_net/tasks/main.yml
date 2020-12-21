@@ -17,51 +17,48 @@
         state: started
 
     - name: Define the foobar network
-      virt_net:
+      community.libvirt.virt_net:
         command: define
         name: foobar
         xml: '{{ lookup("file", "foobar.xml") }}'
-    
+
     - name: Define the foobar network (again)
-      virt_net:
+      community.libvirt.virt_net:
         command: define
         name: foobar
         xml: '{{ lookup("file", "foobar.xml") }}'
       register: second_virt_net_define
-    
-    - name: Start the default network
-      virt_net:
-        uri: qemu:///system
+
+    - name: Start the foobar network
+      community.libvirt.virt_net:
         command: start
         name: foobar
-    
-    - name: Start the default network (again)
-      virt_net:
-        uri: qemu:///system
+
+    - name: Start the foobar network (again)
+      community.libvirt.virt_net:
         command: start
         name: foobar
       register: second_virt_net_start
 
-    - name: Get facts for default network
-      virt_net:
-        uri: qemu:///system
+    - name: Get facts for the foobar network
+      community.libvirt.virt_net:
         command: facts
         name: foobar
       register: virt_net_facts
 
     - name: Destroy the foobar network
-      virt_net:
+      community.libvirt.virt_net:
         command: destroy
         name: foobar
 
     - name: Undefine the foobar network
-      virt_net:
+      community.libvirt.virt_net:
         command: undefine
         name: foobar
       register: second_virt_net_define
 
     - name: Undefine the foobar network (again)
-      virt_net:
+      community.libvirt.virt_net:
         command: undefine
         name: foobar
       register: second_virt_net_undefine
@@ -72,7 +69,15 @@
           - "second_virt_net_start is not changed"
           - "second_virt_net_define is not changed"
           - "second_virt_net_undefine is not changed"
-    
+
+    - name: List all the networks
+      community.libvirt.virt_net:
+        command: list_nets
+
+    - name: Get all the network facts
+      community.libvirt.virt_net:
+        command: facts
+
   always:
     - name: Stop libvirt
       service:

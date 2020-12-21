@@ -17,7 +17,7 @@ description:
      - Manage I(libvirt) networks.
 options:
     name:
-        required: True
+        required: False
         aliases: ['network']
         description:
             - name of the network being managed. Note that network must be previously
@@ -602,14 +602,25 @@ def main():
 
     module = AnsibleModule(
         argument_spec=dict(
-            name=dict(aliases=['network'], required=True),
+            name=dict(aliases=['network']),
             state=dict(choices=['active', 'inactive', 'present', 'absent']),
             command=dict(choices=ALL_COMMANDS),
             uri=dict(default='qemu:///system'),
             xml=dict(),
             autostart=dict(type='bool')
         ),
-        supports_check_mode=True
+        supports_check_mode=True,
+        required_if=[
+            ('command', 'create', ['name']),
+            ('command', 'status', ['name']),
+            ('command', 'start', ['name']),
+            ('command', 'stop', ['name']),
+            ('command', 'undefine', ['name']),
+            ('command', 'destroy', ['name']),
+            ('command', 'get_xml', ['name']),
+            ('command', 'define', ['name']),
+            ('command', 'modify', ['name']),
+        ]
     )
 
     if not HAS_VIRT:
