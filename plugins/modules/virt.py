@@ -551,7 +551,7 @@ def core(module):
                         res = {'changed': True, 'created': domain.name()}
                 except libvirtError as e:
                     if e.get_error_code() != 9:  # 9 means 'domain already exists' error
-                        module.fail_json(msg='libvirtError: %s' % e.message)
+                        module.fail_json(msg='libvirtError: %s' % e.get_error_message())
                 if autostart is not None and v.autostart(domain_name, autostart):
                     res = {'changed': True, 'change_reason': 'autostart'}
 
