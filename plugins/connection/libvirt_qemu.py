@@ -62,7 +62,6 @@ from ansible.utils.display import Display
 from functools import partial
 from os.path import exists, getsize
 
-
 display = Display()
 
 
