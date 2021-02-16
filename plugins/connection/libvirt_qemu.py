@@ -19,7 +19,6 @@ DOCUMENTATION = """
         - Requires the qemu-agent installed in the VM.
         - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-close, guest-file-open, guest-file-read, guest-file-write.
     requirements:
-        - python >= 2.6
         - libvirt-python
     version_added: "2.10"
     options:
