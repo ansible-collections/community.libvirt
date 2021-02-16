@@ -4,7 +4,7 @@ version: 1.0.0
 readme: README.md
 authors:
   - Ansible (https://github.com/ansible)
-  - community.libvirt (https://github.com/ansible-collections/libvirt/graphs/contributors)
+  - community.libvirt
 description: null
 license_file: COPYING
 tags:
