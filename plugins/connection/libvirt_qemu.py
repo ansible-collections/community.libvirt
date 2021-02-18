@@ -18,6 +18,8 @@ DOCUMENTATION = """
         - Currently DOES NOT work with selinux set to enforcing in the VM.
         - Requires the qemu-agent installed in the VM.
         - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-close, guest-file-open, guest-file-read, guest-file-write.
+    requirements:
+        - libvirt-python
     version_added: "2.10"
     options:
       remote_addr:
@@ -39,14 +41,21 @@ DOCUMENTATION = """
 
 import base64
 import json
-import libvirt
-import libvirt_qemu
 import shlex
 import traceback
+
+try:
+    import libvirt
+    import libvirt_qemu
+except ImportError as imp_exc:
+    LIBVIRT_IMPORT_ERROR = imp_exc
+else:
+    LIBVIRT_IMPORT_ERROR = None
 
 from ansible import constants as C
 from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNotFound
 from ansible.module_utils._text import to_bytes, to_native, to_text
+from ansible.module_utils.six import raise_from
 from ansible.plugins.connection import ConnectionBase, BUFSIZE
 from ansible.plugins.shell.powershell import _parse_clixml
 from ansible.utils.display import Display
@@ -76,6 +85,11 @@ class Connection(ConnectionBase):
     has_tty = False
 
     def __init__(self, play_context, new_stdin, *args, **kwargs):
+        if LIBVIRT_IMPORT_ERROR:
+            raise_from(
+                AnsibleError('libvirt-python must be installed to use this plugin'),
+                LIBVIRT_IMPORT_ERROR)
+
         super(Connection, self).__init__(play_context, new_stdin, *args, **kwargs)
 
         self._host = self._play_context.remote_addr
