@@ -42,6 +42,7 @@ DOCUMENTATION = """
 import base64
 import json
 import shlex
+import time
 import traceback
 
 try:
@@ -176,6 +177,8 @@ class Connection(ConnectionBase):
 
         display.vvv(u"GA return: {0}".format(result_exec), host=self._host)
 
+        command_start = time.clock_gettime(time.CLOCK_MONOTONIC)
+
         request_status = {
             'execute': 'guest-exec-status',
             'arguments': {
@@ -193,6 +196,13 @@ class Connection(ConnectionBase):
         display.vvv(u"GA return: {0}".format(result_status), host=self._host)
 
         while not result_status['return']['exited']:
+            # Wait for 5% of the time already elapsed
+            sleep_time = (time.clock_gettime(time.CLOCK_MONOTONIC) - command_start) * (5 / 100)
+            if sleep_time < 0.0002:
+                sleep_time = 0.0002
+            elif sleep_time > 1:
+                sleep_time = 1
+            time.sleep(sleep_time)
             result_status = json.loads(libvirt_qemu.qemuAgentCommand(self.domain, request_status_json, 5, 0))
 
         display.vvv(u"GA return: {0}".format(result_status), host=self._host)
