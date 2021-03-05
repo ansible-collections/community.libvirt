@@ -87,7 +87,14 @@ TBD
 
 ### Publishing New Version
 
-TBD
+Basic instructions without release branches:
+
+1. Create `changelogs/fragments/<version>.yml` with `release_summary:` section (which must be a string, not a list).
+2. Run `antsibull-changelog release --collection-flatmap yes`
+3. Make sure `CHANGELOG.rst` and `changelogs/changelog.yaml` are added to git, and the deleted fragments have been removed.
+4. Tag the commit with `<version>`. Push changes and tag to the main repository.
+5. Monitor the release job on the [Zuul Status Dashboard](https://dashboard.zuul.ansible.com/t/ansible/status).
+6. Verify that the new version is available on [Ansible Galaxy](https://galaxy.ansible.com/community/libvirt).
 
 ## More Information
 <!-- List out where the user can find additional information, such as working group meeting times, slack/IRC channels, or documentation for the product this collection automates. -->
