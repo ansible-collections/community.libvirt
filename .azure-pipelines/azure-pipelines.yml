@@ -266,12 +266,15 @@ stages:
     condition: succeededOrFailed()
     dependsOn:
       - Ansible_devel
+      - Ansible_2_11
       - Ansible_2_10
       - Ansible_2_9
       - Docker_devel
+      - Docker_2_11
       - Docker_2_10
       - Docker_2_9
       - Remote_devel
+      - Remote_2_11
       - Remote_2_10
       - Remote_2_9
     jobs:
