@@ -105,7 +105,7 @@ This is a small collection with a small number of contributors. As such, there
 is no formal Ansible Working Group. To communicate with the maintainers, please
 make contact via one of the following methods:
 
-- IRC on Freenode in #ansible-community
+- IRC on [irc.libera.chat](https://libera.chat/) in the `#ansible-community` channel
 - [Issues](https://github.com/ansible-collections/libvirt/issues) on Github
 
 ### Reference
