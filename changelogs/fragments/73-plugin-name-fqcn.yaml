@@ -1,0 +1,2 @@
+bugfixes:
+  - libvirt inventory plugin - Use FQCN for the inventory plugin name for compatibility with Ansible 2.10 and above.
