@@ -4,6 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
+
 class ModuleDocFragment(object):
     OPTIONS_GUEST = r"""
 options:
@@ -38,7 +39,7 @@ options:
     choices: [ create, define, destroy, freemem, get_xml, info, list_vms, nodeinfo, pause, shutdown, start, status, stop, undefine, unpause, virttype ]
     type: str
     """
-    
+
     OPTIONS_AUTOSTART = r"""
 options:
   autostart:
