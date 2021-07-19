@@ -7,11 +7,9 @@ This repo hosts the `community.libvirt` Ansible Collection.
 
 The collection includes the libvirt modules and plugins supported by Ansible
 libvirt community to help the management of virtual machines and/or containers
-via the [libvirt][1] API.
+via the [libvirt](https://libvirt.org/) API.
 
 This collection is shipped with the `ansible` package.
-
-[1]: https://libvirt.org/
 
 ## Tested with Ansible
 <!-- List the versions of Ansible the collection has been tested with. Must match what is in galaxy.yml. -->
@@ -28,6 +26,7 @@ This collection is shipped with the `ansible` package.
 
 ## Included content
 <!-- Galaxy will eventually list the module docs within the UI, but until that is ready, you may need to either describe your plugins etc here, or point to an external docsite to cover that information. -->
+
 Modules:
 
 - [virt](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_module.html)
@@ -95,26 +94,25 @@ The aspiration is to follow the following general guidelines:
 - The collection plugins must provide the same coverage of python support as
   the versions of Ansible supported.
 - The versions of Ansible supported by the collection must be the same as
-  those in developed, or those maintained, as shown in the Ansible [Release and Maintenance][3] documentation.
+  those in developed, or those maintained, as shown in the Ansible [Release and Maintenance](https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html) documentation.
 
-[3]: https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html
+We use the following guidelines:
 
-As a fallback, the [Ansible Community Guide][4] remains our community
-reference set of guidelines.
-
-[4]: https://docs.ansible.com/ansible/latest/community/index.html
+* [CONTRIBUTING.md](https://github.com/ansible-collections/community.libvirt/blob/main/CONTRIBUTING.md)
+* [REVIEW_CHECKLIST.md](https://github.com/ansible-collections/community.libvirt/blob/main/REVIEW_CHECKLIST.md)
+* [Ansible Community Guide](https://docs.ansible.com/ansible/latest/community/index.html)
+* [Ansible Development Guide](https://docs.ansible.com/ansible/devel/dev_guide/index.html)
+* [Ansible Collection Development Guide](https://docs.ansible.com/ansible/devel/dev_guide/developing_collections.html#contributing-to-collections)
 
 ### Local Testing
 
-If you want to develop new content for this collection or improve what is
-already here, the easiest way to work on the collection is to clone it into
-one of the configured [COLLECTIONS_PATHS][5] and work on it there.
+To learn how to test your pull request locally, refer to the [Quick-start guide](https://github.com/ansible/community-docs/blob/main/create_pr_quick_start_guide.rst#id3).
 
-[5]:  https://docs.ansible.com/ansible/latest/reference_appendices/config.html#collections-paths
+To learn how to test a pull request made by another person in your local environment, refer to the [Test PR locally guide](https://github.com/ansible/community-docs/blob/main/test_pr_locally_guide.rst).
 
-### Testing with `ansible-test`
+### Collection maintenance
 
-TBD
+Maintainers of this collection follow the [mainteiner guidelines](MAINTAINING.md).
 
 ### Publishing New Version
 
@@ -127,17 +125,23 @@ Basic instructions without release branches:
 5. Monitor the release job on the [Zuul Status Dashboard](https://dashboard.zuul.ansible.com/t/ansible/status).
 6. Verify that the new version is available on [Ansible Galaxy](https://galaxy.ansible.com/community/libvirt).
 
+See the [Releasing guidelines](https://github.com/ansible/community-docs/blob/main/releasing_collections_without_release_branches.rst) to learn more.
+
 ## More Information
 <!-- List out where the user can find additional information, such as working group meeting times, slack/IRC channels, or documentation for the product this collection automates. -->
 
 ### Communication
 
-This is a small collection with a small number of contributors. As such, there
-is no formal Ansible Working Group. To communicate with the maintainers, please
-make contact via one of the following methods:
+To communicate, we use:
 
-- IRC on [irc.libera.chat](https://libera.chat/) in the `#ansible-community` channel
-- [Issues](https://github.com/ansible-collections/libvirt/issues) on Github
+- The `#ansible-community` [Libera.Chat](https://libera.chat/) IRC channel.
+- [Issues](https://github.com/ansible-collections/libvirt/issues) in this repository.
+
+We announce important development changes and releases through Ansible's [The Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn). If you are a collection developer, be sure you are subscribed.
+
+We take part in the global quarterly [Ansible Contributor Summit](https://github.com/ansible/community/wiki/Contributor-Summit) virtually or in-person. Track [The Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn) and join us.
+
+For more information about communication, refer to the [Ansible Communication guide](https://docs.ansible.com/ansible/devel/community/communication.html).
 
 ### Reference
 
