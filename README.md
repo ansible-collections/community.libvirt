@@ -9,53 +9,85 @@ The collection includes the libvirt modules and plugins supported by Ansible
 libvirt community to help the management of virtual machines and/or containers
 via the [libvirt][1] API.
 
+This collection is shipped with the `ansible` package.
+
 [1]: https://libvirt.org/
 
 ## Tested with Ansible
 <!-- List the versions of Ansible the collection has been tested with. Must match what is in galaxy.yml. -->
-TBD
+
+- 2.9
+- 2.10
+- 2.11
+- devel
 
 ## External requirements
 <!-- List any external resources the collection depends on, for example minimum versions of an OS, libraries, or utilities. Do not list other Ansible collections here. -->
-TBD
-
-### Supported connections
-<!-- Optional. If your collection supports only specific connection types (such as HTTPAPI, netconf, or others), list them here. -->
-TBD
+- python >= 2.6
+- [libvirt-python](https://pypi.org/project/libvirt-python/)
 
 ## Included content
 <!-- Galaxy will eventually list the module docs within the UI, but until that is ready, you may need to either describe your plugins etc here, or point to an external docsite to cover that information. -->
-TBD
+Modules:
+
+- [virt](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_module.html)
+- [virt_net](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_net_module.html)
+- [virt_pool](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_pool_module.html)
+
+Inventory:
+
+- [libvirt](https://docs.ansible.com/ansible/latest/collections/community/libvirt/libvirt_inventory.html#ansible-collections-community-libvirt-libvirt-inventory)
+
+Connection:
+
+- [libvirt_lxc](https://docs.ansible.com/ansible/latest/collections/community/libvirt/libvirt_lxc_connection.html#ansible-collections-community-libvirt-libvirt-lxc-connection)
+- [libvirt_qemu](https://docs.ansible.com/ansible/latest/collections/community/libvirt/libvirt_qemu_connection.html#ansible-collections-community-libvirt-libvirt-qemu-connection)
 
 ## Using this collection
 <!--Include some quick examples that cover the most common use cases for your collection content. -->
 
-Before using the libvirt community collection, you need to install the
-collection with the `ansible-galaxy` CLI:
+Before using the libvirt collection, you need to install it with the Ansible Galaxy command-line tool:
 
 ```bash
 ansible-galaxy collection install community.libvirt
 ```
 
-Alternatively, you can also include it in a `requirements.yml` file and
-install it via `ansible-galaxy collection install -r requirements.yml` using
-the format:
+You can include it in a `requirements.yml` file and install it via `ansible-galaxy collection install -r requirements.yml`, using the format:
 
 ```yaml
+---
 collections:
-- name: community.libvirt
+  - name: community.libvirt
 ```
 
-For more information regarding using collections with Ansible, see the Ansible
-[user guide][3].
+You can also download the tarball from [Ansible Galaxy](https://galaxy.ansible.com/community/libvirt) and install the collection manually wherever you need.
 
-[3]: https://docs.ansible.com/ansible/latest/user_guide/collections_using.html
+Note that if you install the collection from Ansible Galaxy with the command-line tool or tarball, it will not be upgraded automatically when you upgrade the Ansible package. To upgrade the collection to the latest available version, run the following command:
+
+```bash
+ansible-galaxy collection install community.libvirt --upgrade
+```
+
+You can also install a specific version of the collection, for example, if you need to downgrade when something is broken in the latest version (please report an issue in this repository). Use the following syntax:
+
+```bash
+ansible-galaxy collection install community.libvirt:==X.Y.Z
+```
+
+See [Ansible Using collections](https://docs.ansible.com/ansible/latest/user_guide/collections_using.html) for more details.
 
 ## Contributing to this collection
 <!--Describe how the community can contribute to your collection. At a minimum, include how and where users can create issues to report problems or request features for this collection.  List contribution requirements, including preferred workflows and necessary testing, so you can benefit from community PRs. -->
 
-While this community is still developing its guidelines, the aspiration is to
-follow the following general guidelines:
+The content of this collection is made by people just like you, a community of individuals collaborating on making the world better through developing automation software.
+
+We are actively accepting new contributors.
+
+All types of contributions are very welcome.
+
+You don't know how to start? Refer to our [contribution guide](https://github.com/ansible-collections/community.libvirt/blob/main/CONTRIBUTING.md)!
+
+The aspiration is to follow the following general guidelines:
 
 - Changes should include tests and documentation where appropriate.
 - Changes will be lint tested using standard python lint tests.
@@ -63,23 +95,22 @@ follow the following general guidelines:
 - The collection plugins must provide the same coverage of python support as
   the versions of Ansible supported.
 - The versions of Ansible supported by the collection must be the same as
-  those in developed, or those maintained, as shown in the Ansible [Release
-  and Maintenance][4] documentation.
+  those in developed, or those maintained, as shown in the Ansible [Release and Maintenance][3] documentation.
 
-[4]: https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html
+[3]: https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html
 
-As a fallback, the [Ansible Community Guide][5] remains our community
+As a fallback, the [Ansible Community Guide][4] remains our community
 reference set of guidelines.
 
-[5]: https://docs.ansible.com/ansible/latest/community/index.html
+[4]: https://docs.ansible.com/ansible/latest/community/index.html
 
 ### Local Testing
 
 If you want to develop new content for this collection or improve what is
 already here, the easiest way to work on the collection is to clone it into
-one of the configured [COLLECTIONS_PATHS][2] and work on it there.
+one of the configured [COLLECTIONS_PATHS][5] and work on it there.
 
-[2]:  https://docs.ansible.com/ansible/latest/reference_appendices/config.html#collections-paths
+[5]:  https://docs.ansible.com/ansible/latest/reference_appendices/config.html#collections-paths
 
 ### Testing with `ansible-test`
 
