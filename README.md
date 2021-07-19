@@ -112,7 +112,7 @@ To learn how to test a pull request made by another person in your local environ
 
 ### Collection maintenance
 
-Maintainers of this collection follow the [mainteiner guidelines](MAINTAINING.md).
+Maintainers of this collection follow the [Maintainer guidelines](MAINTAINING.md).
 
 ### Publishing New Version
 
