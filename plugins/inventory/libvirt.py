@@ -16,7 +16,7 @@ options:
     plugin:
         description: Token that ensures this is a source file for the 'libvirt' plugin.
         required: True
-        choices: ['community.libvirt.libvirt']
+        choices: ['libvirt', 'community.libvirt.libvirt']
     uri:
         description: Libvirt Connection URI
         required: True
