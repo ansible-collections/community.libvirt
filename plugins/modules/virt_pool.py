@@ -17,51 +17,44 @@ description:
     - Manage I(libvirt) storage pools.
 options:
     name:
-        required: false
         aliases: [ "pool" ]
         description:
-            - name of the storage pool being managed. Note that pool must be previously
+            - Name of the storage pool being managed. Note that pool must be previously
               defined with xml.
         type: str
     state:
-        required: false
         choices: [ "active", "inactive", "present", "absent", "undefined", "deleted" ]
         description:
-            - specify which state you want a storage pool to be in.
+            - Specify which state you want a storage pool to be in.
               If 'active', pool will be started.
               If 'present', ensure that pool is present but do not change its
-              state; if it's missing, you need to specify xml argument.
+              state; if it is missing, you need to specify xml argument.
               If 'inactive', pool will be stopped.
               If 'undefined' or 'absent', pool will be removed from I(libvirt) configuration.
               If 'deleted', pool contents will be deleted and then pool undefined.
         type: str
     command:
-        required: false
         choices: [ "define", "build", "create", "start", "stop", "destroy",
                    "delete", "undefine", "get_xml", "list_pools", "facts",
                    "info", "status", "refresh" ]
         description:
-            - in addition to state management, various non-idempotent commands are available.
+            - In addition to state management, various non-idempotent commands are available.
               See examples.
         type: str
     autostart:
-        required: false
         type: bool
         description:
             - Specify if a given storage pool should be started automatically on system boot.
     uri:
-        required: false
         default: "qemu:///system"
         description:
             - I(libvirt) connection uri.
         type: str
     xml:
-        required: false
         description:
             - XML document used with the define command.
         type: str
     mode:
-        required: false
         choices: [ 'new', 'repair', 'resize', 'no_overwrite', 'overwrite', 'normal', 'zeroed' ]
         description:
             - Pass additional parameters to 'build' or 'delete' commands.
@@ -73,75 +66,76 @@ requirements:
 '''
 
 EXAMPLES = '''
-# Define a new storage pool
-- community.libvirt.virt_pool:
+- name: Define a new storage pool
+  community.libvirt.virt_pool:
     command: define
     name: vms
     xml: '{{ lookup("template", "pool/dir.xml.j2") }}'
 
-# Build a storage pool if it does not exist
-- community.libvirt.virt_pool:
+- name: Build a storage pool if it does not exist
+  community.libvirt.virt_pool:
     command: build
     name: vms
 
-# Start a storage pool
-- community.libvirt.virt_pool:
+- name: Start a storage pool
+  community.libvirt.virt_pool:
     command: create
     name: vms
 
-# List available pools
-- community.libvirt.virt_pool:
+- name: List available pools
+  community.libvirt.virt_pool:
     command: list_pools
 
-# Get XML data of a specified pool
-- community.libvirt.virt_pool:
+- name: Get XML data of a specified pool
+  community.libvirt.virt_pool:
     command: get_xml
     name: vms
 
-# Stop a storage pool
-- community.libvirt.virt_pool:
+- name: Stop a storage pool
+  community.libvirt.virt_pool:
     command: destroy
     name: vms
 
-# Delete a storage pool (destroys contents)
-- community.libvirt.virt_pool:
+- name: Delete a storage pool (destroys contents)
+  community.libvirt.virt_pool:
     command: delete
     name: vms
 
-# Undefine a storage pool
-- community.libvirt.virt_pool:
+- name: Undefine a storage pool
+  community.libvirt.virt_pool:
     command: undefine
     name: vms
 
 # Gather facts about storage pools
 # Facts will be available as 'ansible_libvirt_pools'
-- community.libvirt.virt_pool:
+- name: Gather facts about storage pools
+  community.libvirt.virt_pool:
     command: facts
 
-# Gather information about pools managed by 'libvirt' remotely using uri
-- community.libvirt.virt_pool:
+- name: Gather information about pools managed by 'libvirt' remotely using uri
+  community.libvirt.virt_pool:
     command: info
     uri: '{{ item }}'
   with_items: '{{ libvirt_uris }}'
   register: storage_pools
 
-# Ensure that a pool is active (needs to be defined and built first)
-- community.libvirt.virt_pool:
+- name: Ensure that a pool is active (needs to be defined and built first)
+  community.libvirt.virt_pool:
     state: active
     name: vms
 
-# Ensure that a pool is inactive
-- community.libvirt.virt_pool:
+- name: Ensure that a pool is inactive
+  community.libvirt.virt_pool:
     state: inactive
     name: vms
 
-# Ensure that a given pool will be started at boot
-- community.libvirt.virt_pool:
+- name: Ensure that a given pool will be started at boot
+  community.libvirt.virt_pool:
     autostart: yes
     name: vms
 
-# Disable autostart for a given pool
-- community.libvirt.virt_pool:
+- name: Disable autostart for a given pool
+  community.libvirt.virt_pool:
     autostart: no
     name: vms
 '''

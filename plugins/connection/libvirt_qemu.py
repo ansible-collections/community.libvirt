@@ -23,17 +23,17 @@ DOCUMENTATION = """
     version_added: "2.10"
     options:
       remote_addr:
-        description: Virtual machine name
+        description: Virtual machine name.
         default: inventory_hostname
         vars:
           - name: ansible_host
       executable:
-        description: Shell to use for execution inside container
+        description: Shell to use for execution inside container.
         default: /bin/sh
         vars:
           - name: ansible_executable
       virt_uri:
-        description: libvirt URI to connect to to access the virtual machine
+        description: Libvirt URI to connect to to access the virtual machine.
         default: qemu:///system
         vars:
           - name: ansible_libvirt_uri
