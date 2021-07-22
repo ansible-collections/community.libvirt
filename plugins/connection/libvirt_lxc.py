@@ -13,11 +13,11 @@ DOCUMENTATION = '''
     connection: community.libvirt.libvirt_lxc
     short_description: Run tasks in lxc containers via libvirt
     description:
-        - Run commands or put/fetch files to an existing lxc container using libvirt
+        - Run commands or put/fetch files to an existing lxc container using libvirt.
     options:
       remote_addr:
         description:
-            - Container identifier
+            - Container identifier.
         default: The set user as per docker's configuration
         vars:
             - name: ansible_host
