@@ -59,6 +59,9 @@ options:
         description:
             - Pass additional parameters to 'build' or 'delete' commands.
         type: str
+extends_documentation_fragment:
+    - community.libvirt.virt.options_uri
+    - community.libvirt.virt.options_xml
 requirements:
     - "python >= 2.6"
     - "python-libvirt"
