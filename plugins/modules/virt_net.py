@@ -45,15 +45,9 @@ options:
         type: bool
         description:
             - Specify if a given network should be started automatically on system boot.
-    uri:
-        default: "qemu:///system"
-        description:
-            - Libvirt connection uri.
-        type: str
-    xml:
-        description:
-            - XML document used with the define command.
-        type: str
+extends_documentation_fragment:
+    - community.libvirt.virt.options_uri
+    - community.libvirt.virt.options_xml
 requirements:
     - "python >= 2.6"
     - "python-libvirt"

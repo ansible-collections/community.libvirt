@@ -16,43 +16,13 @@ module: virt
 short_description: Manages virtual machines supported by libvirt
 description:
      - Manages virtual machines supported by I(libvirt).
-options:
-  name:
-    description:
-      - Name of the guest VM being managed. Note that VM must be previously
-        defined with xml.
-      - This option is required unless I(command) is C(list_vms) or C(info).
-    type: str
-    aliases:
-      - guest
-  state:
-    description:
-      - Note that there may be some lag for state requests like C(shutdown)
-        since these refer only to VM states. After starting a guest, it may not
-        be immediately accessible.
-        state and command are mutually exclusive except when command=list_vms. In
-        this case all VMs in specified state will be listed.
-    choices: [ destroyed, paused, running, shutdown ]
-    type: str
-  command:
-    description:
-      - In addition to state management, various non-idempotent commands are available.
-    choices: [ create, define, destroy, freemem, get_xml, info, list_vms, nodeinfo, pause, shutdown, start, status, stop, undefine, unpause, virttype ]
-    type: str
-  autostart:
-    description:
-      - Start VM at host startup.
-    type: bool
-  uri:
-    description:
-      - Libvirt connection uri.
-    default: qemu:///system
-    type: str
-  xml:
-    description:
-      - XML document used with the define command.
-      - Must be raw XML content using C(lookup). XML cannot be reference to a file.
-    type: str
+extends_documentation_fragment:
+    - community.libvirt.virt.options_uri
+    - community.libvirt.virt.options_xml
+    - community.libvirt.virt.options_guest
+    - community.libvirt.virt.options_autostart
+    - community.libvirt.virt.options_state
+    - community.libvirt.virt.options_command
 requirements:
     - python >= 2.6
     - libvirt-python
