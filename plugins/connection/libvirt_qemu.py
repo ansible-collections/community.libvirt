@@ -92,7 +92,7 @@ class Connection(ConnectionBase):
     def __init__(self, play_context, new_stdin, *args, **kwargs):
         if LIBVIRT_IMPORT_ERROR:
             raise_from(
-                AnsibleError('libvirt-python must be installed to use this plugin'),
+                AnsibleError('libvirt python bindings must be installed to use this plugin'),
                 LIBVIRT_IMPORT_ERROR)
 
         super(Connection, self).__init__(play_context, new_stdin, *args, **kwargs)
