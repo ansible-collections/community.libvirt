@@ -35,8 +35,8 @@ options:
             - name
             - uuid
         default: "name"
-requirements:
-    - "libvirt-python"
+extends_documentation_fragment:
+    - community.libvirt.requirements
 '''
 
 EXAMPLES = r'''
