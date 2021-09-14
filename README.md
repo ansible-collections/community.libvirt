@@ -22,7 +22,7 @@ This collection is shipped with the `ansible` package.
 ## External requirements
 <!-- List any external resources the collection depends on, for example minimum versions of an OS, libraries, or utilities. Do not list other Ansible collections here. -->
 - python >= 2.6
-- [libvirt-python](https://pypi.org/project/libvirt-python/)
+- [libvirt python bindings](https://pypi.org/project/libvirt-python/)
 
 ## Included content
 <!-- Galaxy will eventually list the module docs within the UI, but until that is ready, you may need to either describe your plugins etc here, or point to an external docsite to cover that information. -->
