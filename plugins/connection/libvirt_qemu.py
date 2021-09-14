@@ -20,8 +20,8 @@ notes:
     - Currently DOES NOT work with selinux set to enforcing in the VM.
     - Requires the qemu-agent installed in the VM.
     - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-close, guest-file-open, guest-file-read, guest-file-write.
-requirements:
-    - libvirt-python
+extends_documentation_fragment:
+    - community.libvirt.requirements
 version_added: "2.10"
 options:
   remote_addr:
