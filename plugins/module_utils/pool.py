@@ -6,6 +6,7 @@ else:
     HAS_VIRT = True
 
 from ansible_collections.community.libvirt.plugins.module_utils.entry import EntryNotFound
+from lxml import etree
 
 ENTRY_STATE_ACTIVE_MAP = {
     0: "inactive",
