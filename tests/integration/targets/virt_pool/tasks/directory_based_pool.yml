@@ -1,0 +1,139 @@
+---
+#
+# Create working directory
+#
+
+- name: "Crean up working directory"
+  file:
+    path: /tmp/test_pool
+    state: absent
+
+- name: "Create working directory"
+  file:
+    path: /tmp/test_pool
+    mode: 0755
+    state: directory
+
+#
+# Define storage pool
+#
+- name: "Define {{ pool_info.name }} on check_mode(pre)"
+  community.libvirt.virt_pool:
+    state: present
+    name: "{{ pool_info.name }}"
+    xml: '{{ lookup("template", "test_pool.xml.j2") }}'
+  register: result_pre
+  check_mode: true
+
+- name: "Define {{ pool_info.name }}"
+  community.libvirt.virt_pool:
+    state: present
+    name: "{{ pool_info.name }}"
+    xml: '{{ lookup("template", "test_pool.xml.j2") }}'
+  register: result
+
+- name: "Define {{ pool_info.name }} on check_mode(post)"
+  community.libvirt.virt_pool:
+    state: present
+    name: "{{ pool_info.name }}"
+    xml: '{{ lookup("template", "test_pool.xml.j2") }}'
+  register: result_post
+  check_mode: true
+
+- name: "Ensure the {{ pool_info.name }} has been defined"
+  assert:
+    that:
+      - result_pre is changed
+      - result is changed
+      - result_post is not changed
+      - 'result.created == "{{ pool_info.name }}"'
+
+#
+# Activate storage pool
+#
+- name: "Activate {{ pool_info.name }} on check_mode(pre)"
+  community.libvirt.virt_pool:
+    state: active
+    name: "{{ pool_info.name }}"
+  register: result_pre
+  check_mode: true
+
+- name: "Activate {{ pool_info.name }}"
+  community.libvirt.virt_pool:
+    state: active
+    name: "{{ pool_info.name }}"
+  register: result
+
+- name: "Activate {{ pool_info.name }} on check_mode(post}"
+  community.libvirt.virt_pool:
+    state: active
+    name: "{{ pool_info.name }}"
+  register: result_post
+  check_mode: true
+
+- name: "Ensure the {{ pool_info.name }} has been active"
+  assert:
+    that:
+      - result_pre is changed
+      - result is changed and result.msg == 0
+      - result_post is not changed
+
+#
+# Deactivate storage pool
+#
+- name: "Dectivate {{ pool_info.name }} on check_mode(pre)"
+  community.libvirt.virt_pool:
+    state: inactive
+    name: "{{ pool_info.name }}"
+  register: result_pre
+  check_mode: true
+
+- name: "Dectivate {{ pool_info.name }}"
+  community.libvirt.virt_pool:
+    state: inactive
+    name: "{{ pool_info.name }}"
+  register: result
+
+- name: "Dectivate {{ pool_info.name }} on check_mode(post}"
+  community.libvirt.virt_pool:
+    state: inactive
+    name: "{{ pool_info.name }}"
+  register: result_post
+  check_mode: true
+
+- name: "Ensure the {{ pool_info.name }} has been inactive"
+  assert:
+    that:
+      - result_pre is changed
+      - result is changed and result.msg == 0
+      - result_post is not changed
+
+#
+# Undefine storage pool
+#
+- name: Delete "{{ pool_info.name }} on check_mode(pre)"
+  community.libvirt.virt_pool:
+    state: absent
+    name: "{{ pool_info.name }}"
+  register: result_pre
+  check_mode: true
+
+- name: Delete "{{ pool_info.name }}"
+  community.libvirt.virt_pool:
+    state: absent
+    name: "{{ pool_info.name }}"
+  register: result
+
+- name: Delete "{{ pool_info.name }} on check_mode(post)"
+  community.libvirt.virt_pool:
+    state: absent
+    name: "{{ pool_info.name }}"
+  register: result_post
+  check_mode: true
+
+- name: "Ensure the {{ pool_info.name }} has been deleted"
+  assert:
+    that:
+      - result_pre is changed
+      - result is changed and result.msg == 0
+      - result_post is not changed
