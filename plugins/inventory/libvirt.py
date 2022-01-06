@@ -41,6 +41,14 @@ options:
             (hostname or UUID)
         type: bool
         default: true
+    filter:
+        description: |
+            Regex applied to each domain's name or UUID (whichever
+            ``inventory_hostname`` selects). Domains are skipped unless
+            the regex matches. Uses Python ``re.search`` semantics, so
+            anchor with ``^`` / ``$`` for an exact match.
+        type: str
+        default: ".*"
 '''
 
 EXAMPLES = r'''
@@ -51,7 +59,14 @@ uri: 'lxc:///'
 # Connect to qemu
 plugin: community.libvirt.libvirt
 uri: 'qemu:///system'
+
+# Only include domains whose names start with "prod-"
+plugin: community.libvirt.libvirt
+uri: 'qemu:///system'
+filter: '^prod-'
 '''
+
+import re
 
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.errors import AnsibleError
@@ -101,7 +116,19 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
             'QEMU': 'community.libvirt.libvirt_qemu'
         }).get(connection.getType())
 
+        # Catch bad regex
+        try:
+            domain_filter = re.compile(self.get_option('filter'))
+        except re.error as e:
+            raise AnsibleError(f"invalid 'filter' regex: {e}") from e
+
         for server in connection.listAllDomains():
+            match_target = (server.UUIDString()
+                            if self.get_option('inventory_hostname') == 'uuid'
+                            else server.name())
+            if not domain_filter.search(match_target):
+                continue
+
             inventory_hostname = dict({
                 'uuid': server.UUIDString(),
                 'name': server.name()
