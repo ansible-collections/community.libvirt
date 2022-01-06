@@ -118,6 +118,31 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
             self.inventory.add_group(inventory_hostname_alias)
             self.inventory.add_child(inventory_hostname_alias, inventory_hostname)
 
+            # Set the interface information.
+            ifaces = {}
+
+            for iface, iface_info in (connection.lookupByName(server.name())).interfaceAddresses(
+                                      libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE).items():
+                # Set interface hw address.
+                ifaces[iface] = {
+                  'hwaddr': iface_info['hwaddr'],
+                  'addrs': []
+                }
+
+                if 'addrs' in iface_info:
+
+                    # Append the addresses information to the interface dict.
+                    ifaces[iface]['addrs'] = iface_info['addrs']
+
+                    # Set the ansible_host variable to the first IP address found.
+                    if connection_plugin is not None and len(iface_info['addrs']) >= 1 and \
+                       'ansible_host' not in self.inventory.hosts[inventory_hostname].get_vars():
+                        self.inventory.set_variable(
+                            inventory_hostname,
+                            'ansible_host',
+                            iface_info['addrs'][0]['addr']
+                        )
+
             if connection_plugin is not None:
                 self.inventory.set_variable(
                     inventory_hostname,
@@ -128,6 +153,11 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                     inventory_hostname,
                     'ansible_connection',
                     connection_plugin
+                )
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'ansible_libvirt_ifaces',
+                    ifaces
                 )
 
             # Get variables for compose
