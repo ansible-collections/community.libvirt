@@ -244,8 +244,8 @@ stages:
               test: rhel/7.9
             - name: RHEL 8.5
               test: rhel/8.5
-            - name: FreeBSD 12.2
-              test: freebsd/12.2
+            - name: FreeBSD 12.3
+              test: freebsd/12.3
             - name: FreeBSD 13.0
               test: freebsd/13.0
 
