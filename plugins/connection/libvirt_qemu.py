@@ -28,10 +28,12 @@ DOCUMENTATION = """
         vars:
           - name: ansible_host
       executable:
-        description: Shell to use for execution inside container.
+        description:
+          - Shell to use for execution inside container.
+          - Set this to 'cmd' or 'powershell' for Windows VMs.
         default: /bin/sh
         vars:
-          - name: ansible_executable
+          - name: ansible_shell_type
       virt_uri:
         description: Libvirt URI to connect to to access the virtual machine.
         default: qemu:///system
@@ -98,6 +100,10 @@ class Connection(ConnectionBase):
         # Windows operates differently from a POSIX connection/shell plugin,
         # we need to set various properties to ensure SSH on Windows continues
         # to work
+        # Ensure that any Windows hosts in your inventory have one of the
+        # following set, in order to trigger this code:
+        # ansible_shell_type: cmd
+        # ansible_shell_type: powershell
         if getattr(self._shell, "_IS_WINDOWS", False):
             self.has_native_async = True
             self.always_pipeline_modules = True
