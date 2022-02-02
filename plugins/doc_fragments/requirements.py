@@ -7,6 +7,7 @@ __metaclass__ = type
 
 class ModuleDocFragment(object):
     DOCUMENTATION = r"""
+options: {}
 requirements:
     - python >= 2.6
     - libvirt python bindings
