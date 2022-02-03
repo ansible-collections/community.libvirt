@@ -20,7 +20,7 @@ options:
     uri:
         description: Libvirt Connection URI
         required: True
-        type: str
+        type: string
     inventory_hostname:
         description: |
             What to register as the inventory hostname.
@@ -35,6 +35,16 @@ options:
             - name
             - uuid
         default: "name"
+    use_connection_plugin:
+        description: Whether or not to use the connection plugin.
+        type: boolean
+        default: True
+    filter:
+        description: |
+            Use a regex string filter out specific domains (by name or uuid;
+            this depends on inventory_hostname).
+        type: string
+        default: ".*"
 requirements:
     - "libvirt-python"
 '''
@@ -48,6 +58,8 @@ uri: 'lxc:///'
 plugin: community.libvirt.libvirt
 uri: 'qemu:///system'
 '''
+
+import re
 
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.errors import AnsibleError
@@ -92,12 +104,26 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
         # TODO(daveol)
         # make using connection plugins optional
-        connection_plugin = dict({
-            'LXC': 'community.libvirt.libvirt_lxc',
-            'QEMU': 'community.libvirt.libvirt_qemu'
-        }).get(connection.getType())
+        use_connection_plugin = self.get_option('use_connection_plugin')
+
+        if use_connection_plugin:
+            connection_plugin = dict({
+                'LXC': 'community.libvirt.libvirt_lxc',
+                'QEMU': 'community.libvirt.libvirt_qemu'
+            }).get(connection.getType())
+
+        # Set the domain filter.
+        _filter = self.get_option('filter')
 
         for server in connection.listAllDomains():
+            if not dict({
+                   'uuid': re.match(_filter, server.UUIDString()),
+                   'name': re.match(_filter, server.name())
+               }).get(
+                   self.get_option('inventory_hostname')
+               ):
+                continue
+
             inventory_hostname = dict({
                 'uuid': server.UUIDString(),
                 'name': server.name()
@@ -118,7 +144,32 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
             self.inventory.add_group(inventory_hostname_alias)
             self.inventory.add_child(inventory_hostname_alias, inventory_hostname)
 
-            if connection_plugin is not None:
+            # Set the interface information.
+            ifaces = {}
+
+            for iface, iface_info in (connection.lookupByName(server.name())).interfaceAddresses(
+                                      libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE).items():
+                # Set interface hw address.
+                ifaces[iface] = {
+                  'hwaddr': iface_info['hwaddr'],
+                  'addrs': []
+                }
+
+                if 'addrs' in iface_info:
+
+                    # Append the addresses information to the interface dict.
+                    ifaces[iface]['addrs'] = iface_info['addrs']
+
+                    # Set the ansible_host variable to the first IP address found.
+                    if not use_connection_plugin and len(iface_info['addrs']) >= 1 and \
+                       'ansible_host' not in self.inventory.hosts[inventory_hostname].get_vars():
+                        self.inventory.set_variable(
+                            inventory_hostname,
+                            'ansible_host',
+                            iface_info['addrs'][0]['addr']
+                        )
+
+            if use_connection_plugin and connection_plugin is not None:
                 self.inventory.set_variable(
                     inventory_hostname,
                     'ansible_libvirt_uri',
@@ -129,6 +180,12 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                     'ansible_connection',
                     connection_plugin
                 )
+
+            self.inventory.set_variable(
+                inventory_hostname,
+                'ansible_libvirt_ifaces',
+                ifaces
+            )
 
             # Get variables for compose
             variables = self.inventory.hosts[inventory_hostname].get_vars()
