@@ -6,6 +6,7 @@ name: libvirt
 plugin_type: inventory
 extends_documentation_fragment:
     - constructed
+    - community.libvirt.requirements
 short_description: Libvirt inventory source
 description:
     - Get libvirt guests in an inventory source.
@@ -35,8 +36,6 @@ options:
             - name
             - uuid
         default: "name"
-extends_documentation_fragment:
-    - community.libvirt.requirements
 '''
 
 EXAMPLES = r'''
