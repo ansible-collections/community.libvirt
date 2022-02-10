@@ -9,36 +9,38 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 DOCUMENTATION = """
-    author: Jesse Pretorius <jesse@odyssey4.me>
-    connection: community.libvirt.libvirt_qemu
-    short_description: Run tasks on libvirt/qemu virtual machines
+---
+author:
+    - Jesse Pretorius <jesse@odyssey4.me>
+connection: community.libvirt.libvirt_qemu
+short_description: Run tasks on libvirt/qemu virtual machines
+description:
+    - Run commands or put/fetch files to libvirt/qemu virtual machines using the qemu agent API.
+notes:
+    - Currently DOES NOT work with selinux set to enforcing in the VM.
+    - Requires the qemu-agent installed in the VM.
+    - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-close, guest-file-open, guest-file-read, guest-file-write.
+extends_documentation_fragment:
+    - community.libvirt.requirements
+version_added: "2.10"
+options:
+  remote_addr:
+    description: Virtual machine name.
+    default: inventory_hostname
+    vars:
+      - name: ansible_host
+  executable:
     description:
-        - Run commands or put/fetch files to libvirt/qemu virtual machines using the qemu agent API.
-    notes:
-        - Currently DOES NOT work with selinux set to enforcing in the VM.
-        - Requires the qemu-agent installed in the VM.
-        - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-close, guest-file-open, guest-file-read, guest-file-write.
-    requirements:
-        - libvirt-python
-    version_added: "2.10"
-    options:
-      remote_addr:
-        description: Virtual machine name.
-        default: inventory_hostname
-        vars:
-          - name: ansible_host
-      executable:
-        description:
-          - Shell to use for execution inside container.
-          - Set this to 'cmd' or 'powershell' for Windows VMs.
-        default: /bin/sh
-        vars:
-          - name: ansible_shell_type
-      virt_uri:
-        description: Libvirt URI to connect to to access the virtual machine.
-        default: qemu:///system
-        vars:
-          - name: ansible_libvirt_uri
+      - Shell to use for execution inside container.
+      - Set this to 'cmd' or 'powershell' for Windows VMs.
+    default: /bin/sh
+    vars:
+      - name: ansible_shell_type
+  virt_uri:
+    description: Libvirt URI to connect to to access the virtual machine.
+    default: qemu:///system
+    vars:
+      - name: ansible_libvirt_uri
 """
 
 import base64
@@ -90,7 +92,7 @@ class Connection(ConnectionBase):
     def __init__(self, play_context, new_stdin, *args, **kwargs):
         if LIBVIRT_IMPORT_ERROR:
             raise_from(
-                AnsibleError('libvirt-python must be installed to use this plugin'),
+                AnsibleError('libvirt python bindings must be installed to use this plugin'),
                 LIBVIRT_IMPORT_ERROR)
 
         super(Connection, self).__init__(play_context, new_stdin, *args, **kwargs)

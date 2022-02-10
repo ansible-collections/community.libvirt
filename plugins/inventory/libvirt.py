@@ -6,6 +6,7 @@ name: libvirt
 plugin_type: inventory
 extends_documentation_fragment:
     - constructed
+    - community.libvirt.requirements
 short_description: Libvirt inventory source
 description:
     - Get libvirt guests in an inventory source.
@@ -35,8 +36,6 @@ options:
             - name
             - uuid
         default: "name"
-requirements:
-    - "libvirt-python"
 '''
 
 EXAMPLES = r'''
@@ -67,7 +66,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
     def parse(self, inventory, loader, path, cache=True):
         if LIBVIRT_IMPORT_ERROR:
             raise_from(
-                AnsibleError('libvirt-python must be installed to use this plugin'),
+                AnsibleError('libvirt python bindings must be installed to use this plugin'),
                 LIBVIRT_IMPORT_ERROR)
 
         super(InventoryModule, self).parse(
