@@ -229,7 +229,7 @@ class LibvirtConnection(object):
                 if not self.module.check_mode:
                     res = network.update(libvirt.VIR_NETWORK_UPDATE_COMMAND_ADD_LAST,
                                          libvirt.VIR_NETWORK_SECTION_IP_DHCP_HOST,
-                                         -1, xml, libvirt.VIR_NETWORK_UPDATE_AFFECT_CURRENT)
+                                         -1, xml, libvirt.VIR_NETWORK_UPDATE_AFFECT_LIVE | libvirt.VIR_NETWORK_UPDATE_AFFECT_CONFIG)
                 else:
                     # pretend there was a change
                     res = 0
@@ -243,7 +243,7 @@ class LibvirtConnection(object):
                     if not self.module.check_mode:
                         res = network.update(libvirt.VIR_NETWORK_UPDATE_COMMAND_MODIFY,
                                              libvirt.VIR_NETWORK_SECTION_IP_DHCP_HOST,
-                                             -1, xml, libvirt.VIR_NETWORK_UPDATE_AFFECT_CURRENT)
+                                             -1, xml, libvirt.VIR_NETWORK_UPDATE_AFFECT_LIVE | libvirt.VIR_NETWORK_UPDATE_AFFECT_CONFIG)
                     else:
                         # pretend there was a change
                         res = 0
