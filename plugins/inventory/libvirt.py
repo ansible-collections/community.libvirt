@@ -51,6 +51,9 @@ uri: 'qemu:///system'
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.errors import AnsibleError
 from ansible.module_utils.six import raise_from
+from ansible_collections.community.vmware.plugins.plugin_utils.inventory import to_nested_dict
+from xml.dom import minidom
+import xmltodict
 
 try:
     import libvirt
@@ -58,6 +61,8 @@ except ImportError as imp_exc:
     LIBVIRT_IMPORT_ERROR = imp_exc
 else:
     LIBVIRT_IMPORT_ERROR = None
+
+VIRDOMAINSTATE = ["NOSTATE", "RUNNING", "BLOCKED", "PAUSED", "SHUTDOWN", "SHUTOFF", "CRASHED", "PMSUSPENDED", "LAST"]
 
 
 class InventoryModule(BaseInventoryPlugin, Constructable):
@@ -128,6 +133,58 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                     'ansible_connection',
                     connection_plugin
                 )
+
+            try:
+                domain = connection.lookupByName(inventory_hostname)
+            except libvirt.libvirtError as e:
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'ERROR',
+                    str(e)
+                )
+            else:
+                _domain_state, _domain_maxmem, _domain_mem, _domain_cpus, _domain_cput = domain.info()
+                domain_info = {"state_number": _domain_state, "state": VIRDOMAINSTATE[_domain_state], "maxMem_kb": _domain_maxmem, "memory_kb": _domain_mem, "nrVirtCpu": _domain_cpus, "cpuTime_ns": _domain_cput}
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'info',
+                    domain_info
+                )
+
+                _domain_XMLDesc_raw = domain.XMLDesc()
+                domain_XMLDesc = minidom.parseString(_domain_XMLDesc_raw).toprettyxml(newl='\n', indent=' ', encoding='UTF-8')
+                domain_XMLDesc = {'xml': b'\n'.join([s for s in domain_XMLDesc.splitlines() if s.strip()])}  # Strip spurious extra newlines that toprettyxml() leaves
+                domain_XMLDesc.update({'json': xmltodict.parse(_domain_XMLDesc_raw)})
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'XMLDesc',
+                    domain_XMLDesc
+                )
+
+                # This will fail if qemu-guest-agent is not installed, or org.qemu.guest_agent.0 is not a configured channel, or the guest is not powered-on.
+                try:
+                    domain_guestInfo = domain.guestInfo(types=0)
+                    domain_guestInfo.update(to_nested_dict(domain_guestInfo))
+                except Exception as e:
+                    domain_guestInfo = {"error": str(e)}
+                finally:
+                    self.inventory.set_variable(
+                        inventory_hostname,
+                        'guest_info',
+                        domain_guestInfo
+                    )
+
+                # This will fail if qemu-guest-agent is not installed, or org.qemu.guest_agent.0 is not a configured channel, or the guest is not powered-on.
+                try:
+                    domain_interfaceAddresses = domain.interfaceAddresses(source=1)     # VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
+                except Exception as e:
+                    domain_interfaceAddresses = {"error": str(e)}
+                finally:
+                    self.inventory.set_variable(
+                        inventory_hostname,
+                        'interface_addresses',
+                        domain_interfaceAddresses
+                    )
 
             # Get variables for compose
             variables = self.inventory.hosts[inventory_hostname].get_vars()
