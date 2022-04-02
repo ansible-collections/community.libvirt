@@ -52,8 +52,8 @@ from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.errors import AnsibleError
 from ansible.module_utils.six import raise_from
 from ansible_collections.community.vmware.plugins.plugin_utils.inventory import to_nested_dict
-from xml.dom import minidom
-import xmltodict
+from collections import defaultdict
+from xml.etree import ElementTree as ET
 
 try:
     import libvirt
@@ -63,6 +63,29 @@ else:
     LIBVIRT_IMPORT_ERROR = None
 
 VIRDOMAINSTATE = ["NOSTATE", "RUNNING", "BLOCKED", "PAUSED", "SHUTDOWN", "SHUTOFF", "CRASHED", "PMSUSPENDED", "LAST"]
+
+
+# From https://stackoverflow.com/a/10077069/12491741
+# Converts XML to JSON using the 'official' (reversible) spec in http://www.xml.com/pub/a/2006/05/31/converting-between-xml-and-json.html
+def etree_to_dict(t):
+    d = {t.tag: {} if t.attrib else None}
+    children = list(t)
+    if children:
+        dd = defaultdict(list)
+        for dc in map(etree_to_dict, children):
+            for k, v in dc.items():
+                dd[k].append(v)
+        d = {t.tag: {k: v[0] if len(v) == 1 else v for k, v in dd.items()}}
+    if t.attrib:
+        d[t.tag].update(('@' + k, v) for k, v in t.attrib.items())
+    if t.text:
+        text = t.text.strip()
+        if children or t.attrib:
+            if text:
+                d[t.tag]['#text'] = text
+        else:
+            d[t.tag] = text
+    return d
 
 
 class InventoryModule(BaseInventoryPlugin, Constructable):
@@ -151,10 +174,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                     domain_info
                 )
 
-                _domain_XMLDesc_raw = domain.XMLDesc()
-                domain_XMLDesc = minidom.parseString(_domain_XMLDesc_raw).toprettyxml(newl='\n', indent=' ', encoding='UTF-8')
-                domain_XMLDesc = {'xml': b'\n'.join([s for s in domain_XMLDesc.splitlines() if s.strip()])}  # Strip spurious extra newlines that toprettyxml() leaves
-                domain_XMLDesc.update({'json': xmltodict.parse(_domain_XMLDesc_raw)})
+                domain_XMLDesc = {'xml': domain.XMLDesc()}
+                domain_XMLDesc.update({'json': etree_to_dict(ET.fromstring(domain_XMLDesc['xml']))})
                 self.inventory.set_variable(
                     inventory_hostname,
                     'XMLDesc',
