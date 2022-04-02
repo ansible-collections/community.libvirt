@@ -158,7 +158,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                 )
 
             try:
-                domain = connection.lookupByName(inventory_hostname)
+                domain = connection.lookupByUUIDString(server.UUIDString())
             except libvirt.libvirtError as e:
                 self.inventory.set_variable(
                     inventory_hostname,
