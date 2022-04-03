@@ -51,9 +51,6 @@ uri: 'qemu:///system'
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.errors import AnsibleError
 from ansible.module_utils.six import raise_from
-from ansible_collections.community.vmware.plugins.plugin_utils.inventory import to_nested_dict
-from collections import defaultdict
-from xml.etree import ElementTree as ET
 
 try:
     import libvirt
@@ -62,30 +59,7 @@ except ImportError as imp_exc:
 else:
     LIBVIRT_IMPORT_ERROR = None
 
-VIRDOMAINSTATE = ["NOSTATE", "RUNNING", "BLOCKED", "PAUSED", "SHUTDOWN", "SHUTOFF", "CRASHED", "PMSUSPENDED", "LAST"]
-
-
-# From https://stackoverflow.com/a/10077069/12491741
-# Converts XML to JSON using the 'official' (reversible) spec in http://www.xml.com/pub/a/2006/05/31/converting-between-xml-and-json.html
-def etree_to_dict(t):
-    d = {t.tag: {} if t.attrib else None}
-    children = list(t)
-    if children:
-        dd = defaultdict(list)
-        for dc in map(etree_to_dict, children):
-            for k, v in dc.items():
-                dd[k].append(v)
-        d = {t.tag: {k: v[0] if len(v) == 1 else v for k, v in dd.items()}}
-    if t.attrib:
-        d[t.tag].update(('@' + k, v) for k, v in t.attrib.items())
-    if t.text:
-        text = t.text.strip()
-        if children or t.attrib:
-            if text:
-                d[t.tag]['#text'] = text
-        else:
-            d[t.tag] = text
-    return d
+VIRDOMAINSTATE = ["nostate", "running", "blocked", "paused", "shutdown", "shutoff", "crashed", "pmsuspended", "last"]
 
 
 class InventoryModule(BaseInventoryPlugin, Constructable):
@@ -174,18 +148,15 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                     domain_info
                 )
 
-                domain_XMLDesc = {'xml': domain.XMLDesc()}
-                domain_XMLDesc.update({'json': etree_to_dict(ET.fromstring(domain_XMLDesc['xml']))})
                 self.inventory.set_variable(
                     inventory_hostname,
-                    'XMLDesc',
-                    domain_XMLDesc
+                    'get_xml',
+                    domain.XMLDesc()
                 )
 
-                # This will fail if qemu-guest-agent is not installed, or org.qemu.guest_agent.0 is not a configured channel, or the guest is not powered-on.
+                # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
                 try:
                     domain_guestInfo = domain.guestInfo(types=0)
-                    domain_guestInfo.update(to_nested_dict(domain_guestInfo))
                 except Exception as e:
                     domain_guestInfo = {"error": str(e)}
                 finally:
@@ -195,7 +166,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                         domain_guestInfo
                     )
 
-                # This will fail if qemu-guest-agent is not installed, or org.qemu.guest_agent.0 is not a configured channel, or the guest is not powered-on.
+                # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
                 try:
                     domain_interfaceAddresses = domain.interfaceAddresses(source=1)     # VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
                 except Exception as e:
