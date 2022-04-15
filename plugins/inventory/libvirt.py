@@ -150,14 +150,14 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
                 self.inventory.set_variable(
                     inventory_hostname,
-                    'get_xml',
+                    'xml_desc',
                     domain.XMLDesc()
                 )
 
                 # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
                 try:
-                    domain_guestInfo = domain.guestInfo(types=0)
-                except Exception as e:
+                    domain_guestInfo = domain.guestInfo(types=0)        # type==0 returns all types (users, os, timezone, hostname, filesystem, disks, interfaces)
+                except libvirt.libvirtError as e:
                     domain_guestInfo = {"error": str(e)}
                 finally:
                     self.inventory.set_variable(
@@ -168,8 +168,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
                 # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
                 try:
-                    domain_interfaceAddresses = domain.interfaceAddresses(source=1)     # VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
-                except Exception as e:
+                    domain_interfaceAddresses = domain.interfaceAddresses(source=libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT)
+                except libvirt.libvirtError as e:
                     domain_interfaceAddresses = {"error": str(e)}
                 finally:
                     self.inventory.set_variable(
