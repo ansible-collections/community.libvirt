@@ -1,0 +1,2 @@
+bugfixes:
+- "replace deprecated ``distutils.spawn.find_executable`` with Ansible's ``get_bin_path`` in ``_search_executable`` function."
