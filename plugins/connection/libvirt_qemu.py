@@ -11,8 +11,8 @@ __metaclass__ = type
 DOCUMENTATION = """
 ---
 author:
-    - Jesse Pretorius <jesse@odyssey4.me>
-connection: community.libvirt.libvirt_qemu
+    - Jesse Pretorius (@odyssey4me) <jesse@odyssey4.me>
+name: libvirt_qemu
 short_description: Run tasks on libvirt/qemu virtual machines
 description:
     - Run commands or put/fetch files to libvirt/qemu virtual machines using the qemu agent API.
@@ -22,7 +22,7 @@ notes:
     - Requires access to the qemu-ga commands guest-exec, guest-exec-status, guest-file-close, guest-file-open, guest-file-read, guest-file-write.
 extends_documentation_fragment:
     - community.libvirt.requirements
-version_added: "2.10"
+version_added: "2.10.0"
 options:
   remote_addr:
     description: Virtual machine name.

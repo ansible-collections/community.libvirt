@@ -11,8 +11,8 @@ __metaclass__ = type
 DOCUMENTATION = '''
 ---
 author:
-    - Michael Scherer <misc@zarb.org>
-connection: community.libvirt.libvirt_lxc
+    - Michael Scherer (@mscherer) <misc@zarb.org>
+name: libvirt_lxc
 short_description: Run tasks in lxc containers via libvirt
 description:
     - Run commands or put/fetch files to an existing lxc container using libvirt.
