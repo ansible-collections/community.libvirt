@@ -26,7 +26,6 @@ options:
         - name: ansible_libvirt_lxc_host
 '''
 
-import distutils.spawn
 import os
 import os.path
 import subprocess
@@ -35,6 +34,7 @@ import traceback
 from ansible import constants as C
 from ansible.errors import AnsibleError
 from ansible.module_utils.six.moves import shlex_quote
+from ansible.module_utils.common.process import get_bin_path
 from ansible.module_utils._text import to_bytes
 from ansible.plugins.connection import ConnectionBase, BUFSIZE
 from ansible.utils.display import Display
@@ -62,10 +62,10 @@ class Connection(ConnectionBase):
         self._check_domain(self.lxc)
 
     def _search_executable(self, executable):
-        cmd = distutils.spawn.find_executable(executable)
-        if not cmd:
+        try:
+            return get_bin_path(executable)
+        except ValueError:
             raise AnsibleError("%s command not found in PATH") % executable
-        return cmd
 
     def _check_domain(self, domain):
         p = subprocess.Popen([self.virsh, '-q', '-c', 'lxc:///', 'dominfo', to_bytes(domain)],
