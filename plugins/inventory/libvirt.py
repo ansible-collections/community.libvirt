@@ -141,7 +141,12 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                 )
             else:
                 _domain_state, _domain_maxmem, _domain_mem, _domain_cpus, _domain_cput = domain.info()
-                domain_info = {"state_number": _domain_state, "state": VIRDOMAINSTATE[_domain_state], "maxMem_kb": _domain_maxmem, "memory_kb": _domain_mem, "nrVirtCpu": _domain_cpus, "cpuTime_ns": _domain_cput}
+                domain_info = {"state_number": _domain_state,
+                               "state": VIRDOMAINSTATE[_domain_state],
+                               "maxMem_kb": _domain_maxmem,
+                               "memory_kb": _domain_mem,
+                               "nrVirtCpu": _domain_cpus,
+                               "cpuTime_ns": _domain_cput}
                 self.inventory.set_variable(
                     inventory_hostname,
                     'info',
@@ -156,7 +161,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
                 # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
                 try:
-                    domain_guestInfo = domain.guestInfo(types=0)        # type==0 returns all types (users, os, timezone, hostname, filesystem, disks, interfaces)
+                    # type==0 returns all types (users, os, timezone, hostname, filesystem, disks, interfaces)
+                    domain_guestInfo = domain.guestInfo(types=0)
                 except libvirt.libvirtError as e:
                     domain_guestInfo = {"error": str(e)}
                 finally:
