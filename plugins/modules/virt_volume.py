@@ -21,16 +21,24 @@ options:
         description:
             - Name of the storage volume being managed. 
         type: str
+    path:
+        description:
+            - Path to the storage volume being manipulated.  See examples. 
+        type: str
+    xml:
+        description:
+            - The XML of the descriptor being created.  See examples. 
+        type: str
     command:
         choices: [ "create_cidata_cdrom", "getXMLDesc", "createXML", "createXMLFrom", "delete" ]
         description:
             - Idempotent commands are used to modify the state of the volume
               See examples.
         type: str
-# extends_documentation_fragment:
-#     - community.libvirt.virt.options_uri
-#     - community.libvirt.virt.options_xml
-#     - community.libvirt.requirements
+ extends_documentation_fragment:
+     - community.libvirt.virt.options_uri
+     - community.libvirt.virt.options_xml
+     - community.libvirt.requirements
 requirements:
     - "libvirt"
     - "lxml"
@@ -38,11 +46,71 @@ requirements:
 '''
 
 EXAMPLES = '''
-
-- name: Disable autostart for a given pool
+- name: Create volume
   community.libvirt.virt_volume:
-    autostart: no
-    name: vms
+    uri: 'qemu+ssh://{{ username }}@{{ libvirt_ip }}/system?keyfile=id_rsa__libvirt_svc'
+    command: createXML
+    path: "/media/data/"
+    xml: |
+      <volume type='file'>
+        <name>NEWVOL.qcow2</name>
+        <capacity unit='bytes'>19327352832</capacity>
+        <target><format type='qcow2'/></target>
+      </volume>
+  
+- name: Clone volume
+  community.libvirt.virt_volume:
+    uri: 'qemu+ssh://{{ username }}@{{ libvirt_ip }}/system?keyfile=id_rsa__libvirt_svc'
+    command: createXMLFrom
+    path: "/media/data/CLONE_SOURCE.qcow2"
+    xml: |
+      <volume type='file'>
+        <name>CLONE_DEST.qcow2</name>
+        <capacity unit='bytes'>19327352832</capacity>
+        <target><format type='qcow2'/></target>
+      </volume>
+
+- name: Get volume XML
+  community.libvirt.virt_volume:
+    uri: 'qemu+ssh://{{ username }}@{{ libvirt_ip }}/system?keyfile=id_rsa__libvirt_svc'
+    command: getXMLDesc
+    path: "/media/data/NEWVOL.qcow2"
+
+- name: Delete volume
+  community.libvirt.virt_volume:
+    uri: 'qemu+ssh://{{ username }}@{{ libvirt_ip }}/system?keyfile=id_rsa__libvirt_svc'
+    path: "/media/data/NEWVOL.qcow2"
+    command: delete
+  
+- name: create CIDATA (cloud-init) cdrom
+  community.libvirt.virt_volume:
+    uri: 'qemu+ssh://{{ username }}@{{ libvirt_ip }}/system?keyfile=id_rsa__libvirt_svc'
+    command: create_cidata_cdrom
+    config:
+      NETWORK_CONFIG:
+        version: 2
+        ethernets:
+          eth0:
+            addresses: ["192.168.7.3/24"]
+            nameservers:
+              addresses: ["192.168.7.2", "8.8.8.8", "8.8.4.4"]
+              search: ["example.com"]
+      USERDATA: |
+        #cloud-config
+        system_info:
+          default_user: { name: ansible }
+        hostname: MYHOSTNAME
+        users:
+          - name: dougal
+            passwd: $6$j212wezy$7...YPYb2F
+            ssh_authorized_keys: ['ssh-rsa AAB3NzAADAQABAACA+...GIMhdojtl6mvX29MzSLQ== ansible@dougalseeley.com']
+      METADATA:
+        "local-hostname": "MYINTERNALHOSTNAME"
+    path: "/media/data/NEWVOL--cidata.iso"
+  register: r__virt_volume__cidata_cdrom
+
+- name: debug r__virt_volume__cidata_cdrom
+  debug: msg={{r__virt_volume__cidata_cdrom}}
 '''
 
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
@@ -96,20 +164,15 @@ class LibvirtConnection(object):
         ci_config = yaml.load(self.module.params.get('config', None))
 
         # Ensure we actually have some CIDATA before creating the CIDATA cdrom
-        if ci_config and ('METADATA' in ci_config or 'USERDATA' in ci_config or ('NETWORK_CONFIG' in ci_config and len([net["cloudinit_netplan"] for net in ci_config["NETWORK_CONFIG"] if "cloudinit_netplan" in net]))):
-            volname = re.sub(r'^(.*?)(?:\.iso)?$', '\\1.iso', basename(self.module.params.get('path', None)))  # Append .iso to the the name if not already there
+        if ci_config and ('METADATA' in ci_config or 'USERDATA' in ci_config or 'NETWORK_CONFIG' in ci_config):
+            volname = re.sub(r'^(.*?)(?:\.iso)?$', '\\1.iso', basename(self.module.params.get('path', None)))       # Append .iso to the the name if not already there
 
             iso = pycdlib.PyCdlib()
             iso.new(interchange_level=3, joliet=True, sys_ident='LINUX', rock_ridge='1.09', vol_ident='cidata')
 
             if 'NETWORK_CONFIG' in ci_config:
-                cidata_network_d = {"version": 2}
-                for network in ci_config['NETWORK_CONFIG']:
-                    if 'cloudinit_netplan' in network:
-                        cidata_network_d.update(network['cloudinit_netplan'])
-
-                cidata_network_b = yaml.dump(cidata_network_d, width=4096, encoding='utf-8')
-                iso.add_fp(BytesIO(cidata_network_b), len(cidata_network_b), '/NETWORK_CONFIG.;1', rr_name="network-config", joliet_path='/network-config')
+                cidata_network = yaml.dump({'network': ci_config['NETWORK_CONFIG']}, width=4096, encoding='utf-8')
+                iso.add_fp(BytesIO(cidata_network), len(cidata_network), '/NETWORK_CONFIG.;1', rr_name="network-config", joliet_path='/network-config')
 
             if 'METADATA' in ci_config:
                 cidata_metadata = yaml.dump(ci_config['METADATA'], width=4096, encoding='utf-8')
