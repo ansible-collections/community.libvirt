@@ -165,13 +165,13 @@ class LibvirtConnection(object):
 
         # Ensure we actually have some CIDATA before creating the CIDATA cdrom
         if ci_config and ('METADATA' in ci_config or 'USERDATA' in ci_config or 'NETWORK_CONFIG' in ci_config):
-            volname = re.sub(r'^(.*?)(?:\.iso)?$', '\\1.iso', basename(self.module.params.get('path', None)))       # Append .iso to the the name if not already there
+            volname = re.sub(r'^(.*?)(?:\.iso)?$', '\\1.iso', basename(self.module.params.get('path', None)))       # Append .iso to the name if not exists
 
             iso = pycdlib.PyCdlib()
             iso.new(interchange_level=3, joliet=True, sys_ident='LINUX', rock_ridge='1.09', vol_ident='cidata')
 
             if 'NETWORK_CONFIG' in ci_config:
-                cidata_network = yaml.dump({'network': ci_config['NETWORK_CONFIG']}, width=4096, encoding='utf-8')
+                cidata_network = yaml.dump(ci_config['NETWORK_CONFIG'], width=4096, encoding='utf-8')
                 iso.add_fp(BytesIO(cidata_network), len(cidata_network), '/NETWORK_CONFIG.;1', rr_name="network-config", joliet_path='/network-config')
 
             if 'METADATA' in ci_config:
@@ -217,7 +217,10 @@ class LibvirtConnection(object):
                     raise e
 
             iso.close()
-            return {'changed': True, 'create_cidata_cdrom': {'XMLDesc': createdStorageVolPtr.XMLDesc(0), 'name': createdStorageVolPtr.name(), 'path': createdStorageVolPtr.path(), 'key': createdStorageVolPtr.key()}}
+            return {'changed': True, 'create_cidata_cdrom': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
+                                                             'name': createdStorageVolPtr.name(),
+                                                             'path': createdStorageVolPtr.path(),
+                                                             'key': createdStorageVolPtr.key()}}
         else:
             return {'changed': False, 'create_cidata_cdrom': {'Error': 'No CIDATA to create'}}
 
@@ -268,7 +271,10 @@ class LibvirtConnection(object):
             else:
                 raise e
 
-        return {'changed': isChanged, 'createXMLFrom': {'XMLDesc': createdStorageVolPtr.XMLDesc(0), 'name': createdStorageVolPtr.name(), 'path': createdStorageVolPtr.path(), 'key': createdStorageVolPtr.key()}}
+        return {'changed': isChanged, 'createXMLFrom': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
+                                                        'name': createdStorageVolPtr.name(),
+                                                        'path': createdStorageVolPtr.path(),
+                                                        'key': createdStorageVolPtr.key()}}
 
     def createXML(self):
         """ Creates a new volume with the XML provided, creating it in the path provided """
@@ -288,7 +294,10 @@ class LibvirtConnection(object):
             else:
                 raise e
 
-        return {'changed': isChanged, 'createXML': {'XMLDesc': createdStorageVolPtr.XMLDesc(0), 'name': createdStorageVolPtr.name(), 'path': createdStorageVolPtr.path(), 'key': createdStorageVolPtr.key()}}
+        return {'changed': isChanged, 'createXML': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
+                                                    'name': createdStorageVolPtr.name(),
+                                                    'path': createdStorageVolPtr.path(),
+                                                    'key': createdStorageVolPtr.key()}}
 
 
 def main():
