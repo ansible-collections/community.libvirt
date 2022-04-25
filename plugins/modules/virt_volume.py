@@ -261,11 +261,8 @@ class LibvirtConnection(object):
                 createdStorageVolPtr = storagePoolPtr.createXMLFrom(newXmlTemplate, self._get_storageVolPtr_by_path())
 
                 if xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]"):
-                    try:
-                        size_bytes = xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]")[0].text
-                        createdStorageVolPtr.resize(int(size_bytes), libvirt.VIR_STORAGE_VOL_RESIZE_SHRINK)
-                    except Exception as e:
-                        raise ValueError('Capacity not specified in bytes: ' + str(e))
+                    size_bytes = xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]")[0].text
+                    createdStorageVolPtr.resize(int(size_bytes))
 
                 isChanged = True
             else:
