@@ -181,7 +181,7 @@ class LibvirtConnection(object):
                 # cidata_metadata = yaml.dump({"local-hostname": re.sub(r'^(.*?)--cidata\.iso$', '\\1.iso', volname)}, width=4096, encoding='utf-8')
 
             if 'USERDATA' in ci_config:
-                cidata_userdata = yaml.dump(ci_config['USERDATA'], width=4096, encoding='utf-8')
+                cidata_userdata = "#cloud-config\n".encode('utf-8') + yaml.dump(ci_config['USERDATA'], width=4096, encoding='utf-8')
             else:
                 cidata_userdata = "# Note: The user-data and meta-data files are both to be present for it to be considered a valid seed ISO.".encode('utf-8')
 
