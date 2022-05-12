@@ -1,4 +1,0 @@
----
-trivial:
-- virt_pool - add integration test (https://github.com/ansible-collections/community.libvirt/issues/7).
-- remove python2 environment from CI docker tests on devel branch.
