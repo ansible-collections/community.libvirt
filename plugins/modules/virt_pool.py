@@ -335,7 +335,11 @@ class LibvirtConnection(object):
 
     def get_path(self, entryid):
         xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
-        return xml.xpath('/pool/target/path')[0].text
+        try:
+            result = xml.xpath('/pool/target/path')[0].text
+        except Exception:
+            raise ValueError('Target path not specified')
+        return result
 
     def get_type(self, entryid):
         xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
@@ -496,7 +500,6 @@ class VirtStoragePool(object):
                 results[entry]["autostart"] = self.conn.get_autostart(entry)
                 results[entry]["persistent"] = self.conn.get_persistent(entry)
                 results[entry]["state"] = self.conn.get_status(entry)
-                results[entry]["path"] = self.conn.get_path(entry)
                 results[entry]["type"] = self.conn.get_type(entry)
                 results[entry]["uuid"] = self.conn.get_uuid(entry)
                 if self.conn.find_entry(entry).isActive():
@@ -506,6 +509,11 @@ class VirtStoragePool(object):
                         results[entry]["volumes"].append(volume)
                 else:
                     results[entry]["volume_count"] = -1
+
+                try:
+                    results[entry]["path"] = self.conn.get_path(entry)
+                except ValueError:
+                    pass
 
                 try:
                     results[entry]["host"] = self.conn.get_host(entry)
