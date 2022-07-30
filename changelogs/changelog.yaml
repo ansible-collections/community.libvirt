@@ -45,3 +45,18 @@ releases:
     - 1.0.2.yml
     - 73-plugin-name-fqcn.yaml
     release_date: '2021-07-22'
+  1.1.0:
+    changes:
+      bugfixes:
+      - replace deprecated ``distutils.spawn.find_executable`` with Ansible's ``get_bin_path``
+        in ``_search_executable`` function.
+      release_summary: 'This is the minor release of the ``community.mysql`` collection.
+
+        This changelog contains all changes to the modules and plugins in this collection
+
+        that have been made after the previous release 1.0.2.'
+    fragments:
+    - 1.1.0.yml
+    - 114_replace_distutils_spawn.yml
+    - 90_add_integration_test_for_virt_pool.yml
+    release_date: '2022-05-12'
