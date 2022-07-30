@@ -161,7 +161,7 @@ class LibvirtConnection(object):
         if PYCDLIB_IMPORT_ERR:
             raise PYCDLIB_IMPORT_ERR
 
-        ci_config = yaml.load(self.module.params.get('config', None))
+        ci_config = yaml.safe_load(self.module.params.get('config', None))
 
         # Ensure we actually have some CIDATA before creating the CIDATA cdrom
         if ci_config and ('METADATA' in ci_config or 'USERDATA' in ci_config or 'NETWORK_CONFIG' in ci_config):
@@ -171,17 +171,17 @@ class LibvirtConnection(object):
             iso.new(interchange_level=3, joliet=True, sys_ident='LINUX', rock_ridge='1.09', vol_ident='cidata')
 
             if 'NETWORK_CONFIG' in ci_config:
-                cidata_network = yaml.dump(ci_config['NETWORK_CONFIG'], width=4096, encoding='utf-8')
+                cidata_network = yaml.safe_dump(ci_config['NETWORK_CONFIG'], width=4096, encoding='utf-8')
                 iso.add_fp(BytesIO(cidata_network), len(cidata_network), '/NETWORK_CONFIG.;1', rr_name="network-config", joliet_path='/network-config')
 
             if 'METADATA' in ci_config:
-                cidata_metadata = yaml.dump(ci_config['METADATA'], width=4096, encoding='utf-8')
+                cidata_metadata = yaml.safe_dump(ci_config['METADATA'], width=4096, encoding='utf-8')
             else:
                 cidata_metadata = "# Note: The user-data and meta-data files are both to be present for it to be considered a valid seed ISO.".encode('utf-8')
-                # cidata_metadata = yaml.dump({"local-hostname": re.sub(r'^(.*?)--cidata\.iso$', '\\1.iso', volname)}, width=4096, encoding='utf-8')
+                # cidata_metadata = yaml.safe_dump({"local-hostname": re.sub(r'^(.*?)--cidata\.iso$', '\\1.iso', volname)}, width=4096, encoding='utf-8')
 
             if 'USERDATA' in ci_config:
-                cidata_userdata = "#cloud-config\n".encode('utf-8') + yaml.dump(ci_config['USERDATA'], width=4096, encoding='utf-8')
+                cidata_userdata = "#cloud-config\n".encode('utf-8') + yaml.safe_dump(ci_config['USERDATA'], width=4096, encoding='utf-8')
             else:
                 cidata_userdata = "# Note: The user-data and meta-data files are both to be present for it to be considered a valid seed ISO.".encode('utf-8')
 
