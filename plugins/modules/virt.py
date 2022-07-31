@@ -165,21 +165,8 @@ class LibvirtConnection(object):
         """
         Extra bonus feature: vmid = -1 returns a list of everything
         """
-        conn = self.conn
 
-        vms = []
-
-        # this block of code borrowed from virt-manager:
-        # get working domain's name
-        ids = conn.listDomainsID()
-        for id in ids:
-            vm = conn.lookupByID(id)
-            vms.append(vm)
-        # get defined domain
-        names = conn.listDefinedDomains()
-        for name in names:
-            vm = conn.lookupByName(name)
-            vms.append(vm)
+        vms = self.conn.listAllDomains()
 
         if vmid == -1:
             return vms
