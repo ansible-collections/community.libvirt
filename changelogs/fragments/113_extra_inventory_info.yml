@@ -1,0 +1,3 @@
+---
+minor_changes:
+  - libvirt - add extra guest information to inventory (https://github.com/ansible-collections/community.libvirt/pull/113).
