@@ -1,2 +1,0 @@
-bugfixes:
-  - virt_net - fix modify function which was not idempotent, depending on whether the network was active. See https://github.com/ansible-collections/community.libvirt/issues/107.
