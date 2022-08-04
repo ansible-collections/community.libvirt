@@ -1,2 +1,0 @@
-bugfixes:
-  - virt_pool - crashed out if pool didn't contain a target path. Fix allows this not to be set. (https://github.com/ansible-collections/community.libvirt/issues/129).
