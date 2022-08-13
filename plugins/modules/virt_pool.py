@@ -287,7 +287,7 @@ class LibvirtConnection(object):
         return self.find_entry(entryid).numOfVolumes()
 
     def get_volume_names(self, entryid):
-        return self.find_entry(entryid).listVolumes()
+        return self.find_entry(entryid).listAllVolumes()
 
     def get_devices(self, entryid):
         xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
@@ -497,7 +497,7 @@ class VirtStoragePool(object):
                     results[entry]["volume_count"] = self.conn.get_volume_count(entry)
                     results[entry]["volumes"] = list()
                     for volume in self.conn.get_volume_names(entry):
-                        results[entry]["volumes"].append(volume)
+                        results[entry]["volumes"].append(volume.name())
                 else:
                     results[entry]["volume_count"] = -1
 
