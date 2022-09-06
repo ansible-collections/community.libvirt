@@ -33,11 +33,11 @@ options:
             - Enforce an action.
             - Currently only implemented with command C(undefine).
               This option can be used instead of providing all C(flags).
-              If C(yes), C(undefine) removes also any related nvram or other metadata, if existing.
-              If C(no) or not set, C(undefine) executes only if there is no nvram or other metadata existing.
+              If C(true), C(undefine) removes also any related nvram or other metadata, if existing.
+              If C(false) or not set, C(undefine) executes only if there is no nvram or other metadata existing.
               Otherwise the task fails and the guest is kept defined without change.
-              C(yes) and option C(flags) should not be provided together. In this case
-              C(undefine) ignores C(yes), considers only C(flags) and issues a warning.
+              C(true) and option C(flags) should not be provided together. In this case
+              C(undefine) ignores C(true), considers only C(flags) and issues a warning.
         type: bool
 extends_documentation_fragment:
     - community.libvirt.virt.options_uri
@@ -81,14 +81,14 @@ EXAMPLES = '''
 - name: Set autostart for a VM
   community.libvirt.virt:
     name: foo
-    autostart: yes
+    autostart: true
 
 # Defining a VM and making is autostart with host. VM will be off after this task
 - name: Define vm from xml and set autostart
   community.libvirt.virt:
     command: define
     xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
-    autostart: yes
+    autostart: true
 
 # Undefine VM only, if it has no existing nvram or other metadata
 - name: Undefine qemu VM
@@ -99,7 +99,7 @@ EXAMPLES = '''
 - name: "Undefine qemu VM with force"
   community.libvirt.virt:
     name: foo
-    force: yes
+    force: true
 
 # Undefine VM and remove all of its specified metadata specified
 # Result would the same as with force=true

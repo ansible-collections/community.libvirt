@@ -109,12 +109,12 @@ EXAMPLES = '''
 
 - name: Ensure that a given network will be started at boot
   community.libvirt.virt_net:
-    autostart: yes
+    autostart: true
     name: br_nat
 
 - name: Disable autostart for a given network
   community.libvirt.virt_net:
-    autostart: no
+    autostart: false
     name: br_nat
 
 - name: Add a new host in the dhcp pool
