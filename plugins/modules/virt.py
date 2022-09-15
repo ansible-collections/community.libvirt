@@ -46,6 +46,7 @@ extends_documentation_fragment:
     - community.libvirt.virt.options_autostart
     - community.libvirt.virt.options_state
     - community.libvirt.virt.options_command
+    - community.libvirt.virt.options_mutate_flags
     - community.libvirt.requirements
 author:
     - Ansible Core Team
@@ -193,6 +194,8 @@ ENTRY_UNDEFINE_FLAGS_MAP = {
     'keep_nvram': 8,
     'checkpoints_metadata': 16,
 }
+
+MUTATE_FLAGS = ['ADD_UUID', 'ADD_MAC_ADDRESSES', 'ADD_MAC_ADDRESSES_FUZZY']
 
 ALL_FLAGS = []
 ALL_FLAGS.extend(ENTRY_UNDEFINE_FLAGS_MAP.keys())
@@ -475,10 +478,27 @@ class Virt(object):
         self.__get_conn()
         return self.conn.define_from_xml(xml)
 
-def handle_define(module: AnsibleModule, v: Virt):
+
+# A dict of interface types (found in their `type` attribute) to the
+# corresponding "source" attribute name of their  <source> elements
+# user networks don't have a <source> element
+#
+# We do not support fuzzy matching against any interface types
+# not defined here
+INTERFACE_SOURCE_ATTRS = {
+    'network': 'network',
+    'bridge': 'bridge',
+    'direct': 'dev',
+    'user': None,
+}
+
+
+def handle_define(module, v):
+    ''' handle `command: define` '''
     xml = module.params.get('xml', None)
     guest = module.params.get('name', None)
     autostart = module.params.get('autostart', None)
+    mutate_flags = module.params.get('mutate_flags', [])
 
     if not xml:
         module.fail_json(msg="define requires 'xml' argument")
@@ -508,35 +528,151 @@ def handle_define(module: AnsibleModule, v: Virt):
     res = dict()
 
     # From libvirt docs (https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainDefineXML):
-    # -- A previous definition for this domain would be overridden if it already exists.
+    # -- A previous definition for this domain with the same UUID and name would
+    # be overridden if it already exists.
     #
-    # In real world testing with libvirt versions 1.2.17-13, 2.0.0-10 and 3.9.0-14
-    # on qemu and lxc domains results in:
+    # If a domain is defined without a <uuid>, libvirt will generate one for it.
+    # If an attempt is made to re-define the same xml (with the same <name> and
+    # no <uuid>), libvirt will complain with the following error:
+    #
     # operation failed: domain '<name>' already exists with <uuid>
     #
-    # In case a domain would be indeed overwritten, we should protect idempotency:
+    # If a domain with a similiar <name> but different <uuid> is defined,
+    # libvirt complains with the same error. However, if a domain is defined
+    # with the same <name> and <uuid> as an existing domain, then libvirt will
+    # update the domain with the new definition (automatically handling
+    # addition/removal of devices. some changes may require a boot).
     try:
-        existing_domain_xml = v.get_vm(domain_name).XMLDesc(
-            libvirt.VIR_DOMAIN_XML_INACTIVE
-        )
+        existing_domain = v.get_vm(domain_name)
+        existing_xml_raw = existing_domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
+        existing_xml = etree.fromstring(existing_xml_raw)
     except VMNotFound:
-        existing_domain_xml = None
-    try:
-        domain = v.define(xml)
-        if existing_domain_xml:
-            # if we are here, then libvirt redefined existing domain as the doc promised
-            new_domain_xml = domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
-            if existing_domain_xml != new_domain_xml:
-                res = {'changed': True, 'change_reason': 'config changed'}
+        existing_domain = None
+        existing_xml_raw = None
+        existing_xml = None
+
+    if existing_domain is not None:
+        # we are updating a domain's definition
+
+        incoming_uuid = incoming_xml.findtext('./uuid')
+        existing_uuid = existing_domain.UUIDString()
+
+        if incoming_uuid is not None and incoming_uuid != existing_uuid:
+            # A user should not try defining a domain with the same name but
+            # different UUID
+            module.fail_json(msg="attempting to re-define domain %s/%s with a different UUID: %s" % (
+                domain_name, existing_uuid, incoming_uuid
+            ))
         else:
-            res = {'changed': True, 'created': domain.name()}
+            if 'ADD_UUID' in mutate_flags and incoming_uuid is None:
+                # Users will often want to define their domains without an explicit
+                # UUID, instead giving them a unique name - so we support bringing
+                # over the UUID from the existing domain
+                etree.SubElement(incoming_xml, 'uuid').text = existing_uuid
+
+            existing_devices = existing_xml.find('./devices')
+
+            if 'ADD_MAC_ADDRESSES' in mutate_flags:
+                for interface in incoming_xml.xpath('./devices/interface[not(mac) and alias]'):
+                    search_alias = interface.find('alias').get('name')
+                    xpath = "./interface[alias[@name='%s']]" % search_alias
+                    try:
+                        matched_interface = existing_devices.xpath(xpath)[0]
+                        existing_devices.remove(matched_interface)
+                        etree.SubElement(interface, 'mac', {
+                            'address': matched_interface.find('mac').get('address')
+                        })
+                    except IndexError:
+                        module.warn("Could not match interface %i of incoming XML by alias %s." % (
+                            interface.getparent().index(interface) + 1, search_alias
+                        ))
+
+            if 'ADD_MAC_ADDRESSES_FUZZY' in mutate_flags:
+                # the counts of interfaces of a similar type/source
+                # key'd with tuple of (type, source)
+                similar_interface_counts = {}
+
+                def get_interface_count(_type, source=None):
+                    key = (_type, source if _type != "user" else None)
+                    if key not in similar_interface_counts:
+                        similar_interface_counts[key] = 1
+                    else:
+                        similar_interface_counts[key] += 1
+                    return similar_interface_counts[key]
+
+                # iterate user-defined interfaces
+                for interface in incoming_xml.xpath('./devices/interface'):
+                    _type = interface.get('type')
+
+                    if interface.find('mac') is not None and interface.find('alias') is not None:
+                        continue
+
+                    if _type not in INTERFACE_SOURCE_ATTRS:
+                        module.warn("Skipping fuzzy MAC matching for interface %i of incoming XML: unsupported interface type '%s'." % (
+                            interface.getparent().index(interface) + 1, _type
+                        ))
+                        continue
+
+                    source_attr = INTERFACE_SOURCE_ATTRS[_type]
+                    source = interface.find('source').get(source_attr) if source_attr else None
+                    similar_count = get_interface_count(_type, source)
+
+                    if interface.find('mac') is not None:
+                        # we want to count these, but not try to change their MAC address
+                        continue
+
+                    if source:
+                        xpath = "./interface[@type='%s' and source[@%s='%s']]" % (
+                            _type, source_attr, source)
+                    else:
+                        xpath = "./interface[@type = '%s']" % source_attr
+
+                    matching_interfaces = existing_devices.xpath(xpath)
+                    try:
+                        matched_interface = matching_interfaces[similar_count - 1]
+                        etree.SubElement(interface, 'mac', {
+                            'address': matched_interface.find('./mac').get('address'),
+                        })
+                    except IndexError:
+                        module.warn("Could not fuzzy match interface %i of incoming XML." % (
+                            interface.getparent().index(interface) + 1
+                        ))
+
+    try:
+        domain_xml = etree.tostring(incoming_xml).decode()
+
+        # TODO: support check mode
+        domain = v.define(domain_xml)
+
+        if existing_domain is not None:
+            # In this case, we may have updated the definition or it might be the same.
+            # We compare the domain's previous xml with its new state and diff
+            # the changes. This allows users to fix their xml if it results in
+            # non-idempotent behaviour (e.g. libvirt mutates it each time)
+            new_xml = domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
+            if existing_xml_raw != new_xml:
+                res.update({
+                    'changed': True,
+                    'change_reason': 'domain definition changed',
+                    'diff': {
+                        'before': existing_xml_raw,
+                        'after': new_xml
+                    }
+                })
+        else:
+            # there was no existing XML, so this is a newly created domain
+            res.update({'changed': True, 'created': domain.name()})
+
     except libvirtError as e:
-        if e.get_error_code() != 9:  # 9 means 'domain already exists' error
-            module.fail_json(msg='libvirtError: %s' % e.get_error_message())
+        module.fail_json(msg='libvirtError: %s' % e.get_error_message())
+    except Exception as e:
+        module.fail_json(msg='an unknown error occured: %s' % e)
+
     if autostart is not None and v.autostart(domain_name, autostart):
-        res = {'changed': True, 'change_reason': 'autostart'}
+        res.update({'changed': True, 'change_reason': 'autostart'})
 
     return res
+
 
 def core(module):
 
@@ -657,6 +793,7 @@ def main():
             force=dict(type='bool'),
             uri=dict(type='str', default='qemu:///system'),
             xml=dict(type='str'),
+            mutate_flags=dict(type='list', elements='str', choices=MUTATE_FLAGS, default=['ADD_UUID']),
         ),
     )
 
