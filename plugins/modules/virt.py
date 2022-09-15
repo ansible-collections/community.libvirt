@@ -155,7 +155,12 @@ except ImportError:
 else:
     HAS_VIRT = True
 
-import re
+try:
+    from lxml import etree
+except ImportError:
+    HAS_XML = False
+else:
+    HAS_XML = True
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -476,14 +481,29 @@ def handle_define(module: AnsibleModule, v: Virt):
     autostart = module.params.get('autostart', None)
 
     if not xml:
-        module.fail_json(msg="define requires xml argument")
-    if guest:
-        # there might be a mismatch between guest 'name' in the module and in the xml
-        module.warn("'xml' is given - ignoring 'name'")
+        module.fail_json(msg="define requires 'xml' argument")
     try:
-        domain_name = re.search('<name>(.*)</name>', xml).groups()[0]
-    except AttributeError:
-        module.fail_json(msg="Could not find domain 'name' in xml")
+        incoming_xml = etree.fromstring(xml)
+    except etree.XMLSyntaxError:
+        # TODO: provide info from parser
+        module.fail_json(msg="given XML is invalid")
+
+    # We'll support supplying the domain's name either from 'name' parameter or xml
+    #
+    # But we will fail if both are defined and not equal.
+    domain_name = incoming_xml.findtext("./name")
+    if domain_name is not None:
+        if guest is not None and domain_name != guest:
+            module.fail_json("given 'name' parameter does not match name in XML")
+    else:
+        if guest is None:
+            module.fail_json("missing 'name' parameter and no name provided in XML")
+        domain_name = guest
+        # since there's no <name> in the xml, we'll add it
+        etree.SubElement(incoming_xml, 'name').text = domain_name
+
+    if domain_name == '':
+        module.fail_json(msg="domain name cannot be an empty string")
 
     res = dict()
 
@@ -641,7 +661,14 @@ def main():
     )
 
     if not HAS_VIRT:
-        module.fail_json(msg='The `libvirt` module is not importable. Check the requirements.')
+        module.fail_json(
+            msg='The `libvirt` module is not importable. Check the requirements.'
+        )
+
+    if not HAS_XML:
+        module.fail_json(
+            msg='The `lxml` module is not importable. Check the requirements.'
+        )
 
     rc = VIRT_SUCCESS
     try:
