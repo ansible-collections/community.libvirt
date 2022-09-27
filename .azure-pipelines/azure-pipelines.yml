@@ -56,6 +56,18 @@ stages:
             - name: Units
               test: 'devel/units/1'
 
+  - stage: Ansible_2_14
+    displayName: Sanity & Units 2.14
+    dependsOn: []
+    jobs:
+      - template: templates/matrix.yml
+        parameters:
+          targets:
+            - name: Sanity
+              test: '2.14/sanity/1'
+            - name: Units
+              test: '2.14/units/1'
+
   - stage: Ansible_2_13
     displayName: Sanity & Units 2.13
     dependsOn: []
@@ -134,6 +146,23 @@ stages:
               test: ubuntu2004
             - name: Ubuntu 22.04
               test: ubuntu2204
+
+  - stage: Docker_2_14
+    displayName: Docker 2.14
+    dependsOn: []
+    jobs:
+      - template: templates/matrix.yml
+        parameters:
+          testFormat: 2.14/linux/{0}/1
+          targets:
+            - name: CentOS 7
+              test: centos7
+            - name: Fedora 36
+              test: fedora36
+            - name: openSUSE 15 py3
+              test: opensuse15
+            - name: Ubuntu 20.04
+              test: ubuntu2004
 
   - stage: Docker_2_13
     displayName: Docker 2.13
@@ -276,6 +305,21 @@ stages:
             - name: FreeBSD 13.1
               test: freebsd/13.1
 
+  - stage: Remote_2_14
+    displayName: Remote 2.14
+    dependsOn: []
+    jobs:
+      - template: templates/matrix.yml
+        parameters:
+          testFormat: '2.14/{0}/1'
+          targets:
+            - name: RHEL 9.0
+              test: rhel/9.0
+            - name: RHEL 8.6
+              test: rhel/8.6
+            - name: FreeBSD 13.1
+              test: freebsd/13.1
+
   - stage: Remote_2_13
     displayName: Remote 2.13
     dependsOn: []
@@ -361,18 +405,21 @@ stages:
     condition: succeededOrFailed()
     dependsOn:
       - Ansible_devel
+      - Ansible_2_14
       - Ansible_2_13
       - Ansible_2_12
       - Ansible_2_11
       - Ansible_2_10
       - Ansible_2_9
       - Docker_devel
+      - Docker_2_14
       - Docker_2_13
       - Docker_2_12
       - Docker_2_11
       - Docker_2_10
       - Docker_2_9
       - Remote_devel
+      - Remote_2_14
       - Remote_2_13
       - Remote_2_12
       - Remote_2_11
