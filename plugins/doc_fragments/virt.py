@@ -65,3 +65,24 @@ options:
       - Must be raw XML content using C(lookup). XML cannot be reference to a file.
     type: str
     """
+
+    OPTIONS_MUTATE_FLAGS = r"""
+options:
+  mutate_flags:
+    description:
+      - For each mutate_flag, we will modify the given XML in some way
+      - ADD_UUID will add an existing domain's UUID to the xml if it's missing
+      - ADD_MAC_ADDRESSES will look up interfaces in the existing domain with a
+        matching alias and copy the MAC address over. The matching interface
+        doesn't need to be of the same type or source network.
+      - ADD_MAC_ADDRESSES_FUZZY will try to match incoming interfaces with
+        interfaces of the existing domain sharing the same type and source
+        network/device. It may not always result in the expected outcome,
+        particularly if a domain has multiple interface attached to the same
+        host device and only some of those devices have <mac>s.
+        Use caution, do some testing for your particular use-case!
+    choices: [ ADD_UUID, ADD_MAC_ADDRESSES, ADD_MAC_ADDRESSES_FUZZY ]
+    type: list
+    elements: str
+    default: ['ADD_UUID']
+    """

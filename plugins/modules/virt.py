@@ -16,6 +16,29 @@ module: virt
 short_description: Manages virtual machines supported by libvirt
 description:
      - Manages virtual machines supported by I(libvirt).
+options:
+    flags:
+        choices: [ 'managed_save', 'snapshots_metadata', 'nvram', 'keep_nvram', 'checkpoints_metadata']
+        description:
+            - Pass additional parameters.
+            - Currently only implemented with command C(undefine).
+              Specify which metadata should be removed with C(undefine).
+              Useful option to be able to C(undefine) guests with UEFI nvram.
+              C(nvram) and C(keep_nvram) are conflicting and mutually exclusive.
+              Consider option C(force) if all related metadata should be removed.
+        type: list
+        elements: str
+    force:
+        description:
+            - Enforce an action.
+            - Currently only implemented with command C(undefine).
+              This option can be used instead of providing all C(flags).
+              If C(true), C(undefine) removes also any related nvram or other metadata, if existing.
+              If C(false) or not set, C(undefine) executes only if there is no nvram or other metadata existing.
+              Otherwise the task fails and the guest is kept defined without change.
+              C(true) and option C(flags) should not be provided together. In this case
+              C(undefine) ignores C(true), considers only C(flags) and issues a warning.
+        type: bool
 extends_documentation_fragment:
     - community.libvirt.virt.options_uri
     - community.libvirt.virt.options_xml
@@ -23,6 +46,7 @@ extends_documentation_fragment:
     - community.libvirt.virt.options_autostart
     - community.libvirt.virt.options_state
     - community.libvirt.virt.options_command
+    - community.libvirt.virt.options_mutate_flags
     - community.libvirt.requirements
 author:
     - Ansible Core Team
@@ -58,14 +82,38 @@ EXAMPLES = '''
 - name: Set autostart for a VM
   community.libvirt.virt:
     name: foo
-    autostart: yes
+    autostart: true
 
 # Defining a VM and making is autostart with host. VM will be off after this task
 - name: Define vm from xml and set autostart
   community.libvirt.virt:
     command: define
     xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
-    autostart: yes
+    autostart: true
+
+# Undefine VM only, if it has no existing nvram or other metadata
+- name: Undefine qemu VM
+  community.libvirt.virt:
+    name: foo
+
+# Undefine VM and force remove all of its related metadata (nvram, snapshots, etc.)
+- name: "Undefine qemu VM with force"
+  community.libvirt.virt:
+    name: foo
+    force: true
+
+# Undefine VM and remove all of its specified metadata specified
+# Result would the same as with force=true
+- name: Undefine qemu VM with list of flags
+  community.libvirt.virt:
+    name: foo
+    flags: managed_save, snapshots_metadata, nvram, checkpoints_metadata
+
+# Undefine VM, but keep its nvram
+- name: Undefine qemu VM and keep its nvram
+  community.libvirt.virt:
+    name: foo
+    flags: keep_nvram
 
 # Listing VMs
 - name: List all VMs
@@ -108,7 +156,12 @@ except ImportError:
 else:
     HAS_VIRT = True
 
-import re
+try:
+    from lxml import etree
+except ImportError:
+    HAS_XML = False
+else:
+    HAS_XML = True
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -133,6 +186,19 @@ VIRT_STATE_NAME_MAP = {
     5: 'shutdown',
     6: 'crashed',
 }
+
+ENTRY_UNDEFINE_FLAGS_MAP = {
+    'managed_save': 1,
+    'snapshots_metadata': 2,
+    'nvram': 4,
+    'keep_nvram': 8,
+    'checkpoints_metadata': 16,
+}
+
+MUTATE_FLAGS = ['ADD_UUID', 'ADD_MAC_ADDRESSES', 'ADD_MAC_ADDRESSES_FUZZY']
+
+ALL_FLAGS = []
+ALL_FLAGS.extend(ENTRY_UNDEFINE_FLAGS_MAP.keys())
 
 
 class VMNotFound(Exception):
@@ -198,8 +264,8 @@ class LibvirtConnection(object):
     def destroy(self, vmid):
         return self.find_vm(vmid).destroy()
 
-    def undefine(self, vmid):
-        return self.find_vm(vmid).undefine()
+    def undefine(self, vmid, flag):
+        return self.find_vm(vmid).undefineFlags(flag)
 
     def get_status2(self, vm):
         state = vm.info()[0]
@@ -367,11 +433,11 @@ class Virt(object):
         self.__get_conn()
         return self.conn.destroy(vmid)
 
-    def undefine(self, vmid):
+    def undefine(self, vmid, flag):
         """ Stop a domain, and then wipe it from the face of the earth.  (delete disk/config file) """
 
         self.__get_conn()
-        return self.conn.undefine(vmid)
+        return self.conn.undefine(vmid, flag)
 
     def status(self, vmid):
         """
@@ -413,14 +479,210 @@ class Virt(object):
         return self.conn.define_from_xml(xml)
 
 
+# A dict of interface types (found in their `type` attribute) to the
+# corresponding "source" attribute name of their  <source> elements
+# user networks don't have a <source> element
+#
+# We do not support fuzzy matching against any interface types
+# not defined here
+INTERFACE_SOURCE_ATTRS = {
+    'network': 'network',
+    'bridge': 'bridge',
+    'direct': 'dev',
+    'user': None,
+}
+
+
+def handle_define(module, v):
+    ''' handle `command: define` '''
+    xml = module.params.get('xml', None)
+    guest = module.params.get('name', None)
+    autostart = module.params.get('autostart', None)
+    mutate_flags = module.params.get('mutate_flags', [])
+
+    if not xml:
+        module.fail_json(msg="define requires 'xml' argument")
+    try:
+        incoming_xml = etree.fromstring(xml)
+    except etree.XMLSyntaxError:
+        # TODO: provide info from parser
+        module.fail_json(msg="given XML is invalid")
+
+    # We'll support supplying the domain's name either from 'name' parameter or xml
+    #
+    # But we will fail if both are defined and not equal.
+    domain_name = incoming_xml.findtext("./name")
+    if domain_name is not None:
+        if guest is not None and domain_name != guest:
+            module.fail_json("given 'name' parameter does not match name in XML")
+    else:
+        if guest is None:
+            module.fail_json("missing 'name' parameter and no name provided in XML")
+        domain_name = guest
+        # since there's no <name> in the xml, we'll add it
+        etree.SubElement(incoming_xml, 'name').text = domain_name
+
+    if domain_name == '':
+        module.fail_json(msg="domain name cannot be an empty string")
+
+    res = dict()
+
+    # From libvirt docs (https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainDefineXML):
+    # -- A previous definition for this domain with the same UUID and name would
+    # be overridden if it already exists.
+    #
+    # If a domain is defined without a <uuid>, libvirt will generate one for it.
+    # If an attempt is made to re-define the same xml (with the same <name> and
+    # no <uuid>), libvirt will complain with the following error:
+    #
+    # operation failed: domain '<name>' already exists with <uuid>
+    #
+    # If a domain with a similiar <name> but different <uuid> is defined,
+    # libvirt complains with the same error. However, if a domain is defined
+    # with the same <name> and <uuid> as an existing domain, then libvirt will
+    # update the domain with the new definition (automatically handling
+    # addition/removal of devices. some changes may require a boot).
+    try:
+        existing_domain = v.get_vm(domain_name)
+        existing_xml_raw = existing_domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
+        existing_xml = etree.fromstring(existing_xml_raw)
+    except VMNotFound:
+        existing_domain = None
+        existing_xml_raw = None
+        existing_xml = None
+
+    if existing_domain is not None:
+        # we are updating a domain's definition
+
+        incoming_uuid = incoming_xml.findtext('./uuid')
+        existing_uuid = existing_domain.UUIDString()
+
+        if incoming_uuid is not None and incoming_uuid != existing_uuid:
+            # A user should not try defining a domain with the same name but
+            # different UUID
+            module.fail_json(msg="attempting to re-define domain %s/%s with a different UUID: %s" % (
+                domain_name, existing_uuid, incoming_uuid
+            ))
+        else:
+            if 'ADD_UUID' in mutate_flags and incoming_uuid is None:
+                # Users will often want to define their domains without an explicit
+                # UUID, instead giving them a unique name - so we support bringing
+                # over the UUID from the existing domain
+                etree.SubElement(incoming_xml, 'uuid').text = existing_uuid
+
+            existing_devices = existing_xml.find('./devices')
+
+            if 'ADD_MAC_ADDRESSES' in mutate_flags:
+                for interface in incoming_xml.xpath('./devices/interface[not(mac) and alias]'):
+                    search_alias = interface.find('alias').get('name')
+                    xpath = "./interface[alias[@name='%s']]" % search_alias
+                    try:
+                        matched_interface = existing_devices.xpath(xpath)[0]
+                        existing_devices.remove(matched_interface)
+                        etree.SubElement(interface, 'mac', {
+                            'address': matched_interface.find('mac').get('address')
+                        })
+                    except IndexError:
+                        module.warn("Could not match interface %i of incoming XML by alias %s." % (
+                            interface.getparent().index(interface) + 1, search_alias
+                        ))
+
+            if 'ADD_MAC_ADDRESSES_FUZZY' in mutate_flags:
+                # the counts of interfaces of a similar type/source
+                # key'd with tuple of (type, source)
+                similar_interface_counts = {}
+
+                def get_interface_count(_type, source=None):
+                    key = (_type, source if _type != "user" else None)
+                    if key not in similar_interface_counts:
+                        similar_interface_counts[key] = 1
+                    else:
+                        similar_interface_counts[key] += 1
+                    return similar_interface_counts[key]
+
+                # iterate user-defined interfaces
+                for interface in incoming_xml.xpath('./devices/interface'):
+                    _type = interface.get('type')
+
+                    if interface.find('mac') is not None and interface.find('alias') is not None:
+                        continue
+
+                    if _type not in INTERFACE_SOURCE_ATTRS:
+                        module.warn("Skipping fuzzy MAC matching for interface %i of incoming XML: unsupported interface type '%s'." % (
+                            interface.getparent().index(interface) + 1, _type
+                        ))
+                        continue
+
+                    source_attr = INTERFACE_SOURCE_ATTRS[_type]
+                    source = interface.find('source').get(source_attr) if source_attr else None
+                    similar_count = get_interface_count(_type, source)
+
+                    if interface.find('mac') is not None:
+                        # we want to count these, but not try to change their MAC address
+                        continue
+
+                    if source:
+                        xpath = "./interface[@type='%s' and source[@%s='%s']]" % (
+                            _type, source_attr, source)
+                    else:
+                        xpath = "./interface[@type = '%s']" % source_attr
+
+                    matching_interfaces = existing_devices.xpath(xpath)
+                    try:
+                        matched_interface = matching_interfaces[similar_count - 1]
+                        etree.SubElement(interface, 'mac', {
+                            'address': matched_interface.find('./mac').get('address'),
+                        })
+                    except IndexError:
+                        module.warn("Could not fuzzy match interface %i of incoming XML." % (
+                            interface.getparent().index(interface) + 1
+                        ))
+
+    try:
+        domain_xml = etree.tostring(incoming_xml).decode()
+
+        # TODO: support check mode
+        domain = v.define(domain_xml)
+
+        if existing_domain is not None:
+            # In this case, we may have updated the definition or it might be the same.
+            # We compare the domain's previous xml with its new state and diff
+            # the changes. This allows users to fix their xml if it results in
+            # non-idempotent behaviour (e.g. libvirt mutates it each time)
+            new_xml = domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
+            if existing_xml_raw != new_xml:
+                res.update({
+                    'changed': True,
+                    'change_reason': 'domain definition changed',
+                    'diff': {
+                        'before': existing_xml_raw,
+                        'after': new_xml
+                    }
+                })
+        else:
+            # there was no existing XML, so this is a newly created domain
+            res.update({'changed': True, 'created': domain.name()})
+
+    except libvirtError as e:
+        module.fail_json(msg='libvirtError: %s' % e.get_error_message())
+    except Exception as e:
+        module.fail_json(msg='an unknown error occured: %s' % e)
+
+    if autostart is not None and v.autostart(domain_name, autostart):
+        res.update({'changed': True, 'change_reason': 'autostart'})
+
+    return res
+
+
 def core(module):
 
     state = module.params.get('state', None)
     autostart = module.params.get('autostart', None)
     guest = module.params.get('name', None)
     command = module.params.get('command', None)
+    force = module.params.get('force', None)
+    flags = module.params.get('flags', None)
     uri = module.params.get('uri', None)
-    xml = module.params.get('xml', None)
 
     v = Virt(uri, module)
     res = dict()
@@ -473,46 +735,34 @@ def core(module):
     if command:
         if command in VM_COMMANDS:
             if command == 'define':
-                if not xml:
-                    module.fail_json(msg="define requires xml argument")
-                if guest:
-                    # there might be a mismatch between quest 'name' in the module and in the xml
-                    module.warn("'xml' is given - ignoring 'name'")
-                try:
-                    domain_name = re.search('<name>(.*)</name>', xml).groups()[0]
-                except AttributeError:
-                    module.fail_json(msg="Could not find domain 'name' in xml")
-
-                # From libvirt docs (https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainDefineXML):
-                # -- A previous definition for this domain would be overridden if it already exists.
-                #
-                # In real world testing with libvirt versions 1.2.17-13, 2.0.0-10 and 3.9.0-14
-                # on qemu and lxc domains results in:
-                # operation failed: domain '<name>' already exists with <uuid>
-                #
-                # In case a domain would be indeed overwritten, we should protect idempotency:
-                try:
-                    existing_domain_xml = v.get_vm(domain_name).XMLDesc(
-                        libvirt.VIR_DOMAIN_XML_INACTIVE
-                    )
-                except VMNotFound:
-                    existing_domain_xml = None
-                try:
-                    domain = v.define(xml)
-                    if existing_domain_xml:
-                        # if we are here, then libvirt redefined existing domain as the doc promised
-                        if existing_domain_xml != domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE):
-                            res = {'changed': True, 'change_reason': 'config changed'}
-                    else:
-                        res = {'changed': True, 'created': domain.name()}
-                except libvirtError as e:
-                    if e.get_error_code() != 9:  # 9 means 'domain already exists' error
-                        module.fail_json(msg='libvirtError: %s' % e.get_error_message())
-                if autostart is not None and v.autostart(domain_name, autostart):
-                    res = {'changed': True, 'change_reason': 'autostart'}
+                res.update(handle_define(module, v))
 
             elif not guest:
                 module.fail_json(msg="%s requires 1 argument: guest" % command)
+
+            elif command == 'undefine':
+                # Use the undefine function with flag to also handle various metadata.
+                # This is especially important for UEFI enabled guests with nvram.
+                # Provide flag as an integer of all desired bits, see 'ENTRY_UNDEFINE_FLAGS_MAP'.
+                # Integer 23 takes care of all cases (23 = 1 + 2 + 4 + 16).
+                flag = 0
+                if flags is not None:
+                    if force is True:
+                        module.warn("Ignoring 'force', because 'flags' are provided.")
+                    nv = ['nvram', 'keep_nvram']
+                    # Check mutually exclusive flags
+                    if set(nv) <= set(flags):
+                        raise ValueError("Flags '%s' are mutually exclusive" % "' and '".join(nv))
+                    for item in flags:
+                        # Get and add flag integer from mapping, otherwise 0.
+                        flag += ENTRY_UNDEFINE_FLAGS_MAP.get(item, 0)
+                elif force is True:
+                    flag = 23
+                # Finally, execute with flag
+                res = getattr(v, command)(guest, flag)
+                if not isinstance(res, dict):
+                    res = {command: res}
+
             else:
                 res = getattr(v, command)(guest)
                 if not isinstance(res, dict):
@@ -539,13 +789,23 @@ def main():
             state=dict(type='str', choices=['destroyed', 'paused', 'running', 'shutdown']),
             autostart=dict(type='bool'),
             command=dict(type='str', choices=ALL_COMMANDS),
+            flags=dict(type='list', elements='str', choices=ALL_FLAGS),
+            force=dict(type='bool'),
             uri=dict(type='str', default='qemu:///system'),
             xml=dict(type='str'),
+            mutate_flags=dict(type='list', elements='str', choices=MUTATE_FLAGS, default=['ADD_UUID']),
         ),
     )
 
     if not HAS_VIRT:
-        module.fail_json(msg='The `libvirt` module is not importable. Check the requirements.')
+        module.fail_json(
+            msg='The `libvirt` module is not importable. Check the requirements.'
+        )
+
+    if not HAS_XML:
+        module.fail_json(
+            msg='The `lxml` module is not importable. Check the requirements.'
+        )
 
     rc = VIRT_SUCCESS
     try:

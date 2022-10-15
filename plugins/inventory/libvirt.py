@@ -160,6 +160,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                 )
 
                 # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
+                domain_guestInfo = ''
                 try:
                     # type==0 returns all types (users, os, timezone, hostname, filesystem, disks, interfaces)
                     domain_guestInfo = domain.guestInfo(types=0)
@@ -173,6 +174,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                     )
 
                 # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
+                domain_interfaceAddresses = ''
                 try:
                     domain_interfaceAddresses = domain.interfaceAddresses(source=libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT)
                 except libvirt.libvirtError as e:

@@ -124,12 +124,12 @@ EXAMPLES = '''
 
 - name: Ensure that a given pool will be started at boot
   community.libvirt.virt_pool:
-    autostart: yes
+    autostart: true
     name: vms
 
 - name: Disable autostart for a given pool
   community.libvirt.virt_pool:
-    autostart: no
+    autostart: false
     name: vms
 '''
 
@@ -222,17 +222,8 @@ class LibvirtConnection(object):
     def find_entry(self, entryid):
         # entryid = -1 returns a list of everything
 
-        results = []
-
-        # Get active entries
-        for name in self.conn.listStoragePools():
-            entry = self.conn.storagePoolLookupByName(name)
-            results.append(entry)
-
-        # Get inactive entries
-        for name in self.conn.listDefinedStoragePools():
-            entry = self.conn.storagePoolLookupByName(name)
-            results.append(entry)
+        # Get all entries
+        results = self.conn.listAllStoragePools()
 
         if entryid == -1:
             return results
@@ -296,7 +287,7 @@ class LibvirtConnection(object):
         return self.find_entry(entryid).numOfVolumes()
 
     def get_volume_names(self, entryid):
-        return self.find_entry(entryid).listVolumes()
+        return self.find_entry(entryid).listAllVolumes()
 
     def get_devices(self, entryid):
         xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
@@ -506,7 +497,7 @@ class VirtStoragePool(object):
                     results[entry]["volume_count"] = self.conn.get_volume_count(entry)
                     results[entry]["volumes"] = list()
                     for volume in self.conn.get_volume_names(entry):
-                        results[entry]["volumes"].append(volume)
+                        results[entry]["volumes"].append(volume.name())
                 else:
                     results[entry]["volume_count"] = -1
 
