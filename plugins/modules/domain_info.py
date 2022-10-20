@@ -11,7 +11,7 @@ DOCUMENTATION = """
 module: domain_info
 short_description: Retrieves information about I(libvirt) domains.
 description:
-     - Retrieves information about I(libvirt) domains.
+  - Retrieves information about I(libvirt) domains.
 options:
   name:
     description:
@@ -62,10 +62,10 @@ options:
         choices: [ lease, agent, arp ]
         default: lease
 extends_documentation_fragment:
-    - community.libvirt.virt.options_uri
-    - community.libvirt.requirements
+  - community.libvirt.virt.options_uri
+  - community.libvirt.requirements
 author:
-    - Matt Low
+  - Matt Low
 """
 
 EXAMPLES = """
