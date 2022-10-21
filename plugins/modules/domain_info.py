@@ -72,20 +72,20 @@ EXAMPLES = """
 - name: Get the state of a domain
   community.libvirt.domain_info:
     name: foo
-    state: {}
+    state:
   register: domain_info
 
 - name: Get the state AND interface addresses of a domain
   community.libvirt.domain_info:
     name: foo
-    state: {}
+    state:
     ifaddr:
       source: guest
 
 - name: Get the XML of a domain
   community.libvirt.domain_info:
     name: foo
-    xml: {}
+    xml:
 
 - name: Get the migratable XML of a domain
   community.libvirt.domain_info:
@@ -109,29 +109,30 @@ uuid:
   sample: 2cacfeff-19c5-42ef-8949-2ba656aa813a
 
 exists:
-  description: Whether or not the domain information was requested for exists.
+  description: Whether or not the domain exists.
   type: bool
   returned: success
   sample: true
 
-info:
-  description: A dictionary of all the requested information about the domain.
+state:
+  description: The state the domain is in
+  type: str
+  returned: if I(state) parameter provided
+
+xml:
+  description: The xml defintion of the domain
+  type: str
+  returned: if I(xml) parameter provided
+
+guestinfo:
+  description: Domain guest information (requires qemu-guest-agent)
   type: dict
-  returned: success
-  sample: {
-      state: running,
-      xml: "<domain>...</domain>",
-      guestinfo: {
-        "os.id": "debian",
-        "os.kernel-release": "5.10.0-19-cloud-amd64",
-        "os.kernel-version": "#1 SMP Debian 5.10.149-1 (2022-10-17)",
-        "os.machine": "x86_64",
-        "os.name": "Debian GNU/Linux",
-        "os.pretty-name": "Debian GNU/Linux 11 (bullseye)",
-        "os.version": "11 (bullseye)",
-        "os.version-id": "11"
-      }
-  }
+  returned: if I(guestinfo) parameter provided
+
+ifaddr:
+  description: Domain interface address information
+  type: dict
+  returned: if I(ifaddr) parameter provided
 """
 
 try:
@@ -142,7 +143,10 @@ except ImportError:
 else:
     HAS_VIRT = True
 
-from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import AnsibleModule, _load_params
+from ansible.module_utils._text import to_native
+
+import traceback
 
 # https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainState
 DOM_STATE_MAP = {
@@ -204,9 +208,13 @@ def execute_module(module):
     result.update(name=dom.name())
     result.update(uuid=dom.UUIDString())
 
-    info = dict()
+    # This allows us to access passed in module params before argument
+    # validation. We only use it to see whether certain params have been
+    # supplied (even without value) to trigger their 'resolvers' (below)
+    # This might break in future versions of Ansible.
+    raw_params = _load_params()
 
-    if module.params.get("state") is not None:
+    if "state" in raw_params:
         state, _ = dom.state()
         # state is a tuple of ints, in the format of [state.state, state.reason]
         # where state.state is an int coresponding to the domain's current state
@@ -214,25 +222,28 @@ def execute_module(module):
         # up in its current state.
         # Currently we don't expose the reason, but it shouldn't be hard to do
         # if this information is desired.
-        info.update(state=DOM_STATE_MAP[state])
+        result.update(state=DOM_STATE_MAP[state])
 
-    if module.params.get("xml") is not None:
+    if "xml" in raw_params:
         flags = 0
-        for flag in module.params.get("xml").get("flags"):
-            flags |= DOM_XML_FLAGS[flag]
-        info.update(xml=dom.XMLDesc(flags))
+        xml_args = module.params.get("xml")
+        if xml_args:
+            for flag in xml_args.get("flags"):
+                flags |= DOM_XML_FLAGS[flag]
+        result.update(xml=dom.XMLDesc(flags))
 
-    if module.params.get("guestinfo") is not None:
+    if "guestinfo" in raw_params:
         types = 0
-        for _type in module.params.get("guestinfo").get("types"):
-            types |= DOM_GUEST_INFO_TYPES[_type]
-        info.update(guestinfo=dom.guestInfo(types))
+        guestinfo_args = module.params.get("guestinfo")
+        if guestinfo_args:
+            for _type in guestinfo_args.get("types"):
+                types |= DOM_GUEST_INFO_TYPES[_type]
+        result.update(guestinfo=dom.guestInfo(types))
 
-    if module.params.get("ifaddr") is not None:
-        source = module.params.get("ifaddr").get("source")
-        info.update(ifaddr=dom.interfaceAddresses(DOM_IFADDR_SOURCES[source]))
-
-    result.update(info=info)
+    if "ifaddr" in raw_params:
+        ifaddr_args = module.params.get("ifaddr")
+        source = ifaddr_args.get("source") if ifaddr_args else DOM_IFADDR_DEFAULT_SOURCE
+        result.update(ifaddr=dom.interfaceAddresses(DOM_IFADDR_SOURCES[source]))
 
     return result
 
@@ -259,7 +270,7 @@ def main():
                     source=dict(
                         type="str",
                         choices=DOM_IFADDR_SOURCES.keys(),
-                        default="lease",  # emulating `virsh` behavior
+                        default=DOM_IFADDR_DEFAULT_SOURCE,  # emulating `virsh` behavior
                     )
                 ),
             ),
@@ -270,8 +281,7 @@ def main():
                         type="list",
                         elements="str",
                         choices=DOM_GUEST_INFO_TYPES.keys(),
-                        default=[],  # emulating `virsh` behavior. When no types
-                        # are given, libvirt returns all information
+                        default=[],  # emulating `virsh` behavior
                     )
                 ),
             ),
@@ -288,7 +298,7 @@ def main():
     try:
         result.update(execute_module(module))
     except Exception as e:
-        module.fail_json(msg="An unknown error occurred: %s" % e)
+        module.fail_json(msg=to_native(e), exception=traceback.format_exc())
 
     module.exit_json(**result)
 
