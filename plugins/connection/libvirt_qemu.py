@@ -29,6 +29,7 @@ options:
     default: inventory_hostname
     vars:
       - name: ansible_host
+      - name: inventory_hostname
   executable:
     description:
       - Shell to use for execution inside container.
