@@ -138,8 +138,8 @@ stages:
           targets:
             - name: CentOS 7
               test: centos7
-            - name: Fedora 36
-              test: fedora36
+            - name: Fedora 37
+              test: fedora37
             - name: openSUSE 15 py3
               test: opensuse15
             - name: Ubuntu 20.04
@@ -296,12 +296,12 @@ stages:
           targets:
             - name: RHEL 7.9
               test: rhel/7.9
-            - name: RHEL 8.6
-              test: rhel/8.6
-            - name: RHEL 9.0
-              test: rhel/9.0
-            - name: FreeBSD 12.3
-              test: freebsd/12.3
+            - name: RHEL 8.7
+              test: rhel/8.7
+            - name: RHEL 9.1
+              test: rhel/9.1
+            - name: FreeBSD 12.4
+              test: freebsd/12.4
             - name: FreeBSD 13.1
               test: freebsd/13.1
 
