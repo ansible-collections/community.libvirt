@@ -10,8 +10,6 @@ import re
 import sys
 import time
 
-from ansible.module_utils.urls import open_url
-
 try:
     from typing import NoReturn
 except ImportError:
