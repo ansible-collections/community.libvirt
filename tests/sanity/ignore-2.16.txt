@@ -1,0 +1,3 @@
+tests/utils/shippable/timing.py shebang
+tests/utils/shippable/check_matrix.py replace-urlopen
+tests/unit/compat/builtins.py pylint:unused-import
