@@ -58,7 +58,6 @@ except ImportError as imp_exc:
 else:
     LIBVIRT_IMPORT_ERROR = None
 
-from ansible import constants as C
 from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNotFound
 from ansible.module_utils._text import to_bytes, to_native, to_text
 from ansible.module_utils.six import raise_from
@@ -66,7 +65,7 @@ from ansible.plugins.connection import ConnectionBase, BUFSIZE
 from ansible.plugins.shell.powershell import _parse_clixml
 from ansible.utils.display import Display
 from functools import partial
-from os.path import exists, getsize
+from os.path import exists
 
 display = Display()
 
