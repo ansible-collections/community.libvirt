@@ -36,7 +36,7 @@ variables:
 resources:
   containers:
     - container: default
-      image: quay.io/ansible/azure-pipelines-test-container:3.0.0
+      image: quay.io/ansible/azure-pipelines-test-container:4.0.1
 
 pool: Standard
 
@@ -115,8 +115,8 @@ stages:
           targets:
             - name: CentOS 7
               test: centos7
-            - name: Fedora 37
-              test: fedora37
+            - name: Fedora 38
+              test: fedora38
             - name: openSUSE 15 py3
               test: opensuse15
             - name: Ubuntu 20.04
@@ -219,8 +219,6 @@ stages:
               test: rhel/8.8
             - name: RHEL 9.2
               test: rhel/9.2
-            - name: FreeBSD 12.4
-              test: freebsd/12.4
             - name: FreeBSD 13.1
               test: freebsd/13.1
 
