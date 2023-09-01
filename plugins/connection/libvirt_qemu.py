@@ -160,6 +160,10 @@ class Connection(ConnectionBase):
             # prompt that will not occur
             sudoable = False
 
+            # Make sure our first command is to set the console encoding to
+            # utf-8, this must be done via chcp to get utf-8 (65001)
+            cmd = ' '.join(["chcp.com", "65001", self._shell._SHELL_REDIRECT_ALLNULL, self._shell._SHELL_AND, cmd])
+
             # Generate powershell commands
             cmd_args_list = self._shell._encode_script(cmd, as_list=True, strict_mode=False, preserve_rc=False)
 
