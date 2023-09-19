@@ -1,2 +1,0 @@
-bugfixes:
-  - libvirt_qemu - fix encoding errors on Windows guests for non-ASCII return values (https://github.com/ansible-collections/community.libvirt/pull/157)
