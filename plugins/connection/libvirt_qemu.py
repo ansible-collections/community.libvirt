@@ -157,10 +157,10 @@ class Connection(ConnectionBase):
         self._user_homedir = to_text(stdout).strip()
         return self._user_homedir
 
-    def _resolve_tilde(self,string):
+    def _resolve_tilde(self, string):
         """ resolve file paths or commands that begin with '~/' to the remote user's homedir """
-        if re.search(r"~\/",string):
-            return re.sub(r"~\/", self.user_homedir + r"/",string)
+        if re.search(r"~\/", string):
+            return re.sub(r"~\/", self.user_homedir + r"/", string)
         return string
 
     def exec_command(self, cmd, in_data=None, sudoable=True):
@@ -170,7 +170,7 @@ class Connection(ConnectionBase):
         self._display.vvv(u"EXEC {0}".format(cmd), host=self._host)
 
         cmd_args_list = shlex.split(to_native(cmd, errors='surrogate_or_strict'))
-        cmd_args_list = list(map(self._resolve_tilde,cmd_args_list))
+        cmd_args_list = list(map(self._resolve_tilde, cmd_args_list))
 
         if getattr(self._shell, "_IS_WINDOWS", False):
             # Become method 'runas' is done in the wrapper that is executed,
