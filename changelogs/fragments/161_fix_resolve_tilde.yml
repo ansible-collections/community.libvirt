@@ -1,0 +1,2 @@
+bugfixes:
+  - libvirt_qemu - fix path resolution of tilde (~) used to represent remote user's homedir
