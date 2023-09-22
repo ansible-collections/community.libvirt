@@ -46,6 +46,7 @@ options:
 
 import base64
 import json
+import re
 import shlex
 import time
 import traceback
@@ -98,6 +99,7 @@ class Connection(ConnectionBase):
         super(Connection, self).__init__(play_context, new_stdin, *args, **kwargs)
 
         self._host = self._play_context.remote_addr
+        self._user_homedir = None
 
         # Windows operates differently from a POSIX connection/shell plugin,
         # we need to set various properties to ensure SSH on Windows continues
@@ -146,6 +148,21 @@ class Connection(ConnectionBase):
             display.vvv(u"ESTABLISH {0} CONNECTION".format(self.transport), host=self._host)
             self._connected = True
 
+    @property
+    def user_homedir(self):
+        """ the resolved user homedir on the remote """
+        if self._user_homedir:
+            return self._user_homedir
+        exitcode, stdout, stderr = self.exec_command("/bin/sh -c 'getent passwd $(id -un) | cut -d: -f6'")
+        self._user_homedir = to_text(stdout).strip()
+        return self._user_homedir
+
+    def _resolve_tilde(self,string):
+        """ resolve file paths or commands that begin with '~/' to the remote user's homedir """
+        if re.search(r"~\/",string):
+            return re.sub(r"~\/", self.user_homedir + r"/",string)
+        return string
+
     def exec_command(self, cmd, in_data=None, sudoable=True):
         """ execute a command on the virtual machine host """
         super(Connection, self).exec_command(cmd, in_data=in_data, sudoable=sudoable)
@@ -153,6 +170,7 @@ class Connection(ConnectionBase):
         self._display.vvv(u"EXEC {0}".format(cmd), host=self._host)
 
         cmd_args_list = shlex.split(to_native(cmd, errors='surrogate_or_strict'))
+        cmd_args_list = list(map(self._resolve_tilde,cmd_args_list))
 
         if getattr(self._shell, "_IS_WINDOWS", False):
             # Become method 'runas' is done in the wrapper that is executed,
@@ -241,6 +259,7 @@ class Connection(ConnectionBase):
     def put_file(self, in_path, out_path):
         ''' transfer a file from local to domain '''
         super(Connection, self).put_file(in_path, out_path)
+        out_path = self._resolve_tilde(out_path)
         display.vvv("PUT %s TO %s" % (in_path, out_path), host=self._host)
 
         if not exists(to_bytes(in_path, errors='surrogate_or_strict')):
@@ -303,6 +322,7 @@ class Connection(ConnectionBase):
     def fetch_file(self, in_path, out_path):
         ''' fetch a file from domain to local '''
         super(Connection, self).fetch_file(in_path, out_path)
+        in_path = self._resolve_tilde(in_path)
         display.vvv("FETCH %s TO %s" % (in_path, out_path), host=self._host)
 
         request_handle = {
