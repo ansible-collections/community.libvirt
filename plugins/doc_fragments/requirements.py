@@ -11,4 +11,5 @@ options: {}
 requirements:
     - python >= 2.6
     - libvirt python bindings
+    - lxml
     """
