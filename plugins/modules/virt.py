@@ -94,11 +94,13 @@ EXAMPLES = '''
 # Undefine VM only, if it has no existing nvram or other metadata
 - name: Undefine qemu VM
   community.libvirt.virt:
+    command: undefine
     name: foo
 
 # Undefine VM and force remove all of its related metadata (nvram, snapshots, etc.)
 - name: "Undefine qemu VM with force"
   community.libvirt.virt:
+    command: undefine
     name: foo
     force: true
 
@@ -106,12 +108,14 @@ EXAMPLES = '''
 # Result would the same as with force=true
 - name: Undefine qemu VM with list of flags
   community.libvirt.virt:
+    command: undefine
     name: foo
     flags: managed_save, snapshots_metadata, nvram, checkpoints_metadata
 
 # Undefine VM, but keep its nvram
 - name: Undefine qemu VM and keep its nvram
   community.libvirt.virt:
+    command: undefine
     name: foo
     flags: keep_nvram
 
