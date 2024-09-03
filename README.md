@@ -140,19 +140,6 @@ They also should be subscribed to Ansible's [The Bullhorn newsletter](https://do
 
 See the [Releasing guidelines](https://github.com/ansible/community-docs/blob/main/releasing_collections_without_release_branches.rst) to learn more.
 
-## Communication
-
-To communicate, we use:
-
-- The `#ansible-community` [Libera.Chat](https://libera.chat/) IRC channel.
-- [Issues](https://github.com/ansible-collections/libvirt/issues) in this repository.
-
-We announce important development changes and releases through Ansible's [The Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn). If you are a collection developer, be sure you are subscribed.
-
-We take part in the global quarterly [Ansible Contributor Summit](https://github.com/ansible/community/wiki/Contributor-Summit) virtually or in-person. Track [The Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn) and join us.
-
-For more information about communication, refer to the [Ansible Communication guide](https://docs.ansible.com/ansible/devel/community/communication.html).
-
 ## Reference
 
 - [Ansible Collection overview](https://github.com/ansible-collections/overview)
