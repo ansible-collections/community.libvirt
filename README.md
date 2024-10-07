@@ -110,27 +110,24 @@ To learn how to test your pull request locally, refer to the [Quick-start guide]
 
 To learn how to test a pull request made by another person in your local environment, refer to the [Test PR locally guide](https://github.com/ansible/community-docs/blob/main/test_pr_locally_guide.rst).
 
-### Collection maintenance
+## Collection maintenance
 
-Maintainers of this collection follow the [Maintainer guidelines](MAINTAINING.md).
+The current maintainers (contributors with `write` or higher access) are listed in the [MAINTAINERS](https://github.com/ansible-collections/community.libvirt/blob/main/MAINTAINERS) file. If you have questions or need help, feel free to mention them in the proposals.
+
+To learn how to maintain / become a maintainer of this collection, refer to the [Maintainer guidelines](https://github.com/ansible-collections/community.libvirt/blob/main/MAINTAINING.md).
+
+It is necessary for maintainers of this collection to be subscribed to:
+
+* The collection itself (the `Watch` button -> `All Activity` in the upper right corner of the repository's homepage).
+* The "Changes Impacting Collection Contributors and Maintainers" [issue](https://github.com/ansible-collections/overview/issues/45).
+
+They also should be subscribed to Ansible's [The Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn).
 
 ### Publishing New Version
 
-Basic instructions without release branches:
-
-1. Create `changelogs/fragments/<version>.yml` with `release_summary:` section (which must be a string, not a list).
-2. Run `antsibull-changelog release --collection-flatmap yes`
-3. Make sure `CHANGELOG.rst` and `changelogs/changelog.yaml` are added to git, and the deleted fragments have been removed.
-4. Tag the commit with `<version>`. Push changes and tag to the main repository.
-5. Monitor the release job on the [Zuul Status Dashboard](https://dashboard.zuul.ansible.com/t/ansible/status).
-6. Verify that the new version is available on [Ansible Galaxy](https://galaxy.ansible.com/community/libvirt).
-
 See the [Releasing guidelines](https://github.com/ansible/community-docs/blob/main/releasing_collections_without_release_branches.rst) to learn more.
 
-## More Information
-<!-- List out where the user can find additional information, such as working group meeting times, slack/IRC channels, or documentation for the product this collection automates. -->
-
-### Communication
+## Communication
 
 To communicate, we use:
 
@@ -143,7 +140,7 @@ We take part in the global quarterly [Ansible Contributor Summit](https://github
 
 For more information about communication, refer to the [Ansible Communication guide](https://docs.ansible.com/ansible/devel/community/communication.html).
 
-### Reference
+## Reference
 
 - [Ansible Collection overview](https://github.com/ansible-collections/overview)
 - [Ansible User guide](https://docs.ansible.com/ansible/latest/user_guide/index.html)

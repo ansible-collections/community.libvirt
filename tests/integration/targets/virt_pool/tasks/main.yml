@@ -1,0 +1,31 @@
+---
+- include_vars: '{{ item }}'
+  with_first_found:
+    - "{{ ansible_distribution }}-{{ ansible_distribution_version}}.yml"
+    - "{{ ansible_distribution }}-{{ ansible_distribution_major_version}}.yml"
+    - "{{ ansible_distribution }}.yml"
+    - "default.yml"
+
+- block:
+    - name: Install libvirt packages
+      package:
+        name: "{{ virt_pool_packages }}"
+
+    - name: Start libvirt service
+      service:
+        name: libvirtd
+        state: started
+
+    - name: Test for a directory based pool
+      import_tasks: directory_based_pool.yml
+
+  always:
+    - name: Stop libvirt
+      service:
+        name: libvirtd
+        state: stopped
+
+    - name: Remove only the libvirt packages
+      package:
+        name: "{{ virt_pool_packages|select('match', '.*libvirt.*')|list }}"
+        state: absent
