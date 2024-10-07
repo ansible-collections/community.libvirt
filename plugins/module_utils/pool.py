@@ -152,7 +152,11 @@ class LibvirtConnection(object):
 
     def get_path(self, entryid):
         xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
-        return xml.xpath('/pool/target/path')[0].text
+        try:
+            result = xml.xpath('/pool/target/path')[0].text
+        except Exception:
+            raise ValueError('Target path not specified')
+        return result
 
     def get_type(self, entryid):
         xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))

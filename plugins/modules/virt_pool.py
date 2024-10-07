@@ -282,7 +282,6 @@ class VirtStoragePool(object):
                 results[entry]["autostart"] = self.conn.get_autostart(entry)
                 results[entry]["persistent"] = self.conn.get_persistent(entry)
                 results[entry]["state"] = self.conn.get_status(entry)
-                results[entry]["path"] = self.conn.get_path(entry)
                 results[entry]["type"] = self.conn.get_type(entry)
                 results[entry]["uuid"] = self.conn.get_uuid(entry)
                 if self.conn.find_entry(entry).isActive():
@@ -292,6 +291,11 @@ class VirtStoragePool(object):
                         results[entry]["volumes"].append(volume)
                 else:
                     results[entry]["volume_count"] = -1
+
+                try:
+                    results[entry]["path"] = self.conn.get_path(entry)
+                except ValueError:
+                    pass
 
                 try:
                     results[entry]["host"] = self.conn.get_host(entry)
