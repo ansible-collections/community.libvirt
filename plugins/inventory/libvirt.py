@@ -59,6 +59,8 @@ except ImportError as imp_exc:
 else:
     LIBVIRT_IMPORT_ERROR = None
 
+VIRDOMAINSTATE = ["nostate", "running", "blocked", "paused", "shutdown", "shutoff", "crashed", "pmsuspended", "last"]
+
 
 class InventoryModule(BaseInventoryPlugin, Constructable):
     NAME = 'community.libvirt.libvirt'
@@ -128,6 +130,59 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                     'ansible_connection',
                     connection_plugin
                 )
+
+            try:
+                domain = connection.lookupByUUIDString(server.UUIDString())
+            except libvirt.libvirtError as e:
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'ERROR',
+                    str(e)
+                )
+            else:
+                _domain_state, _domain_maxmem, _domain_mem, _domain_cpus, _domain_cput = domain.info()
+                domain_info = {"state_number": _domain_state,
+                               "state": VIRDOMAINSTATE[_domain_state],
+                               "maxMem_kb": _domain_maxmem,
+                               "memory_kb": _domain_mem,
+                               "nrVirtCpu": _domain_cpus,
+                               "cpuTime_ns": _domain_cput}
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'info',
+                    domain_info
+                )
+
+                self.inventory.set_variable(
+                    inventory_hostname,
+                    'xml_desc',
+                    domain.XMLDesc()
+                )
+
+                # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
+                try:
+                    # type==0 returns all types (users, os, timezone, hostname, filesystem, disks, interfaces)
+                    domain_guestInfo = domain.guestInfo(types=0)
+                except libvirt.libvirtError as e:
+                    domain_guestInfo = {"error": str(e)}
+                finally:
+                    self.inventory.set_variable(
+                        inventory_hostname,
+                        'guest_info',
+                        domain_guestInfo
+                    )
+
+                # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
+                try:
+                    domain_interfaceAddresses = domain.interfaceAddresses(source=libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT)
+                except libvirt.libvirtError as e:
+                    domain_interfaceAddresses = {"error": str(e)}
+                finally:
+                    self.inventory.set_variable(
+                        inventory_hostname,
+                        'interface_addresses',
+                        domain_interfaceAddresses
+                    )
 
             # Get variables for compose
             variables = self.inventory.hosts[inventory_hostname].get_vars()

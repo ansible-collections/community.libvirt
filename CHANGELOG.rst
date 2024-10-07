@@ -5,6 +5,28 @@ Community.Libvirt Release Notes
 .. contents:: Topics
 
 
+v1.2.0
+======
+
+Release Summary
+---------------
+
+This is the minor release of the ``community.libvirt`` collection.
+This changelog contains all changes to the modules and plugins in this collection
+that have been made after the previous release.
+
+Minor Changes
+-------------
+
+- libvirt - add extra guest information to inventory (https://github.com/ansible-collections/community.libvirt/pull/113).
+- libvirt - replace the calls to listDomainsID() and listDefinedDomains() with listAllDomains() in find_vm() (https://github.com/ansible-collections/community.libvirt/pull/117)
+
+Bugfixes
+--------
+
+- virt_net - fix modify function which was not idempotent, depending on whether the network was active. See https://github.com/ansible-collections/community.libvirt/issues/107.
+- virt_pool - crashed out if pool didn't contain a target path. Fix allows this not to be set. (https://github.com/ansible-collections/community.libvirt/issues/129).
+
 v1.1.0
 ======
 
