@@ -522,10 +522,9 @@ def core(module):
                 if guest:
                     # there might be a mismatch between quest 'name' in the module and in the xml
                     module.warn("'xml' is given - ignoring 'name'")
-                found_name = re.search('<name>(.*)</name>', xml).groups()
-                if found_name:
-                    domain_name = found_name[0]
-                else:
+                try:
+                    domain_name = re.search('<name>(.*)</name>', xml).groups()[0]
+                except AttributeError:
                     module.fail_json(msg="Could not find domain 'name' in xml")
 
                 # From libvirt docs (https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainDefineXML):
@@ -537,20 +536,22 @@ def core(module):
                 #
                 # In case a domain would be indeed overwritten, we should protect idempotency:
                 try:
-                    existing_domain = v.get_vm(domain_name)
+                    existing_domain_xml = v.get_vm(domain_name).XMLDesc(
+                        libvirt.VIR_DOMAIN_XML_INACTIVE
+                    )
                 except VMNotFound:
-                    existing_domain = None
+                    existing_domain_xml = None
                 try:
                     domain = v.define(xml)
-                    if existing_domain:
+                    if existing_domain_xml:
                         # if we are here, then libvirt redefined existing domain as the doc promised
-                        if existing_domain.XMLDesc() != domain.XMLDesc():
+                        if existing_domain_xml != domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE):
                             res = {'changed': True, 'change_reason': 'config changed'}
                     else:
                         res = {'changed': True, 'created': domain.name()}
                 except libvirtError as e:
                     if e.get_error_code() != 9:  # 9 means 'domain already exists' error
-                        module.fail_json(msg='libvirtError: %s' % e.message)
+                        module.fail_json(msg='libvirtError: %s' % e.get_error_message())
                 if autostart is not None and v.autostart(domain_name, autostart):
                     res = {'changed': True, 'change_reason': 'autostart'}
 

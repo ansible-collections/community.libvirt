@@ -16,7 +16,7 @@ options:
     plugin:
         description: Token that ensures this is a source file for the 'libvirt' plugin.
         required: True
-        choices: ['libvirt']
+        choices: ['libvirt', 'community.libvirt.libvirt']
     uri:
         description: Libvirt Connection URI
         required: True
@@ -51,17 +51,25 @@ uri: 'qemu:///system'
 
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.errors import AnsibleError
+from ansible.module_utils.six import raise_from
 
 try:
     import libvirt
-except ImportError:
-    raise AnsibleError('the libvirt inventory plugin requires libvirt-python.')
+except ImportError as imp_exc:
+    LIBVIRT_IMPORT_ERROR = imp_exc
+else:
+    LIBVIRT_IMPORT_ERROR = None
 
 
 class InventoryModule(BaseInventoryPlugin, Constructable):
     NAME = 'community.libvirt.libvirt'
 
     def parse(self, inventory, loader, path, cache=True):
+        if LIBVIRT_IMPORT_ERROR:
+            raise_from(
+                AnsibleError('libvirt-python must be installed to use this plugin'),
+                LIBVIRT_IMPORT_ERROR)
+
         super(InventoryModule, self).parse(
             inventory,
             loader,
