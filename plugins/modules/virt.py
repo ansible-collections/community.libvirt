@@ -19,7 +19,7 @@ description:
 options:
   name:
     description:
-      - name of the guest VM being managed. Note that VM must be previously
+      - Name of the guest VM being managed. Note that VM must be previously
         defined with xml.
       - This option is required unless I(command) is C(list_vms) or C(info).
     type: str
@@ -41,11 +41,11 @@ options:
     type: str
   autostart:
     description:
-      - start VM at host startup.
+      - Start VM at host startup.
     type: bool
   uri:
     description:
-      - libvirt connection uri.
+      - Libvirt connection uri.
     default: qemu:///system
     type: str
   xml:
@@ -64,7 +64,8 @@ author:
 
 EXAMPLES = '''
 # a playbook task line:
-- community.libvirt.virt:
+- name: Start a VM
+  community.libvirt.virt:
     name: alpha
     state: running
 
@@ -74,7 +75,7 @@ EXAMPLES = '''
 # ansible host -m virt -a "name=alpha command=create uri=lxc:///"
 
 # defining and launching an LXC guest
-- name: define vm
+- name: Define a VM
   community.libvirt.virt:
     command: define
     xml: "{{ lookup('template', 'container-template.xml.j2') }}"
@@ -86,25 +87,25 @@ EXAMPLES = '''
     uri: 'lxc:///'
 
 # setting autostart on a qemu VM (default uri)
-- name: set autostart for a VM
+- name: Set autostart for a VM
   community.libvirt.virt:
     name: foo
     autostart: yes
 
 # Defining a VM and making is autostart with host. VM will be off after this task
-- name: define vm from xml and set autostart
+- name: Define vm from xml and set autostart
   community.libvirt.virt:
     command: define
     xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
     autostart: yes
 
 # Listing VMs
-- name: list all VMs
+- name: List all VMs
   community.libvirt.virt:
     command: list_vms
   register: all_vms
 
-- name: list only running VMs
+- name: List only running VMs
   community.libvirt.virt:
     command: list_vms
     state: running
@@ -114,7 +115,7 @@ EXAMPLES = '''
 RETURN = '''
 # for list_vms command
 list_vms:
-    description: The list of vms defined on the remote system
+    description: The list of vms defined on the remote system.
     type: list
     returned: success
     sample: [
@@ -123,7 +124,7 @@ list_vms:
     ]
 # for status command
 status:
-    description: The status of the VM, among running, crashed, paused and shutdown
+    description: The status of the VM, among running, crashed, paused and shutdown.
     type: str
     sample: "success"
     returned: success

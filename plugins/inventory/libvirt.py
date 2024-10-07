@@ -8,7 +8,7 @@ extends_documentation_fragment:
     - constructed
 short_description: Libvirt inventory source
 description:
-    - Get libvirt guests in an inventory source
+    - Get libvirt guests in an inventory source.
 author:
     - Dave Olsthoorn <dave@bewaar.me>
 version_added: "2.10"
@@ -29,7 +29,7 @@ options:
             If set to 'name' the name of the server will be used unless
             there are more than one server with the same name in which
             case the 'uuid' logic will be used.
-            Default is to do 'name'
+            Default is to do 'name'.
         type: string
         choices:
             - name
