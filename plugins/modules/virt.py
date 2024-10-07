@@ -23,9 +23,7 @@ extends_documentation_fragment:
     - community.libvirt.virt.options_autostart
     - community.libvirt.virt.options_state
     - community.libvirt.virt.options_command
-requirements:
-    - python >= 2.6
-    - libvirt-python
+    - community.libvirt.requirements
 author:
     - Ansible Core Team
     - Michael DeHaan

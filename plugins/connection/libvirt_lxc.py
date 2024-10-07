@@ -9,19 +9,21 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 DOCUMENTATION = '''
-    author: Michael Scherer <misc@zarb.org>
-    connection: community.libvirt.libvirt_lxc
-    short_description: Run tasks in lxc containers via libvirt
+---
+author:
+    - Michael Scherer <misc@zarb.org>
+connection: community.libvirt.libvirt_lxc
+short_description: Run tasks in lxc containers via libvirt
+description:
+    - Run commands or put/fetch files to an existing lxc container using libvirt.
+options:
+  remote_addr:
     description:
-        - Run commands or put/fetch files to an existing lxc container using libvirt.
-    options:
-      remote_addr:
-        description:
-            - Container identifier.
-        default: The set user as per docker's configuration
-        vars:
-            - name: ansible_host
-            - name: ansible_libvirt_lxc_host
+        - Container identifier.
+    default: The set user as per docker's configuration
+    vars:
+        - name: ansible_host
+        - name: ansible_libvirt_lxc_host
 '''
 
 import distutils.spawn

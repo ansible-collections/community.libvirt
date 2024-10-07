@@ -53,9 +53,8 @@ options:
 extends_documentation_fragment:
     - community.libvirt.virt.options_uri
     - community.libvirt.virt.options_xml
+    - community.libvirt.requirements
 requirements:
-    - "python >= 2.6"
-    - "python-libvirt"
     - "python-lxml"
 '''
 
