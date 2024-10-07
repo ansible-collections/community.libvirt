@@ -5,6 +5,21 @@ Community.Libvirt Release Notes
 .. contents:: Topics
 
 
+v1.1.0
+======
+
+Release Summary
+---------------
+
+This is the minor release of the ``community.libvirt`` collection.
+This changelog contains all changes to the modules and plugins in this collection
+that have been made after the previous release 1.0.2.
+
+Bugfixes
+--------
+
+- replace deprecated ``distutils.spawn.find_executable`` with Ansible's ``get_bin_path`` in ``_search_executable`` function.
+
 v1.0.2
 ======
 
