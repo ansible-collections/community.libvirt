@@ -11,7 +11,8 @@ __metaclass__ = type
 DOCUMENTATION = '''
 ---
 module: virt_volume
-author: "Leonardo Galli (@galli-leo)"
+author:
+    - Leonardo Galli (@galli-leo)
 short_description: Manage libvirt volumes inside a storage pool
 description:
     - Manage I(libvirt) volumes inside a storage pool.
@@ -46,14 +47,13 @@ options:
 extends_documentation_fragment:
     - community.libvirt.virt.options_uri
     - community.libvirt.virt.options_xml
+    - community.libvirt.requirements
     mode:
         choices: [ 'new', 'repair', 'resize', 'no_overwrite', 'overwrite', 'normal', 'zeroed' ]
         description:
             - Pass additional parameters to 'wipe' command.
         type: str
 requirements:
-    - "python >= 2.6"
-    - "python-libvirt"
     - "python-lxml"
 '''
 
