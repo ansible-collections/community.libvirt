@@ -43,15 +43,9 @@ options:
             - In addition to state management, various non-idempotent commands are available.
               See examples.
         type: str
-    uri:
-        default: "qemu:///system"
-        description:
-            - I(libvirt) connection uri.
-        type: str
-    xml:
-        description:
-            - XML document used with the create command.
-        type: str
+extends_documentation_fragment:
+    - community.libvirt.virt.options_uri
+    - community.libvirt.virt.options_xml
     mode:
         choices: [ 'new', 'repair', 'resize', 'no_overwrite', 'overwrite', 'normal', 'zeroed' ]
         description:
