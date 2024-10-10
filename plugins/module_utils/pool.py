@@ -39,17 +39,8 @@ class LibvirtConnection(object):
     def find_entry(self, entryid):
         # entryid = -1 returns a list of everything
 
-        results = []
-
-        # Get active entries
-        for name in self.conn.listStoragePools():
-            entry = self.conn.storagePoolLookupByName(name)
-            results.append(entry)
-
-        # Get inactive entries
-        for name in self.conn.listDefinedStoragePools():
-            entry = self.conn.storagePoolLookupByName(name)
-            results.append(entry)
+        # Get all entries
+        results = self.conn.listAllStoragePools()
 
         if entryid == -1:
             return results
