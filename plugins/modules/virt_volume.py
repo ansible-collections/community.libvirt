@@ -246,6 +246,7 @@ class LibvirtConnection(object):
                 return self.module.exit_json(changed=True)
 
     def get_status2(self, entry):
+        state = entry.isActive()
         return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
 
     def get_status(self, entryid):
