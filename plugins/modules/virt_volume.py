@@ -121,12 +121,12 @@ EXAMPLES = '''
 
 - name: Ensure that a given pool will be started at boot
   community.libvirt.virt_pool:
-    autostart: yes
+    autostart: true
     name: vms
 
 - name: Disable autostart for a given pool
   community.libvirt.virt_pool:
-    autostart: no
+    autostart: false
     name: vms
 '''
 
