@@ -223,10 +223,6 @@ class LibvirtConnection(object):
 
     def create(self, entryid, xml):
         return self.pool.createXML(xml)
-        # try:
-            
-        # except Exception:
-        #     return self.module.exit_json(changed=True)
 
     def create_from(self, entryid, xml, to_clone):
         from_vol = self.find_entry(to_clone)
@@ -299,13 +295,13 @@ class VirtVolume(object):
 
     def create(self, entryid, xml):
         return self.conn.create(entryid, xml)
-    
+
     def create_from(self, entryid, xml, to_clone):
         return self.conn.create_from(entryid, xml, to_clone)
 
     def delete(self, entryid):
         return self.conn.delete(entryid)
-    
+
     def status(self, entryid):
         return self.conn.get_status(entryid)
 
