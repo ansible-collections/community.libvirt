@@ -5,8 +5,14 @@ except ImportError:
 else:
     HAS_VIRT = True
 
+try:
+    from lxml import etree
+except ImportError:
+    HAS_XML = False
+else:
+    HAS_XML = True
+
 from ansible_collections.community.libvirt.plugins.module_utils.entry import EntryNotFound
-from lxml import etree
 
 ENTRY_STATE_ACTIVE_MAP = {
     0: "inactive",
@@ -22,6 +28,7 @@ ENTRY_STATE_PERSISTENT_MAP = {
     0: "no",
     1: "yes"
 }
+
 
 class LibvirtConnection(object):
 

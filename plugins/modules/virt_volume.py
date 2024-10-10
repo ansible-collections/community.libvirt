@@ -130,20 +130,6 @@ EXAMPLES = '''
     name: vms
 '''
 
-try:
-    import libvirt
-except ImportError:
-    HAS_VIRT = False
-else:
-    HAS_VIRT = True
-
-try:
-    from lxml import etree
-except ImportError:
-    HAS_XML = False
-else:
-    HAS_XML = True
-
 from ansible.module_utils.basic import AnsibleModule
 
 
@@ -198,8 +184,12 @@ ALL_MODES = []
 ALL_MODES.extend(ENTRY_BUILD_FLAGS_MAP.keys())
 ALL_MODES.extend(ENTRY_DELETE_FLAGS_MAP.keys())
 
-from ansible_collections.community.libvirt.plugins.module_utils.pool import LibvirtConnection as PoolConnection
+from ansible_collections.community.libvirt.plugins.module_utils.pool import LibvirtConnection as PoolConnection, HAS_VIRT, HAS_XML
 from ansible_collections.community.libvirt.plugins.module_utils.entry import EntryNotFound
+
+if HAS_VIRT:
+    import libvirt
+
 
 class LibvirtConnection(object):
 
