@@ -44,15 +44,15 @@ options:
             - In addition to state management, various non-idempotent commands are available.
               See examples.
         type: str
-extends_documentation_fragment:
-    - community.libvirt.virt.options_uri
-    - community.libvirt.virt.options_xml
-    - community.libvirt.requirements
     mode:
         choices: [ 'new', 'repair', 'resize', 'no_overwrite', 'overwrite', 'normal', 'zeroed' ]
         description:
             - Pass additional parameters to 'wipe' command.
         type: str
+extends_documentation_fragment:
+    - community.libvirt.virt.options_uri
+    - community.libvirt.virt.options_xml
+    - community.libvirt.requirements
 requirements:
     - "python-lxml"
 '''
