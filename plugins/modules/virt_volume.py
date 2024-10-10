@@ -53,8 +53,6 @@ extends_documentation_fragment:
     - community.libvirt.virt.options_uri
     - community.libvirt.virt.options_xml
     - community.libvirt.requirements
-requirements:
-    - "python-lxml"
 '''
 
 EXAMPLES = '''
@@ -98,7 +96,7 @@ EXAMPLES = '''
     command: undefine
     name: vms
 
-- Gather facts about storage pools. Facts will be available as 'ansible_libvirt_pools'
+- name: Gather facts about storage pools. Facts will be available as 'ansible_libvirt_pools'
   community.libvirt.virt_pool:
     command: facts
 
