@@ -29,6 +29,7 @@ options:
     default: inventory_hostname
     vars:
       - name: ansible_host
+      - name: inventory_hostname
   executable:
     description:
       - Shell to use for execution inside container.
@@ -57,7 +58,6 @@ except ImportError as imp_exc:
 else:
     LIBVIRT_IMPORT_ERROR = None
 
-from ansible import constants as C
 from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNotFound
 from ansible.module_utils._text import to_bytes, to_native, to_text
 from ansible.module_utils.six import raise_from
@@ -65,7 +65,7 @@ from ansible.plugins.connection import ConnectionBase, BUFSIZE
 from ansible.plugins.shell.powershell import _parse_clixml
 from ansible.utils.display import Display
 from functools import partial
-from os.path import exists, getsize
+from os.path import exists
 
 display = Display()
 
@@ -159,6 +159,10 @@ class Connection(ConnectionBase):
             # need to disable sudoable so the bare_run is not waiting for a
             # prompt that will not occur
             sudoable = False
+
+            # Make sure our first command is to set the console encoding to
+            # utf-8, this must be done via chcp to get utf-8 (65001)
+            cmd = ' '.join(["chcp.com", "65001", self._shell._SHELL_REDIRECT_ALLNULL, self._shell._SHELL_AND, cmd])
 
             # Generate powershell commands
             cmd_args_list = self._shell._encode_script(cmd, as_list=True, strict_mode=False, preserve_rc=False)

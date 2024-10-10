@@ -68,6 +68,7 @@ if [ "${SHIPPABLE_BUILD_ID:-}" ]; then
     SHIPPABLE_RESULT_DIR="$(pwd)/shippable"
     TEST_DIR="${ANSIBLE_COLLECTIONS_PATHS}/ansible_collections/community/libvirt"
     mkdir -p "${TEST_DIR}"
+    # shellcheck disable=SC2153
     cp -aT "${SHIPPABLE_BUILD_DIR}" "${TEST_DIR}"
     cd "${TEST_DIR}"
 else

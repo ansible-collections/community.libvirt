@@ -11,6 +11,18 @@ via the [libvirt](https://libvirt.org/) API.
 
 This collection is shipped with the `ansible` package.
 
+## Communication
+
+* Join the Ansible forum:
+  * [Get Help](https://forum.ansible.com/c/help/6): get help or help others. Please add appropriate tags if you start new discussions, for example the `libvirt` tag.
+  * [Posts tagged with 'libvirt'](https://forum.ansible.com/tag/libvirt): subscribe to participate in related conversations.
+  * [Social Spaces](https://forum.ansible.com/c/chat/4): gather and interact with fellow enthusiasts.
+  * [News & Announcements](https://forum.ansible.com/c/news/5): track project-wide announcements including social events.
+
+* The Ansible [Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn): used to announce releases and important changes.
+
+For more information about communication, see the [Ansible communication guide](https://docs.ansible.com/ansible/devel/community/communication.html).
+
 ## Tested with Ansible
 <!-- List the versions of Ansible the collection has been tested with. Must match what is in galaxy.yml. -->
 
@@ -23,6 +35,7 @@ This collection is shipped with the `ansible` package.
 <!-- List any external resources the collection depends on, for example minimum versions of an OS, libraries, or utilities. Do not list other Ansible collections here. -->
 - python >= 2.6
 - [libvirt python bindings](https://pypi.org/project/libvirt-python/)
+- lxml
 
 ## Included content
 <!-- Galaxy will eventually list the module docs within the UI, but until that is ready, you may need to either describe your plugins etc here, or point to an external docsite to cover that information. -->
@@ -126,19 +139,6 @@ They also should be subscribed to Ansible's [The Bullhorn newsletter](https://do
 ### Publishing New Version
 
 See the [Releasing guidelines](https://github.com/ansible/community-docs/blob/main/releasing_collections_without_release_branches.rst) to learn more.
-
-## Communication
-
-To communicate, we use:
-
-- The `#ansible-community` [Libera.Chat](https://libera.chat/) IRC channel.
-- [Issues](https://github.com/ansible-collections/libvirt/issues) in this repository.
-
-We announce important development changes and releases through Ansible's [The Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn). If you are a collection developer, be sure you are subscribed.
-
-We take part in the global quarterly [Ansible Contributor Summit](https://github.com/ansible/community/wiki/Contributor-Summit) virtually or in-person. Track [The Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn) and join us.
-
-For more information about communication, refer to the [Ansible Communication guide](https://docs.ansible.com/ansible/devel/community/communication.html).
 
 ## Reference
 
