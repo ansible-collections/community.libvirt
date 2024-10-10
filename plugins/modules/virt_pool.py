@@ -288,7 +288,7 @@ class VirtStoragePool(object):
                     results[entry]["volume_count"] = self.conn.get_volume_count(entry)
                     results[entry]["volumes"] = list()
                     for volume in self.conn.get_volume_names(entry):
-                        results[entry]["volumes"].append(volume)
+                        results[entry]["volumes"].append(volume.name())
                 else:
                     results[entry]["volume_count"] = -1
 

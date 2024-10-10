@@ -104,7 +104,7 @@ class LibvirtConnection(object):
         return self.find_entry(entryid).numOfVolumes()
 
     def get_volume_names(self, entryid):
-        return self.find_entry(entryid).listVolumes()
+        return self.find_entry(entryid).listAllVolumes()
 
     def get_devices(self, entryid):
         xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
