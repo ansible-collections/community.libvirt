@@ -16,6 +16,29 @@ module: virt
 short_description: Manages virtual machines supported by libvirt
 description:
      - Manages virtual machines supported by I(libvirt).
+options:
+    flags:
+        choices: [ 'managed_save', 'snapshots_metadata', 'nvram', 'keep_nvram', 'checkpoints_metadata']
+        description:
+            - Pass additional parameters.
+            - Currently only implemented with command C(undefine).
+              Specify which metadata should be removed with C(undefine).
+              Useful option to be able to C(undefine) guests with UEFI nvram.
+              C(nvram) and C(keep_nvram) are conflicting and mutually exclusive.
+              Consider option C(force) if all related metadata should be removed.
+        type: list
+        elements: str
+    force:
+        description:
+            - Enforce an action.
+            - Currently only implemented with command C(undefine).
+              This option can be used instead of providing all C(flags).
+              If C(yes), C(undefine) removes also any related nvram or other metadata, if existing.
+              If C(no) or not set, C(undefine) executes only if there is no nvram or other metadata existing.
+              Otherwise the task fails and the guest is kept defined without change.
+              C(yes) and option C(flags) should not be provided together. In this case
+              C(undefine) ignores C(yes), considers only C(flags) and issues a warning.
+        type: bool
 extends_documentation_fragment:
     - community.libvirt.virt.options_uri
     - community.libvirt.virt.options_xml
@@ -66,6 +89,30 @@ EXAMPLES = '''
     command: define
     xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
     autostart: yes
+
+# Undefine VM only, if it has no existing nvram or other metadata
+- name: Undefine qemu VM
+  community.libvirt.virt:
+    name: foo
+
+# Undefine VM and force remove all of its related metadata (nvram, snapshots, etc.)
+- name: "Undefine qemu VM with force"
+  community.libvirt.virt:
+    name: foo
+    force: yes
+
+# Undefine VM and remove all of its specified metadata specified
+# Result would the same as with force=true
+- name: Undefine qemu VM with list of flags
+  community.libvirt.virt:
+    name: foo
+    flags: managed_save, snapshots_metadata, nvram, checkpoints_metadata
+
+# Undefine VM, but keep its nvram
+- name: Undefine qemu VM and keep its nvram
+  community.libvirt.virt:
+    name: foo
+    flags: keep_nvram
 
 # Listing VMs
 - name: List all VMs
@@ -134,6 +181,17 @@ VIRT_STATE_NAME_MAP = {
     6: 'crashed',
 }
 
+ENTRY_UNDEFINE_FLAGS_MAP = {
+    'managed_save': 1,
+    'snapshots_metadata': 2,
+    'nvram': 4,
+    'keep_nvram': 8,
+    'checkpoints_metadata': 16,
+}
+
+ALL_FLAGS = []
+ALL_FLAGS.extend(ENTRY_UNDEFINE_FLAGS_MAP.keys())
+
 
 class VMNotFound(Exception):
     pass
@@ -198,8 +256,8 @@ class LibvirtConnection(object):
     def destroy(self, vmid):
         return self.find_vm(vmid).destroy()
 
-    def undefine(self, vmid):
-        return self.find_vm(vmid).undefine()
+    def undefine(self, vmid, flag):
+        return self.find_vm(vmid).undefineFlags(flag)
 
     def get_status2(self, vm):
         state = vm.info()[0]
@@ -367,11 +425,11 @@ class Virt(object):
         self.__get_conn()
         return self.conn.destroy(vmid)
 
-    def undefine(self, vmid):
+    def undefine(self, vmid, flag):
         """ Stop a domain, and then wipe it from the face of the earth.  (delete disk/config file) """
 
         self.__get_conn()
-        return self.conn.undefine(vmid)
+        return self.conn.undefine(vmid, flag)
 
     def status(self, vmid):
         """
@@ -419,6 +477,8 @@ def core(module):
     autostart = module.params.get('autostart', None)
     guest = module.params.get('name', None)
     command = module.params.get('command', None)
+    force = module.params.get('force', None)
+    flags = module.params.get('flags', None)
     uri = module.params.get('uri', None)
     xml = module.params.get('xml', None)
 
@@ -513,6 +573,30 @@ def core(module):
 
             elif not guest:
                 module.fail_json(msg="%s requires 1 argument: guest" % command)
+
+            elif command == 'undefine':
+                # Use the undefine function with flag to also handle various metadata.
+                # This is especially important for UEFI enabled guests with nvram.
+                # Provide flag as an integer of all desired bits, see 'ENTRY_UNDEFINE_FLAGS_MAP'.
+                # Integer 23 takes care of all cases (23 = 1 + 2 + 4 + 16).
+                flag = 0
+                if flags is not None:
+                    if force is True:
+                        module.warn("Ignoring 'force', because 'flags' are provided.")
+                    nv = ['nvram', 'keep_nvram']
+                    # Check mutually exclusive flags
+                    if set(nv) <= set(flags):
+                        raise ValueError("Flags '%s' are mutually exclusive" % "' and '".join(nv))
+                    for item in flags:
+                        # Get and add flag integer from mapping, otherwise 0.
+                        flag += ENTRY_UNDEFINE_FLAGS_MAP.get(item, 0)
+                elif force is True:
+                    flag = 23
+                # Finally, execute with flag
+                res = getattr(v, command)(guest, flag)
+                if not isinstance(res, dict):
+                    res = {command: res}
+
             else:
                 res = getattr(v, command)(guest)
                 if not isinstance(res, dict):
@@ -539,6 +623,8 @@ def main():
             state=dict(type='str', choices=['destroyed', 'paused', 'running', 'shutdown']),
             autostart=dict(type='bool'),
             command=dict(type='str', choices=ALL_COMMANDS),
+            flags=dict(type='list', elements='str', choices=ALL_FLAGS),
+            force=dict(type='bool'),
             uri=dict(type='str', default='qemu:///system'),
             xml=dict(type='str'),
         ),
