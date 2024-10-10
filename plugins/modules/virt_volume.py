@@ -472,7 +472,7 @@ def main():
         argument_spec=dict(
             name=dict(aliases=['volume']),
             pool=dict(required=True),
-            state=dict(choices=['active', 'inactive', 'present', 'absent', 'undefined', 'deleted']),
+            state=dict(choices=['present', 'absent', 'undefined', 'deleted']),
             command=dict(choices=ALL_COMMANDS),
             uri=dict(default='qemu:///system'),
             xml=dict(),
