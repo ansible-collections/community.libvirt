@@ -1,3 +1,5 @@
+__METACLASS__ = type
+
 try:
     import libvirt
 except ImportError:
