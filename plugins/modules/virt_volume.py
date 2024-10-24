@@ -412,12 +412,12 @@ def core(module):
                 v.create(name, xml)
                 res = {'changed': True, 'created': name}
         elif state in ['undefined', 'absent']:
-            entries = v.list_pools()
+            entries = v.list_volumes()
             if name in entries:
                 res['changed'] = True
                 res['msg'] = v.delete(name)
         elif state in ['deleted']:
-            entries = v.list_pools()
+            entries = v.list_volumes()
             if name in entries:
                 v.wipe(name, mode)
                 res['changed'] = True
