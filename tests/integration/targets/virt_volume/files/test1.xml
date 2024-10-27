@@ -1,5 +1,5 @@
 <volume>
-  <name>test1.img</name>
+  <name>test1</name>
   <allocation>0</allocation>
   <capacity unit="G">2</capacity>
   <target>
