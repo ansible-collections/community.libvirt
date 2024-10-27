@@ -64,7 +64,7 @@
     - name: Ensures stuff
       assert:
         that:
-          - '"test1.img" in list_volumes1'
+          - '"test1" in list_volumes1'
 
     # - name: Ensure the second calls return "unchanged"
     #   assert:
