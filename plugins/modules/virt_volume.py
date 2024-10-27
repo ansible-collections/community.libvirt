@@ -404,13 +404,12 @@ def core(module):
 
         res['changed'] = False
         if state in ['present']:
-            try:
-                v.get_volume(name)
-            except EntryNotFound:
-                if not xml:
+            if l not in v.list_volumes():
+                if xml:
+                    v.create(name, xml)
+                    res = {'changed': True, 'created': name}
+                else:
                     module.fail_json(msg="volume '" + name + "' not present, but xml not specified")
-                v.create(name, xml)
-                res = {'changed': True, 'created': name}
         elif state in ['undefined', 'absent']:
             entries = v.list_volumes()
             if name in entries:
