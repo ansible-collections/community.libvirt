@@ -404,7 +404,7 @@ def core(module):
 
         res['changed'] = False
         if state in ['present']:
-            if l not in v.list_volumes():
+            if name not in v.list_volumes():
                 if xml:
                     v.create(name, xml)
                     res = {'changed': True, 'created': name}
