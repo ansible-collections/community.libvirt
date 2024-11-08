@@ -24,6 +24,20 @@ options:
     vars:
         - name: ansible_host
         - name: ansible_libvirt_lxc_host
+  libvirt_lxc_noseclabel:
+    description:
+        - "This setting causes libvirt to connect to LXC containers by passing ``--noseclabel`` parameter to ``virsh`` command."
+        - This is necessary when running on systems which do not have SELinux.
+    default: False
+    version_added: '1.4.0'
+    type: boolean
+    ini:
+        - section: selinux
+          key: 'libvirt_lxc_noseclabel'
+    env:
+        - name: ANSIBLE_LIBVIRT_LXC_NOSECLABEL
+    vars:
+        - name: ansible_libvirt_lxc_noseclabel
 '''
 
 import os
@@ -92,7 +106,7 @@ class Connection(ConnectionBase):
         executable = C.DEFAULT_EXECUTABLE.split()[0] if C.DEFAULT_EXECUTABLE else '/bin/sh'
         local_cmd = [self.virsh, '-q', '-c', 'lxc:///', 'lxc-enter-namespace']
 
-        if C.DEFAULT_LIBVIRT_LXC_NOSECLABEL:
+        if self.get_option("libvirt_lxc_noseclabel"):
             local_cmd += ['--noseclabel']
 
         local_cmd += [self.lxc, '--', executable, '-c', cmd]
