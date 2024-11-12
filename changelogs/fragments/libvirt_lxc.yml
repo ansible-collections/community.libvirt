@@ -1,0 +1,3 @@
+---
+bugfixes:
+  - libvirt_lxc - add configuration for libvirt_lxc_noseclabel.
