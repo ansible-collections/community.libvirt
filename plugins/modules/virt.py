@@ -491,6 +491,8 @@ class Virt(object):
         """
         Define a guest with the given xml
         """
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.define_from_xml(xml)
 
@@ -515,11 +517,12 @@ def handle_define(module, v):
     guest = module.params.get('name', None)
     autostart = module.params.get('autostart', None)
     mutate_flags = module.params.get('mutate_flags', [])
+    parser = etree.XMLParser(remove_blank_text=True)
 
     if not xml:
         module.fail_json(msg="define requires 'xml' argument")
     try:
-        incoming_xml = etree.fromstring(xml)
+        incoming_xml = etree.fromstring(xml, parser)
     except etree.XMLSyntaxError:
         # TODO: provide info from parser
         module.fail_json(msg="given XML is invalid")
@@ -561,7 +564,7 @@ def handle_define(module, v):
     try:
         existing_domain = v.get_vm(domain_name)
         existing_xml_raw = existing_domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
-        existing_xml = etree.fromstring(existing_xml_raw)
+        existing_xml = etree.fromstring(existing_xml_raw, parser)
     except VMNotFound:
         existing_domain = None
         existing_xml_raw = None
@@ -655,8 +658,17 @@ def handle_define(module, v):
                         ))
 
     try:
-        domain_xml = etree.tostring(incoming_xml).decode()
+        domain_xml = etree.tostring(incoming_xml, pretty_print=True).decode()
 
+        if module.check_mode:
+            res.update({
+                'changed': True,
+                'diff': {
+                    'before': etree.tostring(existing_xml, pretty_print=True).decode() if existing_xml else '',
+                    'after': domain_xml
+                },
+            })
+            return res
         # TODO: support check mode
         domain = v.define(domain_xml)
 
