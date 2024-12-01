@@ -492,6 +492,7 @@ class Virt(object):
         Define a guest with the given xml
         """
         if self.module.check_mode:
+            raise RuntimeError()
             return 0
         self.__get_conn()
         return self.conn.define_from_xml(xml)
@@ -823,6 +824,7 @@ def main():
             xml=dict(type='str'),
             mutate_flags=dict(type='list', elements='str', choices=MUTATE_FLAGS, default=['ADD_UUID']),
         ),
+        supports_check_mode=True
     )
 
     if not HAS_VIRT:
