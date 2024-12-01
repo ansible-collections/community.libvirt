@@ -830,6 +830,7 @@ def main():
             xml=dict(type='str'),
             mutate_flags=dict(type='list', elements='str', choices=MUTATE_FLAGS, default=['ADD_UUID']),
         ),
+        supports_check_mode=True
     )
 
     if not HAS_VIRT:
