@@ -395,6 +395,9 @@ class Virt(object):
 
     def autostart(self, vmid, as_flag):
         self.conn = self.__get_conn()
+        if self.module.check_mode:
+            return self.conn.get_autostart(vmid) != as_flag
+
         # Change autostart flag only if needed
         if self.conn.get_autostart(vmid) != as_flag:
             self.conn.set_autostart(vmid, as_flag)
@@ -408,42 +411,51 @@ class Virt(object):
 
     def shutdown(self, vmid):
         """ Make the machine with the given vmid stop running.  Whatever that takes.  """
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         self.conn.shutdown(vmid)
         return 0
 
     def pause(self, vmid):
         """ Pause the machine with the given vmid.  """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.suspend(vmid)
 
     def unpause(self, vmid):
         """ Unpause the machine with the given vmid.  """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.resume(vmid)
 
     def create(self, vmid):
         """ Start the machine via the given vmid """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.create(vmid)
 
     def start(self, vmid):
         """ Start the machine via the given id/name """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.create(vmid)
 
     def destroy(self, vmid):
         """ Pull the virtual power from the virtual domain, giving it virtually no time to virtually shut down.  """
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.destroy(vmid)
 
     def undefine(self, vmid, flag):
         """ Stop a domain, and then wipe it from the face of the earth.  (delete disk/config file) """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.undefine(vmid, flag)
 
