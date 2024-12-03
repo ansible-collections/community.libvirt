@@ -1,0 +1,102 @@
+---
+- name: "Determine QEMU version"
+  command: "{{ emulator_bin }} --version"
+  register: emulator_version_output
+
+- name: "Set QEMU version"
+  set_fact:
+    emulator_version: "{{ 0 | extract(emulator_version_output.stdout | regex_search('version (\\d+\\.\\d+)', '\\1')) }}"
+
+#
+# Define domain
+#
+- name: "Define {{ domain_info.name }} on check_mode(pre)"
+  community.libvirt.virt:
+    command: define
+    name: "{{ domain_info.name }}"
+    xml: '{{ lookup("template", "test_domain.xml.j2") }}'
+  register: result_pre
+  check_mode: true
+
+- name: "Define {{ domain_info.name }}"
+  community.libvirt.virt:
+    command: define
+    name: "{{ domain_info.name }}"
+    xml: '{{ lookup("template", "test_domain.xml.j2") }}'
+  register: result
+
+- name: "Define {{ domain_info.name }} on check_mode(post)"
+  community.libvirt.virt:
+    command: define
+    name: "{{ domain_info.name }}"
+    xml: '{{ lookup("template", "test_domain.xml.j2") }}'
+  register: result_post
+  check_mode: true
+
+- name: "Ensure the {{ domain_info.name }} has been defined"
+  assert:
+    that:
+      - result_pre is changed
+      - result is changed
+      - result_post is not changed
+      - result.created == domain_info.name
+
+#
+# Start domain
+#
+- name: "Start {{ domain_info.name }} on check_mode(pre)"
+  community.libvirt.virt:
+    state: running
+    name: "{{ domain_info.name }}"
+  register: result_pre
+  check_mode: true
+
+- name: "Start {{ domain_info.name }}"
+  community.libvirt.virt:
+    state: running
+    name: "{{ domain_info.name }}"
+  register: result
+
+- name: "Start {{ domain_info.name }} on check_mode(post}"
+  community.libvirt.virt:
+    state: running
+    name: "{{ domain_info.name }}"
+  register: result_post
+  check_mode: true
+
+- name: "Ensure the {{ domain_info.name }} has started"
+  assert:
+    that:
+      - result_pre is changed
+      - result is changed and result.msg == 0
+      - result_post is not changed
+
+#
+# Undefine domain
+#
+- name: Delete "{{ domain_info.name }} on check_mode(pre)"
+  community.libvirt.virt:
+    command: undefine
+    name: "{{ domain_info.name }}"
+  register: result_pre
+  check_mode: true
+
+- name: Delete "{{ domain_info.name }}"
+  community.libvirt.virt:
+    command: undefine
+    name: "{{ domain_info.name }}"
+  register: result
+
+- name: Delete "{{ domain_info.name }} on check_mode(post)"
+  community.libvirt.virt:
+    command: undefine
+    name: "{{ domain_info.name }}"
+  register: result_post
+  check_mode: true
+
+- name: "Ensure the {{ domain_info.name }} has been deleted"
+  assert:
+    that:
+      - result_pre is changed
+      - result is changed and result.command == 0
+      - result_post is not changed
