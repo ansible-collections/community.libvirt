@@ -391,6 +391,9 @@ class Virt(object):
 
     def autostart(self, vmid, as_flag):
         self.conn = self.__get_conn()
+        if self.module.check_mode:
+            return self.conn.get_autostart(vmid) != as_flag
+
         # Change autostart flag only if needed
         if self.conn.get_autostart(vmid) != as_flag:
             self.conn.set_autostart(vmid, as_flag)
@@ -404,42 +407,51 @@ class Virt(object):
 
     def shutdown(self, vmid):
         """ Make the machine with the given vmid stop running.  Whatever that takes.  """
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         self.conn.shutdown(vmid)
         return 0
 
     def pause(self, vmid):
         """ Pause the machine with the given vmid.  """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.suspend(vmid)
 
     def unpause(self, vmid):
         """ Unpause the machine with the given vmid.  """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.resume(vmid)
 
     def create(self, vmid):
         """ Start the machine via the given vmid """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.create(vmid)
 
     def start(self, vmid):
         """ Start the machine via the given id/name """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.create(vmid)
 
     def destroy(self, vmid):
         """ Pull the virtual power from the virtual domain, giving it virtually no time to virtually shut down.  """
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.destroy(vmid)
 
     def undefine(self, vmid, flag):
         """ Stop a domain, and then wipe it from the face of the earth.  (delete disk/config file) """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.undefine(vmid, flag)
 
@@ -479,6 +491,9 @@ class Virt(object):
         """
         Define a guest with the given xml
         """
+        if self.module.check_mode:
+            raise RuntimeError()
+            return 0
         self.__get_conn()
         return self.conn.define_from_xml(xml)
 
@@ -503,11 +518,12 @@ def handle_define(module, v):
     guest = module.params.get('name', None)
     autostart = module.params.get('autostart', None)
     mutate_flags = module.params.get('mutate_flags', [])
+    parser = etree.XMLParser(remove_blank_text=True)
 
     if not xml:
         module.fail_json(msg="define requires 'xml' argument")
     try:
-        incoming_xml = etree.fromstring(xml)
+        incoming_xml = etree.fromstring(xml, parser)
     except etree.XMLSyntaxError:
         # TODO: provide info from parser
         module.fail_json(msg="given XML is invalid")
@@ -549,7 +565,7 @@ def handle_define(module, v):
     try:
         existing_domain = v.get_vm(domain_name)
         existing_xml_raw = existing_domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
-        existing_xml = etree.fromstring(existing_xml_raw)
+        existing_xml = etree.fromstring(existing_xml_raw, parser)
     except VMNotFound:
         existing_domain = None
         existing_xml_raw = None
@@ -643,8 +659,17 @@ def handle_define(module, v):
                         ))
 
     try:
-        domain_xml = etree.tostring(incoming_xml).decode()
+        domain_xml = etree.tostring(incoming_xml, pretty_print=True).decode()
 
+        if module.check_mode:
+            res.update({
+                'changed': True,
+                'diff': {
+                    'before': etree.tostring(existing_xml, pretty_print=True).decode() if existing_xml else '',
+                    'after': domain_xml
+                },
+            })
+            return res
         # TODO: support check mode
         domain = v.define(domain_xml)
 
@@ -799,6 +824,7 @@ def main():
             xml=dict(type='str'),
             mutate_flags=dict(type='list', elements='str', choices=MUTATE_FLAGS, default=['ADD_UUID']),
         ),
+        supports_check_mode=True
     )
 
     if not HAS_VIRT:
