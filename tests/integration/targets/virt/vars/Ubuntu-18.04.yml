@@ -1,0 +1,5 @@
+---
+virt_domain_packages:
+  - libvirt-daemon
+  - python-libvirt
+  - python-lxml
