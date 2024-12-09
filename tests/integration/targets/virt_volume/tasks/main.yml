@@ -30,7 +30,6 @@
     
     - name: Start the default pool
       virt_pool:
-        uri: qemu:///system
         state: active
         name: foobar
     
