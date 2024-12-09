@@ -1,5 +1,5 @@
 ---
-virt_net_packages:
+virt_volume_package:
   - libvirt
   - libvirt-daemon
   - libvirt-python
