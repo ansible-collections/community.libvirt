@@ -1,8 +1,0 @@
----
-ansible_python_interpreter: /usr/libexec/platform-python
-
-virt_pool_packages:
-  - libvirt
-  - libvirt-daemon
-  - python3-libvirt
-  - python3-lxml

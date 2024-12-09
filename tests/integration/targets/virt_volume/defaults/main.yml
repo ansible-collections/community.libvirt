@@ -1,0 +1,7 @@
+---
+pool_info:
+  volume_name: test1
+  size: 10
+  unit: M
+  pool_name: test_pool
+  path: /tmp/test_pool
