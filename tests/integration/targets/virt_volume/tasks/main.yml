@@ -9,7 +9,7 @@
 - block:
     - name: Install libvirt packages
       package:
-        name: "{{ virt_net_packages }}"
+        name: "{{ virt_volume_packages }}"
 
     - name: Start libvirt
       service:
