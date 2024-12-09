@@ -25,45 +25,45 @@
     - name: Define the foobar storage pool
       virt_pool:
         command: define
-        name: foobar
-        xml: '{{ lookup("file", "foobar.xml") }}'
+        name: "{{ pool_name }}"
+        xml: '{{ lookup("template", "pool_definition.xml.j2") }}'
     
     - name: Start the default pool
       virt_pool:
         state: active
-        name: foobar
+        name: "{{ pool_name }}"
     
     - name: Create Volume test1
       virt_volume:
-        name: test1
-        pool: foobar
+        name: "{{ volume_name }}"
+        pool: "{{ pool_name }}"
         state: present
-        xml: '{{ lookup("file", "test1.xml") }}'
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
 
     - name: List Volumes
       virt_volume:
-        pool: foobar
+        pool: "{{ pool_name }}"
         command: list_volumes
       register: list_volumes1
     
     - name: Create Volume test1 again
       virt_volume:
-        name: test1
-        pool: foobar
+        pool: "{{ pool_name }}"
+        name: "{{ volume_name }}"
         state: present
-        xml: '{{ lookup("file", "test1.xml") }}'
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
       register: create_test1_2
       debugger: always
 
     - name: Destroy the foobar pool
       virt_pool:
         command: destroy
-        name: foobar
+        name: "{{ pool_name }}"
 
     - name: Ensures stuff
       assert:
         that:
-          - '"test1" in list_volumes1'
+          - '"{{ volume_name }}" in list_volumes1'
 
     # - name: Ensure the second calls return "unchanged"
     #   assert:
