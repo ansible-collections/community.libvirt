@@ -81,5 +81,5 @@
 
     - name: Remove only the libvirt packages
       package:
-        name: "{{ virt_net_packages|select('match', '.*libvirt.*')|list }}"
+        name: "{{ virt_volume_packages|select('match', '.*libvirt.*')|list }}"
         state: absent
