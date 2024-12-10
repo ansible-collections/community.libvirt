@@ -34,10 +34,10 @@ options:
         choices: [ "present", "absent", "undefined", "deleted" ]
         description:
             - Specify which state you want a volume to be in.
-              If 'present', ensure that the volume is present but do not change its
+            - If C(present), ensure that the volume is present but do not change its
               state; if it's missing, you need to specify xml argument.
-              If 'undefined' or 'absent', volume will be removed from I(libvirt) configuration (logically only!).
-              If 'deleted', volume will be wiped clean and then removed.
+            - If C(undefined) or C(absent), volume will be removed from I(libvirt) configuration (logically only!).
+            - If C(deleted), volume will be wiped clean and then removed.
         type: str
     command:
         choices: [ "create", "create_from", "delete", "download", "info", "list_volumes", "get_xml",
