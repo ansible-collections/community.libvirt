@@ -14,6 +14,7 @@ module: virt_volume
 version_added: '1.4.0'
 author:
     - Leonardo Galli (@galli-leo)
+    - Niclas Kretschmer (@NK308)
 short_description: Manage libvirt volumes inside a storage pool
 description:
     - Manage I(libvirt) volumes inside a storage pool.
