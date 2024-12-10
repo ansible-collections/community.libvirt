@@ -11,6 +11,7 @@ __metaclass__ = type
 DOCUMENTATION = '''
 ---
 module: virt_volume
+version_added: '1.4.0'
 author:
     - Leonardo Galli (@galli-leo)
 short_description: Manage libvirt volumes inside a storage pool
