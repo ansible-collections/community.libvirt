@@ -31,12 +31,12 @@ options:
             - Name of the storage pool, where the volume is located.
         type: str
     state:
-        choices: [ "present", "absent", "undefined", "deleted" ]
+        choices: [ "present", "absent", "deleted" ]
         description:
             - Specify which state you want a volume to be in.
             - If C(present), ensure that the volume is present but do not change its
               state; if it's missing, you need to specify xml argument.
-            - If C(undefined) or C(absent), volume will be removed from I(libvirt) configuration (logically only!).
+            - If C(absent), volume will be removed from I(libvirt) configuration (logically only!).
             - If C(deleted), volume will be wiped clean and then removed.
         type: str
     command:
@@ -616,7 +616,7 @@ def core(module):
                     res = {'changed': True, 'created': name}
                 else:
                     module.fail_json(msg="volume '" + name + "' not present, but xml not specified")
-        elif state in ['undefined', 'absent']:
+        elif state in ['absent']:
             entries = v.list_volumes()
             if name in entries:
                 res['changed'] = True
@@ -678,7 +678,7 @@ def main():
         argument_spec=dict(
             name=dict(aliases=['volume']),
             pool=dict(required=True),
-            state=dict(choices=['present', 'absent', 'undefined', 'deleted']),
+            state=dict(choices=['present', 'absent', 'deleted']),
             command=dict(choices=ALL_COMMANDS),
             uri=dict(default='qemu:///system'),
             xml=dict(),
