@@ -4,6 +4,20 @@ Community.Libvirt Release Notes
 
 .. contents:: Topics
 
+v1.3.1
+======
+
+Release Summary
+---------------
+
+This is the patch release of the ``community.libvirt`` collection.
+This changelog contains all changes to the modules and plugins in this collection
+that have been made after the previous release.
+
+Bugfixes
+--------
+
+- libvirt_lxc - add configuration for libvirt_lxc_noseclabel.
 
 v1.3.0
 ======
