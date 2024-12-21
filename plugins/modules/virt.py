@@ -455,9 +455,16 @@ class Virt(object):
     def undefine(self, vmid, flag):
         """ Stop a domain, and then wipe it from the face of the earth.  (delete disk/config file) """
         if self.module.check_mode:
-            return 0
+            return {
+                'changed': vmid in self.list_vms(),
+                'command': 0,
+            }
         self.__get_conn()
-        return self.conn.undefine(vmid, flag)
+        res = self.conn.undefine(vmid, flag)
+        return {
+            'changed': res == 0,
+            'command': res,
+        }
 
     def status(self, vmid):
         """
@@ -770,6 +777,12 @@ def core(module):
         return VIRT_SUCCESS, res
 
     if command:
+        def exec_virt(*args):
+            res = getattr(v, command)(*args)
+            if not isinstance(res, dict):
+                res = {command: res}
+            return res
+
         if command in VM_COMMANDS:
             if command == 'define':
                 res.update(handle_define(module, v))
@@ -796,24 +809,18 @@ def core(module):
                 elif force is True:
                     flag = 23
                 # Finally, execute with flag
-                res = getattr(v, command)(guest, flag)
-                if not isinstance(res, dict):
-                    res = {command: res}
+                res = exec_virt(guest, flag)
 
             elif command == 'uuid':
                 res = {'uuid': v.get_uuid(guest)}
 
             else:
-                res = getattr(v, command)(guest)
-                if not isinstance(res, dict):
-                    res = {command: res}
+                res = exec_virt(guest)
 
             return VIRT_SUCCESS, res
 
         elif hasattr(v, command):
-            res = getattr(v, command)()
-            if not isinstance(res, dict):
-                res = {command: res}
+            res = exec_virt()
             return VIRT_SUCCESS, res
 
         else:
