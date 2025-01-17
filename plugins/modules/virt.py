@@ -176,7 +176,7 @@ VIRT_SUCCESS = 0
 VIRT_UNAVAILABLE = 2
 
 ALL_COMMANDS = []
-VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause']
+VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause', 'uuid']
 HOST_COMMANDS = ['freemem', 'info', 'list_vms', 'nodeinfo', 'virttype']
 ALL_COMMANDS.extend(VM_COMMANDS)
 ALL_COMMANDS.extend(HOST_COMMANDS)
@@ -310,6 +310,10 @@ class LibvirtConnection(object):
 
     def define_from_xml(self, xml):
         return self.conn.defineXML(xml)
+
+    def get_uuid(self, vmid):
+        vm = self.conn.lookupByName(vmid)
+        return vm.UUIDString()
 
 
 class Virt(object):
@@ -481,6 +485,10 @@ class Virt(object):
         """
         self.__get_conn()
         return self.conn.define_from_xml(xml)
+
+    def get_uuid(self, vmid):
+        self.__get_conn()
+        return self.conn.get_uuid(vmid)
 
 
 # A dict of interface types (found in their `type` attribute) to the
@@ -766,6 +774,9 @@ def core(module):
                 res = getattr(v, command)(guest, flag)
                 if not isinstance(res, dict):
                     res = {command: res}
+
+            elif command == 'uuid':
+                res = {'uuid': v.get_uuid(guest)}
 
             else:
                 res = getattr(v, command)(guest)
