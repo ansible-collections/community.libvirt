@@ -1,0 +1,2 @@
+minor_changes:
+  - virt - implement the gathering of Dom UUIDs as per FR https://github.com/ansible-collections/community.libvirt/issues/187
