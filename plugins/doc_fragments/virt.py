@@ -36,7 +36,8 @@ options:
   command:
     description:
       - In addition to state management, various non-idempotent commands are available.
-    choices: [ create, define, destroy, freemem, get_xml, get_interfaces, info, list_vms, nodeinfo, pause, shutdown, start, status, stop, undefine, unpause, uuid, virttype ]
+    choices: [ create, define, destroy, freemem, get_xml, get_interfaces, info, list_vms, nodeinfo, pause, shutdown, start, status, 
+               stop, undefine, unpause, uuid, virttype ]
     type: str
     """
 

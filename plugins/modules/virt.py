@@ -322,8 +322,10 @@ class LibvirtConnection(object):
         interfaces_dict = {}
         interfaces_dict['network_interfaces'] = {}
         for interface in interfaces:
-            interfaces_dict["network_interfaces"].update({interface.find("source").get("bridge"): interface.find("mac").get("address")})
+            interfaces_dict["network_interfaces"].update({interface.find("source").get("bridge"):
+                                                          interface.find("mac").get("address")})
         return interfaces_dict
+
 
 class Virt(object):
 
@@ -505,6 +507,7 @@ class Virt(object):
         """
         self.__get_conn()
         return self.conn.get_interfaces(vmid)
+
 
 # A dict of interface types (found in their `type` attribute) to the
 # corresponding "source" attribute name of their  <source> elements
