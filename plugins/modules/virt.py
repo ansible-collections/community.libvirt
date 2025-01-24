@@ -322,8 +322,10 @@ class LibvirtConnection(object):
         interfaces_dict = {}
         interfaces_dict['network_interfaces'] = {}
         for interface in interfaces:
-            interfaces_dict["network_interfaces"].update({interface.find("source").get("bridge"):
-                                                          interface.find("mac").get("address")})
+            interfaces_dict["network_interfaces"].update(
+                {interface.find("source").get("bridge"): 
+                    {"mac": interface.find("mac").get("address"),
+                     "pci_slot": interface.find("address").get("bus")}})
         return interfaces_dict
 
 
