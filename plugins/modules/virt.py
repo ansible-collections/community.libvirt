@@ -18,8 +18,7 @@ description:
      - Manages virtual machines supported by I(libvirt).
 options:
     flags:
-        choices: [ 'managed_save', 'snapshots_metadata', 'nvram', 'keep_nvram', 'checkpoints_metadata',
-                    'delete_volumes']
+        choices: [ 'managed_save', 'snapshots_metadata', 'nvram', 'keep_nvram', 'checkpoints_metadata', 'delete_volumes']
         description:
             - Pass additional parameters.
             - Currently only implemented with command C(undefine).
