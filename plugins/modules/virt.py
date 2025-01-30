@@ -180,7 +180,7 @@ VIRT_SUCCESS = 0
 VIRT_UNAVAILABLE = 2
 
 ALL_COMMANDS = []
-VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause', 'uuid']
+VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'get_interfaces', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause', 'uuid']
 HOST_COMMANDS = ['freemem', 'info', 'list_vms', 'nodeinfo', 'virttype']
 ALL_COMMANDS.extend(VM_COMMANDS)
 ALL_COMMANDS.extend(HOST_COMMANDS)
@@ -318,6 +318,19 @@ class LibvirtConnection(object):
     def get_uuid(self, vmid):
         vm = self.conn.lookupByName(vmid)
         return vm.UUIDString()
+
+    def get_interfaces(self, vmid):
+        dom_xml = self.get_xml(vmid)
+        root = etree.fromstring(dom_xml)
+        interfaces = root.findall("./devices/interface")
+        interfaces_dict = {}
+        interfaces_dict['network_interfaces'] = {}
+        for interface in interfaces:
+            interfaces_dict["network_interfaces"].update(
+                {interface.find("source").get("bridge"):
+                    {"mac": interface.find("mac").get("address"),
+                     "pci_bus": interface.find("address").get("bus")}})
+        return interfaces_dict
 
 
 class Virt(object):
@@ -514,6 +527,13 @@ class Virt(object):
     def get_uuid(self, vmid):
         self.__get_conn()
         return self.conn.get_uuid(vmid)
+
+    def get_interfaces(self, vmid):
+        """
+        Get Interface Name and Mac Address from xml
+        """
+        self.__get_conn()
+        return self.conn.get_interfaces(vmid)
 
 
 # A dict of interface types (found in their `type` attribute) to the
