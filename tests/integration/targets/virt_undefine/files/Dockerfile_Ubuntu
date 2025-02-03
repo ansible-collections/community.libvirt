@@ -1,0 +1,37 @@
+FROM ubuntu:24.04
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get -y install \
+        bridge-utils \
+        dmidecode \
+        dnsmasq \
+        ebtables \
+        iproute2 \
+        iptables \
+        libvirt-clients \
+        libvirt-daemon-system \
+        ovmf \
+#        qemu-efi \
+        qemu-kvm \
+        tini \
+        && \
+    apt-get clean
+
+RUN apt install python3-pip python3-libvirt python3-lxml -y
+
+RUN ln -s /usr/bin/qemu-system-amd64 /usr/libexec/qemu-kvm
+
+RUN sed -i '/^#stdio_handler/ a\stdio_handler = "file"' /etc/libvirt/qemu.conf
+
+COPY config/pools/* /etc/libvirt/storage/
+COPY config/networks/* /etc/libvirt/qemu/networks/
+RUN mkdir -p /etc/libvirt/storage/autostart /etc/libvirt/qemu/networks/autostart && \
+    for pool in /etc/libvirt/storage/*.xml; do \
+        ln -sf "../${pool##*/}" /etc/libvirt/storage/autostart/; \
+    done && \
+    for net in /etc/libvirt/qemu/networks/*.xml; do \
+        ln -sf "../${net##*/}" /etc/libvirt/qemu/networks/autostart/; \
+    done
+
+CMD ["/usr/bin/tini", "/usr/sbin/libvirtd"]
