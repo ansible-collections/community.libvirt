@@ -319,17 +319,17 @@ class LibvirtConnection(object):
         dom_xml = self.get_xml(vmid)
         root = etree.fromstring(dom_xml)
         interfaces = root.findall("./devices/interface")
-        interfaces_dict = {}
         interfaces_dict['network_interfaces'] = {}
         interface_type_map = {
             'network': 'NAT',
             'direct': 'macvtap',
             'bridge': 'bridge'
-            }
+        }
         interface_counter = 0
+        interfaces_dict = {}
         interfaces_dict['network_interfaces'] = {}
         for interface in interfaces:
-            interface_counter+=1
+            interface_counter += 1
             interface_type = interface.get('type')
             source = interface.find("source").get({
                 'bridge': 'bridge',
@@ -343,7 +343,7 @@ class LibvirtConnection(object):
                 "mac": mac_address,
                 "pci_bus": pci_bus,
                 "source": source
-                }
+            }
             interfaces_dict['network_interfaces'].update({f"interface_{interface_counter}": interface_info})
         return interfaces_dict
 
