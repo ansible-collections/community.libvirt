@@ -343,7 +343,7 @@ class LibvirtConnection(object):
                 "pci_bus": pci_bus,
                 "source": source
             }
-            interfaces_dict['network_interfaces'].update({f"interface_{interface_counter}": interface_info})
+            interfaces_dict['network_interfaces'].update({"interface_{0}".format(interface_counter): interface_info})
         return interfaces_dict
 
 
