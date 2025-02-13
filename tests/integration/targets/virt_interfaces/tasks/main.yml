@@ -29,9 +29,17 @@
   debug: 
     msg: "{{ vminfo }}"
 
-- name: Assert Mac Address present
+- name: Assert First Mac Address present
   assert:
     that:
-      - "vminfo['network_interfaces']['null']['mac'] == mac_address"
-    fail_msg: "Mac address does not match or is missing. Expected: {{ mac_address }}, Got: {{ vminfo['network_interfaces']['null']['mac'] }}"
+      - "vminfo['network_interfaces']['interface_1']['mac'] == mac_address"
+    fail_msg: "Mac address does not match or is missing. Expected: {{ mac_address }}, Got: {{ vminfo['network_interfaces']['interface_1']['mac'] }}"
     success_msg: "Original variable from defaults: {{ mac_address }} found in netowrking output"
+
+
+- name: Assert Second Mac Address present
+  assert:
+    that:
+      - "vminfo['network_interfaces']['interface_2']['mac'] == mac_address_2"
+    fail_msg: "Mac address does not match or is missing. Expected: {{ mac_address_2 }}, Got: {{ vminfo['network_interfaces']['interface_2']['mac'] }}"
+    success_msg: "Original variable from defaults: {{ mac_address_2 }} found in netowrking output"

@@ -321,12 +321,33 @@ class LibvirtConnection(object):
         interfaces = root.findall("./devices/interface")
         interfaces_dict = {}
         interfaces_dict['network_interfaces'] = {}
+        interface_type_map = {
+            'network': 'NAT',
+            'direct': 'macvtap',
+            'bridge': 'bridge'
+            }
+        interface_counter = 0
+        interface_dict = {}
+        interfaces_dict['network_interfaces'] = {}
         for interface in interfaces:
-            interfaces_dict["network_interfaces"].update(
-                {interface.find("source").get("bridge"):
-                    {"mac": interface.find("mac").get("address"),
-                     "pci_bus": interface.find("address").get("bus")}})
+            interface_counter+=1
+            interface_type = interface.get('type')
+            source = interface.find("source").get({
+                'bridge': 'bridge',
+                'direct': 'dev',
+                'network': 'network'
+            }.get(interface_type))
+            mac_address = interface.find("mac").get("address")
+            pci_bus = interface.find("address").get("bus")
+            interface_info = {
+                "type": interface_type_map.get(interface_type, interface_type),
+                "mac": mac_address,
+                "pci_bus": pci_bus,
+                "source": source
+                }
+            interfaces_dict['network_interfaces'].update({f"interface_{interface_counter}": interface_info})
         return interfaces_dict
+
 
 
 class Virt(object):
