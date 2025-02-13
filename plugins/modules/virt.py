@@ -319,7 +319,6 @@ class LibvirtConnection(object):
         dom_xml = self.get_xml(vmid)
         root = etree.fromstring(dom_xml)
         interfaces = root.findall("./devices/interface")
-        interfaces_dict['network_interfaces'] = {}
         interface_type_map = {
             'network': 'NAT',
             'direct': 'macvtap',
