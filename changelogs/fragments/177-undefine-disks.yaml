@@ -1,0 +1,2 @@
+minor_changes:
+  - virt - implement the removal of volumes for a dom as per FR https://github.com/ansible-collections/community.libvirt/issues/177

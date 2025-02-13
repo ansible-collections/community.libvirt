@@ -1,0 +1,79 @@
+---
+- name: Create VM XML definition
+  template:
+    src: files/vm_template.xml.j2
+    dest: "/tmp/{{ vm_name }}.xml"
+
+- name: Define VM
+  community.libvirt.virt:
+    command: define
+    xml: "{{ lookup('file', '/tmp/' + vm_name + '.xml') }}"
+    uri: qemu:///system
+
+- name: Create the disk image file for base image
+  ansible.builtin.command: "qemu-img create -f qcow2 {{ libvirt_disk_path }}/{{ vm_name }}_copy.qcow2 {{ libvirt_disk_size }}G"
+
+- name: Copy the base image for another vm
+  ansible.builtin.command: "qemu-img create -f qcow2 -F qcow2 -b {{ libvirt_disk_path }}/{{ vm_name }}_copy.qcow2 {{ libvirt_disk_path }}/{{ vm_name }}.qcow2"
+
+- name: Validate the VM
+  community.libvirt.virt:
+    command: list_vms
+  register: vm_list
+
+- name: Show VMs
+  debug:
+    var: vm_list
+
+- name: Check if file exists
+  stat:
+    path: "{{ libvirt_disk_path }}/{{ vm_name }}.qcow2"
+  register: file_status
+
+- name: Assert file exists
+  assert:
+    that:
+      - file_status.stat.exists
+    fail_msg: "QCOW file does not exist"
+    success_msg: "File exists as expected"
+
+
+- name: Refresh the storage pool
+  community.libvirt.virt_pool:
+      command: refresh
+      name: "{{ libvirt_pool_name }}"
+
+- name: Destroy VMs
+  community.libvirt.virt:
+    state: destroyed
+    name: "{{ vm_name }}"
+
+- name: remove and undefine vm
+  community.libvirt.virt:
+    command: undefine
+    name: "{{ vm_name }}"
+    flags: managed_save,snapshots_metadata,delete_volumes
+
+- name: Check if file exists
+  stat:
+    path: "{{ libvirt_disk_path }}/{{ vm_name }}.qcow2"
+  register: file_status
+
+- name: Assert file does not exist
+  assert:
+    that:
+      - not file_status.stat.exists
+    success_msg: "QCOW file does not exist"
+    fail_msg: "File exists... failed to remove"
+
+- name: Check if base image still exists
+  stat:
+    path: "{{ libvirt_disk_path }}/{{ vm_name }}_copy.qcow2"
+  register: base_image
+
+- name: Assert base image still exists
+  assert:
+    that:
+      - base_image.stat.exists
+    success_msg: "BASE QCOW file still exists"
+    fail_msg: "Base Image Missing."

@@ -1,0 +1,7 @@
+---
+vm_name: fedora-test
+vm_ram_mb: 256
+vm_vcpus: 1
+libvirt_disk_path: "/var/lib/libvirt/images"
+libvirt_disk_size: "1"
+libvirt_pool_name: "default"
