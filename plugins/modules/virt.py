@@ -327,7 +327,6 @@ class LibvirtConnection(object):
             'bridge': 'bridge'
             }
         interface_counter = 0
-        interface_dict = {}
         interfaces_dict['network_interfaces'] = {}
         for interface in interfaces:
             interface_counter+=1
@@ -347,7 +346,6 @@ class LibvirtConnection(object):
                 }
             interfaces_dict['network_interfaces'].update({f"interface_{interface_counter}": interface_info})
         return interfaces_dict
-
 
 
 class Virt(object):
