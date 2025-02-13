@@ -1,0 +1,45 @@
+---
+- name: Create VM XML definition
+  template:
+    src: files/vm_template.xml.j2
+    dest: "/tmp/{{ vm_name }}.xml"
+
+- name: Define VM
+  community.libvirt.virt:
+    command: define
+    xml: "{{ lookup('file', '/tmp/' + vm_name + '.xml') }}"
+    uri: qemu:///system
+
+- name: Validate the VM
+  community.libvirt.virt:
+    command: list_vms
+  register: vm_list
+
+- name: Show VMs
+  debug:
+    var: vm_list
+
+- name: register vm info
+  community.libvirt.virt:
+    command: get_interfaces
+    name: "{{ vm_name }}"
+  register: vminfo
+
+- name: debug result
+  debug: 
+    msg: "{{ vminfo }}"
+
+- name: Assert First Mac Address present
+  assert:
+    that:
+      - "vminfo['network_interfaces']['interface_1']['mac'] == mac_address"
+    fail_msg: "Mac address does not match or is missing. Expected: {{ mac_address }}, Got: {{ vminfo['network_interfaces']['interface_1']['mac'] }}"
+    success_msg: "Original variable from defaults: {{ mac_address }} found in netowrking output"
+
+
+- name: Assert Second Mac Address present
+  assert:
+    that:
+      - "vminfo['network_interfaces']['interface_2']['mac'] == mac_address_2"
+    fail_msg: "Mac address does not match or is missing. Expected: {{ mac_address_2 }}, Got: {{ vminfo['network_interfaces']['interface_2']['mac'] }}"
+    success_msg: "Original variable from defaults: {{ mac_address_2 }} found in netowrking output"
