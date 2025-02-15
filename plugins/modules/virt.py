@@ -180,7 +180,7 @@ VIRT_SUCCESS = 0
 VIRT_UNAVAILABLE = 2
 
 ALL_COMMANDS = []
-VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause', 'uuid']
+VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'get_interfaces', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause', 'uuid']
 HOST_COMMANDS = ['freemem', 'info', 'list_vms', 'nodeinfo', 'virttype']
 ALL_COMMANDS.extend(VM_COMMANDS)
 ALL_COMMANDS.extend(HOST_COMMANDS)
@@ -318,6 +318,37 @@ class LibvirtConnection(object):
     def get_uuid(self, vmid):
         vm = self.conn.lookupByName(vmid)
         return vm.UUIDString()
+
+    def get_interfaces(self, vmid):
+        dom_xml = self.get_xml(vmid)
+        root = etree.fromstring(dom_xml)
+        interfaces = root.findall("./devices/interface")
+        interface_type_map = {
+            'network': 'NAT',
+            'direct': 'macvtap',
+            'bridge': 'bridge'
+        }
+        interface_counter = 0
+        interfaces_dict = {}
+        interfaces_dict['network_interfaces'] = {}
+        for interface in interfaces:
+            interface_counter += 1
+            interface_type = interface.get('type')
+            source = interface.find("source").get({
+                'bridge': 'bridge',
+                'direct': 'dev',
+                'network': 'network'
+            }.get(interface_type))
+            mac_address = interface.find("mac").get("address")
+            pci_bus = interface.find("address").get("bus")
+            interface_info = {
+                "type": interface_type_map.get(interface_type, interface_type),
+                "mac": mac_address,
+                "pci_bus": pci_bus,
+                "source": source
+            }
+            interfaces_dict['network_interfaces'].update({"interface_{0}".format(interface_counter): interface_info})
+        return interfaces_dict
 
 
 class Virt(object):
@@ -514,6 +545,13 @@ class Virt(object):
     def get_uuid(self, vmid):
         self.__get_conn()
         return self.conn.get_uuid(vmid)
+
+    def get_interfaces(self, vmid):
+        """
+        Get Interface Name and Mac Address from xml
+        """
+        self.__get_conn()
+        return self.conn.get_interfaces(vmid)
 
 
 # A dict of interface types (found in their `type` attribute) to the
