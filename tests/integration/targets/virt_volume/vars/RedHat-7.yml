@@ -1,0 +1,6 @@
+---
+virt_volume_package:
+  - libvirt
+  - libvirt-daemon
+  - libvirt-python
+  - python-lxml
