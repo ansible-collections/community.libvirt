@@ -18,7 +18,7 @@ description:
      - Manages virtual machines supported by I(libvirt).
 options:
     flags:
-        choices: [ 'managed_save', 'snapshots_metadata', 'nvram', 'keep_nvram', 'checkpoints_metadata']
+        choices: [ 'managed_save', 'snapshots_metadata', 'nvram', 'keep_nvram', 'checkpoints_metadata', 'delete_volumes']
         description:
             - Pass additional parameters.
             - Currently only implemented with command C(undefine).
@@ -201,6 +201,7 @@ ENTRY_UNDEFINE_FLAGS_MAP = {
     'nvram': 4,
     'keep_nvram': 8,
     'checkpoints_metadata': 16,
+    'delete_volumes': 32,
 }
 
 MUTATE_FLAGS = ['ADD_UUID', 'ADD_MAC_ADDRESSES', 'ADD_MAC_ADDRESSES_FUZZY']
@@ -273,7 +274,10 @@ class LibvirtConnection(object):
         return self.find_vm(vmid).destroy()
 
     def undefine(self, vmid, flag):
-        return self.find_vm(vmid).undefineFlags(flag)
+        vm = self.find_vm(vmid)
+        if flag & 32:
+            self.delete_domain_volumes(vmid)
+        return vm.undefineFlags(flag)
 
     def get_status2(self, vm):
         state = vm.info()[0]
@@ -349,6 +353,16 @@ class LibvirtConnection(object):
             }
             interfaces_dict['network_interfaces'].update({"interface_{0}".format(interface_counter): interface_info})
         return interfaces_dict
+
+    def delete_domain_volumes(self, vmid):
+        dom_xml = self.get_xml(vmid)
+        root = etree.fromstring(dom_xml)
+        disk_objects = root.findall(".//disk[@type='file']/source")
+        for disk in disk_objects:
+            disk_path = disk.get('file')
+            disk_volumes = self.conn.storageVolLookupByPath(disk_path)
+            if disk_volumes:
+                disk_volumes.delete()
 
 
 class Virt(object):
@@ -552,6 +566,10 @@ class Virt(object):
         """
         self.__get_conn()
         return self.conn.get_interfaces(vmid)
+
+    def delete_domain_volumes(self, vmid):
+        self.__get_conn()
+        return self.conn.delete_domain_volumes(vmid)
 
 
 # A dict of interface types (found in their `type` attribute) to the
@@ -836,7 +854,7 @@ def core(module):
                 # Use the undefine function with flag to also handle various metadata.
                 # This is especially important for UEFI enabled guests with nvram.
                 # Provide flag as an integer of all desired bits, see 'ENTRY_UNDEFINE_FLAGS_MAP'.
-                # Integer 23 takes care of all cases (23 = 1 + 2 + 4 + 16).
+                # Integer 55 takes care of all cases (55 = 1 + 2 + 4 + 16 + 32).                flag = 0
                 flag = 0
                 if flags is not None:
                     if force is True:
@@ -849,7 +867,7 @@ def core(module):
                         # Get and add flag integer from mapping, otherwise 0.
                         flag += ENTRY_UNDEFINE_FLAGS_MAP.get(item, 0)
                 elif force is True:
-                    flag = 23
+                    flag = 55
                 # Finally, execute with flag
                 res = exec_virt(guest, flag)
 
