@@ -1,0 +1,84 @@
+---
+- include_vars: '{{ item }}'
+  with_first_found:
+    - "{{ ansible_distribution }}-{{ ansible_distribution_version}}.yml"
+    - "{{ ansible_distribution }}-{{ ansible_distribution_major_version}}.yml"
+    - "{{ ansible_distribution }}.yml"
+    - "default.yml"
+
+- block:
+    - name: Install libvirt packages
+      package:
+        name: "{{ virt_volume_packages }}"
+
+    - name: Start libvirt
+      service:
+        name: libvirtd
+        state: started
+
+    - name: Create Storage Pool Dir
+      file:
+        path: /var/lib/virt/images
+        state: directory
+        recurse: yes
+
+    - name: Define the foobar storage pool
+      virt_pool:
+        command: define
+        name: "{{ pool_name }}"
+        xml: '{{ lookup("template", "pool_definition.xml.j2") }}'
+    
+    - name: Start the default pool
+      virt_pool:
+        state: active
+        name: "{{ pool_name }}"
+    
+    - name: Create Volume test1
+      virt_volume:
+        name: "{{ volume_name }}"
+        pool: "{{ pool_name }}"
+        state: present
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
+
+    - name: List Volumes
+      virt_volume:
+        pool: "{{ pool_name }}"
+        command: list_volumes
+      register: list_volumes1
+    
+    - name: Create Volume test1 again
+      virt_volume:
+        pool: "{{ pool_name }}"
+        name: "{{ volume_name }}"
+        state: present
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
+      register: create_test1_2
+      debugger: always
+
+    - name: Destroy the foobar pool
+      virt_pool:
+        command: destroy
+        name: "{{ pool_name }}"
+
+    - name: Ensures stuff
+      assert:
+        that:
+          - '"{{ volume_name }}" in list_volumes1'
+
+    # - name: Ensure the second calls return "unchanged"
+    #   assert:
+    #     that:
+    #       - "second_virt_net_start is not changed"
+    #       - "second_virt_net_define is not changed"
+    #       - "second_virt_net_undefine is not changed"
+    
+  always:
+    - name: Stop libvirt
+      service:
+        name: libvirtd
+        state: stopped
+
+    - name: Remove only the libvirt packages
+      package:
+        name: "{{ virt_volume_packages|select('match', '.*libvirt.*')|list }}"
+        state: absent
