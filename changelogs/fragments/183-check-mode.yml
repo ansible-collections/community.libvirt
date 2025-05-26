@@ -1,2 +1,0 @@
-minor_changes:
- - virt - implement basic check mode functionality (https://github.com/ansible-collections/community.libvirt/issue/98)

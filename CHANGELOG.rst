@@ -4,6 +4,29 @@ Community.Libvirt Release Notes
 
 .. contents:: Topics
 
+v1.4.0
+======
+
+Release Summary
+---------------
+
+This is the minor release of the ``community.libvirt`` collection.
+This changelog contains all changes to the modules and plugins in this collection
+that have been made after the previous release.
+
+Minor Changes
+-------------
+
+- virt - implement basic check mode functionality (https://github.com/ansible-collections/community.libvirt/issue/98)
+- virt - implement the gathering of Dom UUIDs as per FR https://github.com/ansible-collections/community.libvirt/issues/187
+- virt - implement the gathering of Dom interface names and mac addresses as per FR https://github.com/ansible-collections/community.libvirt/issues/189
+- virt - implement the removal of volumes for a dom as per FR https://github.com/ansible-collections/community.libvirt/issues/177
+
+New Modules
+-----------
+
+- community.libvirt.virt_volume - Manage libvirt volumes inside a storage pool
+
 v1.3.1
 ======
 
