@@ -1,2 +1,0 @@
-minor_changes:
-  - virt - implement the gathering of Dom interface names and mac addresses as per FR https://github.com/ansible-collections/community.libvirt/issues/189
