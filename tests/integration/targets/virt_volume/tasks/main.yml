@@ -27,12 +27,12 @@
         command: define
         name: "{{ pool_name }}"
         xml: '{{ lookup("template", "pool_definition.xml.j2") }}'
-    
+
     - name: Start the default pool
       virt_pool:
         state: active
         name: "{{ pool_name }}"
-    
+
     - name: Create Volume test1
       virt_volume:
         name: "{{ volume_name }}"
@@ -45,7 +45,7 @@
         pool: "{{ pool_name }}"
         command: list_volumes
       register: list_volumes1
-    
+
     - name: Create Volume test1 again
       virt_volume:
         pool: "{{ pool_name }}"
@@ -71,7 +71,7 @@
     #       - "second_virt_net_start is not changed"
     #       - "second_virt_net_define is not changed"
     #       - "second_virt_net_undefine is not changed"
-    
+
   always:
     - name: Stop libvirt
       service:
