@@ -58,76 +58,42 @@ extends_documentation_fragment:
 '''
 
 EXAMPLES = '''
-- name: Define a new storage pool
-  community.libvirt.virt_pool:
-    command: define
-    name: vms
-    xml: '{{ lookup("template", "pool/dir.xml.j2") }}'
+- name: "Create volume in existing default pool"
+    community.libvirt.virt_volume:
+    name: testing-volume
+    state: present
+    pool: default
+    xml: |
+        <volume>
+            <name>testing-volume</name>
+            <allocation>0</allocation>
+            <capacity unit="M">10</capacity>
+            <target>
+            <permissions>
+                <mode>0644</mode>
+                <label>virt_image_t</label>
+            </permissions>
+            </target>
+        </volume>
 
-- name: Build a storage pool if it does not exist
-  community.libvirt.virt_pool:
-    command: build
-    name: vms
+- name: "List volumes in default pool"
+    community.libvirt.virt_volume:
+    command: list_volumes
+    pool: default
+    register: __result_list_volumes
 
-- name: Start a storage pool
-  community.libvirt.virt_pool:
-    command: create
-    name: vms
-
-- name: List available pools
-  community.libvirt.virt_pool:
-    command: list_pools
-
-- name: Get XML data of a specified pool
-  community.libvirt.virt_pool:
+- name: "Get volume XML"
+    community.libvirt.virt_volume:
+    name: testing-volume
     command: get_xml
-    name: vms
+    pool: default
+    register: __result_vol_xml
 
-- name: Stop a storage pool
-  community.libvirt.virt_pool:
-    command: destroy
-    name: vms
-
-- name: Delete a storage pool (destroys contents)
-  community.libvirt.virt_pool:
-    command: delete
-    name: vms
-
-- name: Undefine a storage pool
-  community.libvirt.virt_pool:
-    command: undefine
-    name: vms
-
-- name: Gather facts about storage pools. Facts will be available as 'ansible_libvirt_pools'
-  community.libvirt.virt_pool:
-    command: facts
-
-- name: Gather information about pools managed by 'libvirt' remotely using uri
-  community.libvirt.virt_pool:
-    command: info
-    uri: '{{ item }}'
-  with_items: '{{ libvirt_uris }}'
-  register: storage_pools
-
-- name: Ensure that a pool is active (needs to be defined and built first)
-  community.libvirt.virt_pool:
-    state: active
-    name: vms
-
-- name: Ensure that a pool is inactive
-  community.libvirt.virt_pool:
-    state: inactive
-    name: vms
-
-- name: Ensure that a given pool will be started at boot
-  community.libvirt.virt_pool:
-    autostart: true
-    name: vms
-
-- name: Disable autostart for a given pool
-  community.libvirt.virt_pool:
-    autostart: false
-    name: vms
+- name: "Delete volume from default pool"
+    community.libvirt.virt_volume:
+    name: testing-volume
+    state: absent
+    pool: default
 '''
 
 from ansible.module_utils.basic import AnsibleModule
