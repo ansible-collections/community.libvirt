@@ -1,20 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# (c) 2015, Maciej Delmanowski <drybjed@gmail.com>
+# (c) 2022, Dougal Seeley <git@dougalseeley.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
 
 DOCUMENTATION = '''
 ---
 module: virt_volume
 version_added: '1.4.0'
 author:
-    - Leonardo Galli (@galli-leo)
-    - Niclas Kretschmer (@NK308)
+    - Dougal Seeley (@dseeley)
 short_description: Manage libvirt volumes inside a storage pool
 description:
     - Manage I(libvirt) volumes inside a storage pool.
@@ -31,25 +29,53 @@ options:
             - Name of the storage pool, where the volume is located.
         type: str
     state:
-        choices: [ "present", "absent", "deleted" ]
+        choices: [ "present", "absent" ]
         description:
-            - Specify which state you want a volume to be in.
-            - If C(present), ensure that the volume is present but do not change its
-              state; if it's missing, you need to specify xml argument.
-            - If C(absent), volume will be removed from I(libvirt) configuration (logically only!).
-            - If C(deleted), volume will be wiped clean and then removed.
-        type: str
+            - Analagous to command C(create) or C(wipe).
+            - Mutually exclusive with C(command).
+            - If C(present), C(xml) must be provided. The name of the volume is specified in the XML.
+            - If C(absent), C(name) must be provided.
     command:
-        choices: [ "create", "create_from", "delete", "download", "info", "list_volumes", "get_xml",
-                   "resize", "upload", "wipe", "facts"]
+        choices: [ "create", "create_from", "delete", "wipe", "list_volumes", "get_xml", "create_cidata_cdrom" ]
         description:
-            - In addition to state management, various non-idempotent commands are available.
-              See examples.
+            - Mutually exclusive with C(state).
+            - C(create):
+                - Creates a new empty volume with the XML provided.
+                - The name of the volume is specified in the XML (if a C(name) parameter is provided, it is ignored)
+                - C(xml) must be provided.
+            - C(create_from):
+                - Creates a new volume with the XML provided, cloning from the image in C(clone_source).
+                - The name of the volume is specified in the XML (if a C(name) parameter is provided, it is ignored)
+                - C(xml) and C(clone_source) must be provided.
+            - C(delete):
+                - Deletes the volume specified by C(name) from the storage pool.
+                - C(name) must be provided.
+            - C(wipe):
+                - Performs a wipe the of the volume specified by C(name), then deletes it.
+                - C(name) must be provided.
+            - C(list_volumes).
+            - C(get_xml):
+                - C(name) must be provided to get the XML of the volume.
+            - C(create_cidata_cdrom):
+                - Creates a CIDATA CDROM with the provided cloud-init data.  Enables bootstrapping of cloud-init enabled VMs.
+                - C(cloudinit_data) must be provided.
         type: str
-    mode:
-        choices: [ 'new', 'repair', 'resize', 'no_overwrite', 'overwrite', 'normal', 'zeroed' ]
+    xml:
         description:
-            - Pass additional parameters to 'wipe' command.
+            - XML definition of the volume to be created.
+            - This is required if C(command) is C(create) or C(create_from).
+        type: str
+    cloudinit_data:
+        description:
+            - YAML formatted cloud-init data to create a CIDATA CDROM.
+            - The YAML data should contain the keys C(METADATA), C(USERDATA), and/or C(NETWORK_CONFIG).
+            - This is required if C(command) is C(create_cidata_cdrom).
+        type: yaml
+    clone_source:
+        description:
+            - Name of the volume to clone from.
+            - This is required if C(command) is C(create_from).
+        type: str
         type: str
 extends_documentation_fragment:
     - community.libvirt.virt.options_uri
@@ -58,655 +84,337 @@ extends_documentation_fragment:
 '''
 
 EXAMPLES = '''
-- name: Define a new storage pool
-  community.libvirt.virt_pool:
-    command: define
-    name: vms
-    xml: '{{ lookup("template", "pool/dir.xml.j2") }}'
-
-- name: Build a storage pool if it does not exist
-  community.libvirt.virt_pool:
-    command: build
-    name: vms
-
-- name: Start a storage pool
-  community.libvirt.virt_pool:
+- name: "Create volume in existing default pool (using C(state) parameter)"
+  community.libvirt.virt_volume:
+    state: present
+    pool: default
+    xml: |
+      <volume>
+        <name>testing-volume</name>
+        <allocation>0</allocation>
+        <capacity unit="M">10</capacity>
+        <target>
+          <permissions>
+            <mode>0644</mode>
+            <label>virt_image_t</label>
+          </permissions>
+        </target>
+      </volume>
+  register: r__virt_volume__state_present
+  
+- name: "Create volume in existing default pool (using C(command) parameter)"
+  community.libvirt.virt_volume:
     command: create
-    name: vms
+    pool: default
+    xml: |
+      <volume type='file'>
+        <name>testing_volume.qcow2</name>
+        <capacity unit='G'>10</capacity>
+        <target><format type='qcow2'/></target>
+      </volume>
+  register: r__virt_volume__state_present
 
-- name: List available pools
-  community.libvirt.virt_pool:
-    command: list_pools
+- name: "List volumes in default pool"
+  community.libvirt.virt_volume:
+    command: list_volumes
+    pool: default
+  register: r__virt_volume__list_volumes
 
-- name: Get XML data of a specified pool
-  community.libvirt.virt_pool:
+- name: "Get volume XML"
+  community.libvirt.virt_volume:
+    name: testing-volume
     command: get_xml
-    name: vms
+    pool: default
+  register: r__virt_volume__get_xml
 
-- name: Stop a storage pool
-  community.libvirt.virt_pool:
-    command: destroy
-    name: vms
+- name: "Delete volume from default pool (using C(state) parameter)"
+  community.libvirt.virt_volume:
+    name: testing-volume
+    state: absent
+    pool: default
 
-- name: Delete a storage pool (destroys contents)
-  community.libvirt.virt_pool:
-    command: delete
-    name: vms
+- name: "Delete volume from default pool (using C(command) parameter)"
+  community.libvirt.virt_volume:
+    name: testing-volume
+    command: absent
+    pool: default
 
-- name: Undefine a storage pool
-  community.libvirt.virt_pool:
-    command: undefine
-    name: vms
+- name: "Wipe and delete volume from default pool"
+  community.libvirt.virt_volume:
+    name: testing-volume
+    command: wipe
+    pool: default
 
-- name: Gather facts about storage pools. Facts will be available as 'ansible_libvirt_pools'
-  community.libvirt.virt_pool:
-    command: facts
+- name: "Create a volume from an existing image (clone)"
+  community.libvirt.virt_volume:
+    command: create_from
+    clone_source: gold-ubuntu2404-base-image.qcow2
+    xml: |
+      <volume type='file'>
+        <name>testing_volume--boot.qcow2</name>
+        <capacity unit='G'>10</capacity>
+        <target><format type='qcow2'/></target>
+      </volume>
+    pool: default
+  register: r__virt_volume__create_from
 
-- name: Gather information about pools managed by 'libvirt' remotely using uri
-  community.libvirt.virt_pool:
-    command: info
-    uri: '{{ item }}'
-  with_items: '{{ libvirt_uris }}'
-  register: storage_pools
-
-- name: Ensure that a pool is active (needs to be defined and built first)
-  community.libvirt.virt_pool:
-    state: active
-    name: vms
-
-- name: Ensure that a pool is inactive
-  community.libvirt.virt_pool:
-    state: inactive
-    name: vms
-
-- name: Ensure that a given pool will be started at boot
-  community.libvirt.virt_pool:
-    autostart: true
-    name: vms
-
-- name: Disable autostart for a given pool
-  community.libvirt.virt_pool:
-    autostart: false
-    name: vms
+- name: create/libvirt | create CIDATA (cloud-init) cdrom
+  dseeley.libvirt.virt_volume:
+    command: "create_cidata_cdrom"
+    name: "testing_cidata.iso"
+    pool: "default"
+    cloudinit_config:
+      NETWORK_CONFIG: {version: '2', ethernets: {eth0: {dhcp4: 'true'}}}
+      USERDATA: {users: [{name: testuser, lock_passwd: 'false', shell: /bin/bash, ssh_authorized_keys: ["ssh-rsa xxxxxxxxxxxxxxxxxxxxx=="]}]}
+      METADATA: { "local-hostname": "my_host" }
+  register: r__virt_volume__create_cidata_cdrom
 '''
 
-from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import AnsibleModule, missing_required_lib
+import traceback
+
 try:
     import libvirt
-except ImportError:
-    HAS_VIRT = False
-else:
-    HAS_VIRT = True
+    LIBVIRT_IMPORT_ERR = None
+except ImportError as libvirt_import_exception:
+    LIBVIRT_IMPORT_ERR = libvirt_import_exception
 
 try:
     from lxml import etree
-except ImportError:
-    HAS_XML = False
-else:
-    HAS_XML = True
-
-
-VIRT_FAILED = 1
-VIRT_SUCCESS = 0
-VIRT_UNAVAILABLE = 2
-
-ALL_COMMANDS = []
-ENTRY_COMMANDS = ['create', 'create_from', 'delete', 'download', 'get_xml', 'resize', 'upload',
-                  'wipe']
-HOST_COMMANDS = ['list_volumes', 'facts', 'info']
-ALL_COMMANDS.extend(ENTRY_COMMANDS)
-ALL_COMMANDS.extend(HOST_COMMANDS)
-
-ENTRY_STATE_ACTIVE_MAP = {
-    0: "inactive",
-    1: "active"
-}
-
-ENTRY_STATE_AUTOSTART_MAP = {
-    0: "no",
-    1: "yes"
-}
-
-ENTRY_STATE_PERSISTENT_MAP = {
-    0: "no",
-    1: "yes"
-}
-
-ENTRY_STATE_INFO_MAP = {
-    0: "inactive",
-    1: "building",
-    2: "running",
-    3: "degraded",
-    4: "inaccessible"
-}
-
-ENTRY_BUILD_FLAGS_MAP = {
-    "new": 0,
-    "repair": 1,
-    "resize": 2,
-    "no_overwrite": 4,
-    "overwrite": 8
-}
-
-ENTRY_DELETE_FLAGS_MAP = {
-    "normal": 0,
-    "zeroed": 1
-}
-
-ALL_MODES = []
-ALL_MODES.extend(ENTRY_BUILD_FLAGS_MAP.keys())
-ALL_MODES.extend(ENTRY_DELETE_FLAGS_MAP.keys())
-
-
-class EntryNotFound(Exception):
-    pass
-
-
-class PoolConnection(object):
-
-    def __init__(self, uri, module):
-
-        self.module = module
-
-        conn = libvirt.open(uri)
-
-        if not conn:
-            raise Exception("hypervisor connection failure")
-
-        self.conn = conn
-
-    def find_entry(self, entryid):
-        # entryid = -1 returns a list of everything
-
-        # Get all entries
-        results = self.conn.listAllStoragePools()
-
-        if entryid == -1:
-            return results
-
-        for entry in results:
-            if entry.name() == entryid:
-                return entry
-
-        raise EntryNotFound("storage pool %s not found" % entryid)
-
-    def create(self, entryid):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).create()
-        else:
-            try:
-                state = self.find_entry(entryid).isActive()
-            except Exception:
-                return self.module.exit_json(changed=True)
-            if not state:
-                return self.module.exit_json(changed=True)
-
-    def destroy(self, entryid):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).destroy()
-        else:
-            if self.find_entry(entryid).isActive():
-                return self.module.exit_json(changed=True)
-
-    def undefine(self, entryid):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).undefine()
-        else:
-            if not self.find_entry(entryid):
-                return self.module.exit_json(changed=True)
-
-    def get_status2(self, entry):
-        state = entry.isActive()
-        return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
-
-    def get_status(self, entryid):
-        if not self.module.check_mode:
-            state = self.find_entry(entryid).isActive()
-            return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
-        else:
-            try:
-                state = self.find_entry(entryid).isActive()
-                return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
-            except Exception:
-                return ENTRY_STATE_ACTIVE_MAP.get("inactive", "unknown")
-
-    def get_uuid(self, entryid):
-        return self.find_entry(entryid).UUIDString()
-
-    def get_xml(self, entryid):
-        return self.find_entry(entryid).XMLDesc(0)
-
-    def get_info(self, entryid):
-        return self.find_entry(entryid).info()
-
-    def get_volume_count(self, entryid):
-        return self.find_entry(entryid).numOfVolumes()
-
-    def get_volume_names(self, entryid):
-        return self.find_entry(entryid).listAllVolumes()
-
-    def get_devices(self, entryid):
-        xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
-        if xml.xpath('/pool/source/device'):
-            result = []
-            for device in xml.xpath('/pool/source/device'):
-                result.append(device.get('path'))
-        try:
-            return result
-        except Exception:
-            raise ValueError('No devices specified')
-
-    def get_format(self, entryid):
-        xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
-        try:
-            result = xml.xpath('/pool/source/format')[0].get('type')
-        except Exception:
-            raise ValueError('Format not specified')
-        return result
-
-    def get_host(self, entryid):
-        xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
-        try:
-            result = xml.xpath('/pool/source/host')[0].get('name')
-        except Exception:
-            raise ValueError('Host not specified')
-        return result
-
-    def get_source_path(self, entryid):
-        xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
-        try:
-            result = xml.xpath('/pool/source/dir')[0].get('path')
-        except Exception:
-            raise ValueError('Source path not specified')
-        return result
-
-    def get_path(self, entryid):
-        xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
-        try:
-            result = xml.xpath('/pool/target/path')[0].text
-        except Exception:
-            raise ValueError('Target path not specified')
-        return result
-
-    def get_type(self, entryid):
-        xml = etree.fromstring(self.find_entry(entryid).XMLDesc(0))
-        return xml.get('type')
-
-    def build(self, entryid, flags):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).build(flags)
-        else:
-            try:
-                state = self.find_entry(entryid)
-            except Exception:
-                return self.module.exit_json(changed=True)
-            if not state:
-                return self.module.exit_json(changed=True)
-
-    def delete(self, entryid, flags):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).delete(flags)
-        else:
-            try:
-                state = self.find_entry(entryid)
-            except Exception:
-                return self.module.exit_json(changed=True)
-            if state:
-                return self.module.exit_json(changed=True)
-
-    def get_autostart(self, entryid):
-        state = self.find_entry(entryid).autostart()
-        return ENTRY_STATE_AUTOSTART_MAP.get(state, "unknown")
-
-    def get_autostart2(self, entryid):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).autostart()
-        else:
-            try:
-                return self.find_entry(entryid).autostart()
-            except Exception:
-                return self.module.exit_json(changed=True)
-
-    def set_autostart(self, entryid, val):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).setAutostart(val)
-        else:
-            try:
-                state = self.find_entry(entryid).autostart()
-            except Exception:
-                return self.module.exit_json(changed=True)
-            if bool(state) != val:
-                return self.module.exit_json(changed=True)
-
-    def refresh(self, entryid):
-        return self.find_entry(entryid).refresh()
-
-    def get_persistent(self, entryid):
-        state = self.find_entry(entryid).isPersistent()
-        return ENTRY_STATE_PERSISTENT_MAP.get(state, "unknown")
-
-    def define_from_xml(self, entryid, xml):
-        if not self.module.check_mode:
-            return self.conn.storagePoolDefineXML(xml)
-        else:
-            try:
-                self.find_entry(entryid)
-            except Exception:
-                return self.module.exit_json(changed=True)
+    LXML_IMPORT_ERR = None
+except ImportError as lxml_import_exception:
+    LXML_IMPORT_ERR = lxml_import_exception
 
 
 class LibvirtConnection(object):
-
-    def __init__(self, uri, module, poolid):
-
-        self.module = module
-
+    def __init__(self, uri, check_mode, pool):
         conn = libvirt.open(uri)
-
         if not conn:
             raise Exception("hypervisor connection failure")
-
         self.conn = conn
-        self.poolid = poolid
-        self.poolConn = PoolConnection(uri, module)
-        self.pool = self.poolConn.find_entry(poolid)
 
-    def find_entry(self, entryid):
-        # entryid = -1 returns a list of everything
+        self.check_mode = check_mode
 
-        results = []
+        self.pool_ptr = self.conn.storagePoolLookupByName(pool) if pool is not None else None
 
-        for entry in self.pool.listAllVolumes():
-            if entryid == -1:
-                results.append(entry)
-            elif entry.name() == entryid:
-                return entry
+    def create(self, xml, **kwargs):
+        """ Creates a new volume with the XML provided, with the name specified in the XML (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolCreateXML) """
+        isChanged = False
 
-        if entryid == -1:
-            return results
+        xml_etree = etree.fromstring(xml)
 
-        raise EntryNotFound("volume %s not found" % entryid)
-
-    def create(self, entryid, xml):
-        return self.pool.createXML(xml)
-
-    def create_from(self, entryid, xml, to_clone):
-        from_vol = self.find_entry(to_clone)
+        newname = xml_etree.xpath("/volume/name")[0].text
         try:
-            return self.pool.createXMLFrom(xml, from_vol)
-        except Exception:
-            return self.module.exit_json(changed=True)
-
-    def delete(self, entryid):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).delete()
-        else:
-            if self.find_entry(entryid):
-                return self.module.exit_json(changed=True)
-
-    def wipe(self, entryid, mode):
-        if not self.module.check_mode:
-            return self.find_entry(entryid).wipe()
-        else:
-            if not self.find_entry(entryid):
-                return self.module.exit_json(changed=True)
-
-    def get_status2(self, entry):
-        state = entry.isActive()
-        return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
-
-    def get_status(self, entryid):
-        if not self.module.check_mode:
-            state = self.find_entry(entryid).isActive()
-            return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
-        else:
-            try:
-                state = self.find_entry(entryid).isActive()
-                return ENTRY_STATE_ACTIVE_MAP.get(state, "unknown")
-            except Exception:
-                return ENTRY_STATE_ACTIVE_MAP.get("inactive", "unknown")
-
-    def get_uuid(self, entryid):
-        return self.find_entry(entryid).UUIDString()
-
-    def get_xml(self, entryid):
-        return self.find_entry(entryid).XMLDesc(0)
-
-    def get_info(self, entryid):
-        return self.find_entry(entryid).info()
-
-
-class VirtVolume(object):
-
-    def __init__(self, uri, module, poolid):
-        self.module = module
-        self.uri = uri
-        self.poolid = poolid
-        self.conn = LibvirtConnection(self.uri, self.module, self.poolid)
-
-    def get_volume(self, entryid):
-        return self.conn.find_entry(entryid)
-
-    def list_volumes(self, state=None):
-        results = []
-        for entry in self.conn.find_entry(-1):
-            results.append(entry.name())
-        return results
-
-    def state(self):
-        results = []
-        for entry in self.list_pools():
-            state_blurb = self.conn.get_status(entry)
-            results.append("%s %s" % (entry, state_blurb))
-        return results
-
-    def create(self, entryid, xml):
-        return self.conn.create(entryid, xml)
-
-    def create_from(self, entryid, xml, to_clone):
-        return self.conn.create_from(entryid, xml, to_clone)
-
-    def delete(self, entryid):
-        return self.conn.delete(entryid)
-
-    def status(self, entryid):
-        return self.conn.get_status(entryid)
-
-    def get_xml(self, entryid):
-        return self.conn.get_xml(entryid)
-
-    def wipe(self, entryid, flags):
-        return self.conn.wipe(entryid, ENTRY_DELETE_FLAGS_MAP.get(flags, 0))
-
-    def info(self):
-        return self.facts(facts_mode='info')
-
-    def facts(self, facts_mode='facts'):
-        results = dict()
-        for entry in self.list_pools():
-            results[entry] = dict()
-            if self.conn.find_entry(entry):
-                data = self.conn.get_info(entry)
-                # libvirt returns maxMem, memory, and cpuTime as long()'s, which
-                # xmlrpclib tries to convert to regular int's during serialization.
-                # This throws exceptions, so convert them to strings here and
-                # assume the other end of the xmlrpc connection can figure things
-                # out or doesn't care.
-                results[entry] = {
-                    "status": ENTRY_STATE_INFO_MAP.get(data[0], "unknown"),
-                    "size_total": str(data[1]),
-                    "size_used": str(data[2]),
-                    "size_available": str(data[3]),
-                }
-                results[entry]["autostart"] = self.conn.get_autostart(entry)
-                results[entry]["persistent"] = self.conn.get_persistent(entry)
-                results[entry]["state"] = self.conn.get_status(entry)
-                results[entry]["path"] = self.conn.get_path(entry)
-                results[entry]["type"] = self.conn.get_type(entry)
-                results[entry]["uuid"] = self.conn.get_uuid(entry)
-                if self.conn.find_entry(entry).isActive():
-                    results[entry]["volume_count"] = self.conn.get_volume_count(entry)
-                    results[entry]["volumes"] = list()
-                    for volume in self.conn.get_volume_names(entry):
-                        results[entry]["volumes"].append(volume)
-                else:
-                    results[entry]["volume_count"] = -1
-
-                try:
-                    results[entry]["host"] = self.conn.get_host(entry)
-                except ValueError:
-                    pass
-
-                try:
-                    results[entry]["source_path"] = self.conn.get_source_path(entry)
-                except ValueError:
-                    pass
-
-                try:
-                    results[entry]["format"] = self.conn.get_format(entry)
-                except ValueError:
-                    pass
-
-                try:
-                    devices = self.conn.get_devices(entry)
-                    results[entry]["devices"] = devices
-                except ValueError:
-                    pass
-
+            createdStorageVolPtr = self.pool_ptr.storageVolLookupByName(newname)
+        except libvirt.libvirtError as e:
+            if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
+                createdStorageVolPtr = self.pool_ptr.createXML(xml)
+                isChanged = True
             else:
-                results[entry]["state"] = self.conn.get_status(entry)
+                raise e
 
-        facts = dict()
-        if facts_mode == 'facts':
-            facts["ansible_facts"] = dict()
-            facts["ansible_facts"]["ansible_libvirt_pools"] = results
-        elif facts_mode == 'info':
-            facts['pools'] = results
-        return facts
+        return {'changed': isChanged, 'res': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
+                                              'name': createdStorageVolPtr.name(),
+                                              'path': createdStorageVolPtr.path(),
+                                              'key': createdStorageVolPtr.key()}}
 
+    def create_from(self, xml, clone_source, **kwargs):
+        """ Creates a new volume with the XML provided, with the name specified in the XML, cloning the image from the clone_source (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolCreateXMLFrom)"""
+        isChanged = False
+        xml_etree = etree.fromstring(xml)
 
-def core(module):
+        newname = xml_etree.xpath("/volume/name")[0].text
+        try:
+            createdStorageVolPtr = self.pool_ptr.storageVolLookupByName(newname)
+        except libvirt.libvirtError as e:
+            if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
+                clone_source_vol_ptr = self.pool_ptr.storageVolLookupByName(clone_source)
+                createdStorageVolPtr = self.pool_ptr.createXMLFrom(xml, clone_source_vol_ptr, 0)
 
-    state = module.params.get('state', None)
-    name = module.params.get('name', None)
-    pool = module.params.get('pool', None)
-    command = module.params.get('command', None)
-    uri = module.params.get('uri', None)
-    xml = module.params.get('xml', None)
-    mode = module.params.get('mode', None)
+                if xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]"):
+                    size_bytes = xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]")[0].text
+                    createdStorageVolPtr.resize(int(size_bytes))
 
-    v = VirtVolume(uri, module, pool)
-    res = {}
+                isChanged = True
+            else:
+                raise e
 
-    if state and command == 'list_volumes':
-        res = v.list_volumes(state=state)
-        if not isinstance(res, dict):
-            res = {command: res}
-        return VIRT_SUCCESS, res
+        return {'changed': isChanged, 'res': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
+                                              'name': createdStorageVolPtr.name(),
+                                              'path': createdStorageVolPtr.path(),
+                                              'key': createdStorageVolPtr.key()}}
 
-    if state:
-        if not name:
-            module.fail_json(msg="state change requires a specified name")
+    def create_cidata_cdrom(self, name, cloudinit_config, **kwargs):
+        """ Create a properly formatted CD image containing cloud-init files, then upload it to the host """
+        import yaml
 
-        res['changed'] = False
-        if state in ['present']:
-            if name not in v.list_volumes():
-                if xml:
-                    v.create(name, xml)
-                    res = {'changed': True, 'created': name}
+        try:
+            import pycdlib
+        except ImportError as pycdlib_import_exception:
+            raise pycdlib_import_exception
+
+        # StringIO as BytesIO for python2/3 compatibility
+        try:
+            from cStringIO import StringIO as BytesIO
+        except ImportError:
+            from io import BytesIO
+
+        # Ensure we actually have some CIDATA before creating the CIDATA cdrom
+        if cloudinit_config and ('METADATA' in cloudinit_config or 'USERDATA' in cloudinit_config or 'NETWORK_CONFIG' in cloudinit_config):
+            iso = pycdlib.PyCdlib()
+            iso.new(interchange_level=3, joliet=True, sys_ident='LINUX', rock_ridge='1.09', vol_ident='cidata')
+
+            if 'NETWORK_CONFIG' in cloudinit_config:
+                cidata_network = yaml.safe_dump(cloudinit_config['NETWORK_CONFIG'], width=4096, encoding='utf-8')
+                iso.add_fp(BytesIO(cidata_network), len(cidata_network), '/NETWORK_CONFIG.;1', rr_name="network-config", joliet_path='/network-config')
+
+            if 'METADATA' in cloudinit_config:
+                cidata_metadata = yaml.safe_dump(cloudinit_config['METADATA'], width=4096, encoding='utf-8')
+            else:
+                cidata_metadata = "# Note: The user-data and meta-data must both be present for this to be considered a valid seed ISO.".encode('utf-8')
+
+            if 'USERDATA' in cloudinit_config:
+                cidata_userdata = "#cloud-config\n".encode('utf-8') + yaml.safe_dump(cloudinit_config['USERDATA'], width=4096, encoding='utf-8')
+            else:
+                cidata_metadata = "# Note: The user-data and meta-data must both be present for this to be considered a valid seed ISO.".encode('utf-8')
+
+            iso.add_fp(BytesIO(cidata_metadata), len(cidata_metadata), '/METADATA.;1', rr_name="meta-data", joliet_path='/meta-data')
+            iso.add_fp(BytesIO(cidata_userdata), len(cidata_userdata), '/USERDATA.;1', rr_name="user-data", joliet_path='/user-data')
+
+            outiso = BytesIO()
+            iso.write_fp(outiso)
+            outiso_len = outiso.getbuffer().nbytes
+
+            # Remote iso XML
+            vol_xml = """
+              <volume type='file'>
+                <name>{}</name>
+                <capacity unit='bytes'>{}</capacity>
+                <target><format type='iso'/></target>
+              </volume>""".format(name, outiso_len)
+
+            try:
+                createdStorageVolPtr = self.pool_ptr.storageVolLookupByName(name)
+            except libvirt.libvirtError as e:
+                if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
+                    createdStorageVolPtr = self.pool_ptr.createXML(vol_xml)
+
+                    virStreamPtr = self.conn.newStream(0)
+                    createdStorageVolPtr.upload(virStreamPtr, 0, outiso_len, 0)
+                    virStreamPtr.send(outiso.getvalue())
+
+                    virStreamPtr.finish()
                 else:
-                    module.fail_json(msg="volume '" + name + "' not present, but xml not specified")
-        elif state in ['absent']:
-            entries = v.list_volumes()
-            if name in entries:
-                res['changed'] = True
-                res['msg'] = v.delete(name)
-        elif state in ['deleted']:
-            entries = v.list_volumes()
-            if name in entries:
-                v.wipe(name, mode)
-                res['changed'] = True
-                res['msg'] = v.delete(name)
+                    raise e
+
+            iso.close()
+            return {'changed': True, 'res': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
+                                             'name': createdStorageVolPtr.name(),
+                                             'path': createdStorageVolPtr.path(),
+                                             'key': createdStorageVolPtr.key()}}
         else:
-            module.fail_json(msg="unexpected state")
+            return {'changed': False, 'res': {'Error': 'No CIDATA to create'}}
 
-        return VIRT_SUCCESS, res
+    def delete(self, name, **kwargs):
+        """ Delete a storage volume (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolDelete) """
+        try:
+            res_delete = self.pool_ptr.storageVolLookupByName(name).delete()
+            return {'changed': True, 'res': 'Deleted %s' % name}
+        except libvirt.libvirtError as e:
+            if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
+                return {'changed': False, 'res': e.get_error_message()}
+            else:
+                raise e
 
-    if command:
-        if command in ENTRY_COMMANDS:
-            if not name:
-                module.fail_json(msg="%s requires 1 argument: name" % command)
-            if command == 'define':
-                if not xml:
-                    module.fail_json(msg="define requires xml argument")
-                try:
-                    v.get_pool(name)
-                except EntryNotFound:
-                    v.define(name, xml)
-                    res = {'changed': True, 'created': name}
-                return VIRT_SUCCESS, res
-            elif command == 'build':
-                res = v.build(name, mode)
-                if not isinstance(res, dict):
-                    res = {'changed': True, command: res}
-                return VIRT_SUCCESS, res
-            elif command == 'delete':
-                res = v.delete(name, mode)
-                if not isinstance(res, dict):
-                    res = {'changed': True, command: res}
-                return VIRT_SUCCESS, res
-            res = getattr(v, command)(name)
-            if not isinstance(res, dict):
-                res = {command: res}
-            return VIRT_SUCCESS, res
+    def wipe(self, name, **kwargs):
+        """ Wipe, and then delete a storage volume (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolWipe)"""
+        try:
+            self.pool_ptr.storageVolLookupByName(name).wipe(0)
+            self.delete(name, **kwargs)
+            return {'changed': True, 'res': 'Wiped and deleted %s' % name}
+        except libvirt.libvirtError as e:
+            if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
+                return {'changed': False, 'res': e.get_error_message()}
+            else:
+                raise e
 
-        elif hasattr(v, command):
-            res = getattr(v, command)()
-            if not isinstance(res, dict):
-                res = {command: res}
-            return VIRT_SUCCESS, res
+    def get_xml(self, name, **kwargs):
+        """ Return the XMLDesc for a given storage volume (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolGetXMLDesc) """
+        try:
+            res_XMLDesc = self.pool_ptr.storageVolLookupByName(name).XMLDesc(0)
+            return {'changed': False, 'res': res_XMLDesc}
+        except libvirt.libvirtError as e:
+            if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
+                return {'changed': False, 'res': {'Error': 'libvirt.VIR_ERR_NO_STORAGE_VOL: %s' % (e.get_error_message())}}
+            else:
+                raise e
 
-        else:
-            module.fail_json(msg="Command %s not recognized" % command)
-
-    module.fail_json(msg="expected state or command parameter to be specified")
+    def list_volumes(self, **kwargs):
+        """ List all volumes in the storage pool (https://libvirt.org/html/libvirt-libvirt-storage.html#virStoragePoolListAllVolumes) """
+        results = []
+        for entry in self.pool_ptr.listAllVolumes():
+            results.append(entry.name())
+        return {'changed': False, 'res': results}
 
 
 def main():
-
     module = AnsibleModule(
         argument_spec=dict(
             name=dict(aliases=['volume']),
             pool=dict(required=True),
-            state=dict(choices=['present', 'absent', 'deleted']),
-            command=dict(choices=ALL_COMMANDS),
+            state=dict(choices=['present', 'absent']),
+            command=dict(),
             uri=dict(default='qemu:///system'),
             xml=dict(),
-            mode=dict(choices=ALL_MODES),
+            clone_source=dict(type='str'),
+            cloudinit_config=dict(type='dict'),
         ),
-        supports_check_mode=True
+        mutually_exclusive=[['state', 'command']],
+        supports_check_mode=False
     )
 
-    if not HAS_VIRT:
-        module.fail_json(
-            msg='The `libvirt` module is not importable. Check the requirements.'
-        )
+    if LIBVIRT_IMPORT_ERR:
+        module.fail_json(msg=missing_required_lib("libvirt"), exception=LIBVIRT_IMPORT_ERR)
 
-    if not HAS_XML:
-        module.fail_json(
-            msg='The `lxml` module is not importable. Check the requirements.'
-        )
+    if LXML_IMPORT_ERR:
+        module.fail_json(msg=missing_required_lib("lxml"), exception=LXML_IMPORT_ERR)
 
-    rc = VIRT_SUCCESS
-    try:
-        rc, result = core(module)
-    except Exception as e:
-        module.fail_json(msg=str(e))
+    state = module.params.get('state', None)
+    command = module.params.get('command', None)
+    uri = module.params.get('uri', None)
 
-    if rc != 0:  # something went wrong emit the msg
-        module.fail_json(rc=rc, msg=result)
+    if not command and not state:
+        module.fail_json(msg="expected 'command' or 'state' parameter to be specified")
+
+    if state:
+        if state in ['present']:
+            command = 'create'
+        elif state in ['absent']:
+            command = 'wipe'
+        else:
+            module.fail_json(msg="unexpected state, %s" % state)
+
+    if command:
+        v = LibvirtConnection(uri, module.check_mode, module.params.get('pool', None))
+        kwargs = {k: module.params.get(k) for k in module.argument_spec if module.params.get(k) is not None}
+
+        if hasattr(v, command):
+            try:
+                res = getattr(v, command)(**kwargs)
+            except Exception as e:
+                module.fail_json(msg=repr(e), exception=traceback.format_exc())
+            else:
+                if not isinstance(res, dict):
+                    res = {command: res}
+
+                if 'res' in res:
+                    res[command] = res.pop('res')
+
+                module.exit_json(**res)
+        else:
+            module.fail_json(msg="Command %s not recognized" % command)
     else:
-        module.exit_json(**result)
+        module.fail_json(msg="expected command parameter to be specified")
 
 
 if __name__ == '__main__':

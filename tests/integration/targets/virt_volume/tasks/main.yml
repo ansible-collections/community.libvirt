@@ -7,6 +7,9 @@
     - "default.yml"
 
 - block:
+#
+# Initialisation tasks
+#
     - name: Install libvirt packages
       package:
         name: "{{ virt_volume_packages }}"
@@ -23,55 +26,183 @@
         recurse: yes
 
     - name: Define the foobar storage pool
-      virt_pool:
+      community.libvirt.virt_pool:
         command: define
         name: "{{ pool_name }}"
         xml: '{{ lookup("template", "pool_definition.xml.j2") }}'
-    
+
     - name: Start the default pool
-      virt_pool:
+      community.libvirt.virt_pool:
         state: active
         name: "{{ pool_name }}"
-    
-    - name: Create Volume test1
-      virt_volume:
-        name: "{{ volume_name }}"
-        pool: "{{ pool_name }}"
-        state: present
-        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
 
-    - name: List Volumes
-      virt_volume:
-        pool: "{{ pool_name }}"
-        command: list_volumes
-      register: list_volumes1
-    
-    - name: Create Volume test1 again
-      virt_volume:
-        pool: "{{ pool_name }}"
-        name: "{{ volume_name }}"
+#
+# Tests for volume create and delete (and list_volumes)
+#
+    - name: Create volume (using state=present)
+      community.libvirt.virt_volume:
         state: present
+        pool: "{{ pool_name }}"
         xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
+      vars:
+        volume_item: "{{volume_name}}"
+
+    - name: List volumes
+      community.libvirt.virt_volume:
+        command: list_volumes
+        pool: "{{ pool_name }}"
+      register: r__list_volumes1
+
+    - name: Assert that volume is created
+      assert: { that: [ '"{{ volume_name }}" in r__list_volumes1' ] }
+
+    - name: Create volume again (using state)
+      community.libvirt.virt_volume:
+        state: present
+        pool: "{{ pool_name }}"
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
+      vars:
+        volume_item: "{{volume_name}}"
       register: create_test1_2
       debugger: always
 
-    - name: Destroy the foobar pool
-      virt_pool:
+    - name: Ensure the second calls return "unchanged"
+      assert: { that: [ "create_test1_2 is not changed" ] }
+
+    - name: Delete (wipe) volume (using state=absent)
+      community.libvirt.virt_volume:
+        state: absent
+        name: "{{ volume_name }}"
+        pool: "{{ pool_name }}"
+
+    - name: Assert that volume is removed
+      assert: { that: [ '"{{ volume_name }}" not in r__list_volumes1' ] }
+
+    - name: Create volume (using command=create)
+      community.libvirt.virt_volume:
+        command: create
+        pool: "{{ pool_name }}"
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
+      vars:
+        volume_item: "{{volume_name}}"
+
+    - name: List volumes
+      community.libvirt.virt_volume:
+        command: list_volumes
+        pool: "{{ pool_name }}"
+      register: r__list_volumes2
+
+    - name: Assert that volume is created
+      assert: { that: [ '"{{ volume_name }}" in r__list_volumes2' ] }
+
+    - name: Delete volume (using command=delete)
+      community.libvirt.virt_volume:
+        command: delete
+        name: "{{ volume_name }}"
+        pool: "{{ pool_name }}"
+
+    - name: Assert that volume is removed
+      assert: { that: [ '"{{ volume_name }}" not in r__list_volumes2' ] }
+
+#
+# Tests for volume create_from (clone)
+#
+    - name: Create a base volume for cloning
+      community.libvirt.virt_volume:
+        command: create
+        pool: "{{ pool_name }}"
+        xml: '{{ lookup("template", "volume_definition2.xml.j2") }}'
+      vars:
+        volume_item: "{{volume_name}}"
+
+    - name: Clone the first volume to the second one
+      community.libvirt.virt_volume:
+        command: create_from
+        pool: "{{ pool_name }}"
+        xml: '{{ lookup("template", "volume_definition2.xml.j2") }}'
+      vars:
+        volume_item: "{{volume_name_clone}}"
+
+    - name: List volumes after clone
+      community.libvirt.virt_volume:
+        command: list_volumes
+        pool: "{{ pool_name }}"
+      register: r__list_volumes3
+
+    - name: Assert that both volumes exist after cloning
+      assert:
+        that:
+          - '"{{ volume_name }}" in r__list_volumes3'
+          - '"{{ volume_name_clone }}" in r__list_volumes3'
+
+    - name: Wipe volumes
+      community.libvirt.virt_volume:
+        command: wipe
+        name: "{{ item }}"
+        pool: "{{ pool_name }}"
+      with_items:
+        - "{{ volume_name }}"
+        - "{{ volume_name_clone }}"
+
+#
+# Tests for volume create_cidata_cdrom
+#
+    - name: Create CIDATA (cloud-init) cdrom
+      community.libvirt.virt_volume:
+        command: "create_cidata_cdrom"
+        name: "{{ volume_name_cidata }}"
+        pool: "default"
+        cloudinit_config: '{{ lookup("template", "cidata.yml.j2") }}'
+      register: r__virt_volume__cidata_cdrom
+
+    - name: List volumes
+      community.libvirt.virt_volume:
+        command: list_volumes
+        pool: "{{ pool_name }}"
+      register: r__list_volumes2
+
+    - name: Assert that volume is created
+      assert: { that: [ '"{{ volume_name }}" in r__list_volumes2' ] }
+
+    - name: get_xml for volume
+      community.libvirt.virt_volume:
+        command: get_xml
+        name: "{{ volume_name_cidata }}"
+        pool: "{{ pool_name }}"
+      register: r__virt_volume__get_xml
+
+    - name: Assert that volume XML is valid
+      assert:
+        that:
+          - r__virt_volume__get_xml.get_xml is defined
+          - r__virt_volume__cidata_cdrom.create_cidata_cdrom.name in r__virt_volume__get_xml.get_xml
+
+    - name: Delete volume
+      community.libvirt.virt_volume:
+        command: delete
+        name: "{{ volume_name_cidata }}"
+        pool: "{{ pool_name }}"
+
+
+#
+# Cleanup tasks for libvirt volume management
+#
+    - name: Destroy the pool
+      community.libvirt.virt_pool:
         command: destroy
         name: "{{ pool_name }}"
 
-    - name: Ensures stuff
-      assert:
-        that:
-          - '"{{ volume_name }}" in list_volumes1'
+    - name: Delete the  pool
+      community.libvirt.virt_pool:
+        command: delete
+        name: "{{ pool_name }}"
 
-    # - name: Ensure the second calls return "unchanged"
-    #   assert:
-    #     that:
-    #       - "second_virt_net_start is not changed"
-    #       - "second_virt_net_define is not changed"
-    #       - "second_virt_net_undefine is not changed"
-    
+    - name: Undefine the  pool
+      community.libvirt.virt_pool:
+        command: undefine
+        name: "{{ pool_name }}"
+
+
   always:
     - name: Stop libvirt
       service:
