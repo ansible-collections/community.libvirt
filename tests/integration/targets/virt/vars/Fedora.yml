@@ -1,5 +1,5 @@
 ---
-virt_pool_packages:
+virt_domain_packages:
   - libvirt
   - libvirt-daemon
   - python3-libvirt

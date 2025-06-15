@@ -1,0 +1,9 @@
+---
+pool_info:
+  volume_name: test1
+  volume_name_clone: test1_clone
+  volume_name_cidata: test_cidata.iso
+  size: 10
+  unit: M
+  pool_name: test_pool
+  path: /tmp/test_pool

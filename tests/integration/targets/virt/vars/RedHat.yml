@@ -1,7 +1,8 @@
 ---
+# RHEL 8/CentOS 8 only provides python-libvirt package for the default Python
 ansible_python_interpreter: /usr/libexec/platform-python
 
-virt_pool_packages:
+virt_domain_packages:
   - libvirt
   - libvirt-daemon
   - python3-libvirt

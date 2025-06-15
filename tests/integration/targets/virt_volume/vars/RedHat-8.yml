@@ -1,0 +1,7 @@
+---
+virt_volume_package:
+  - libvirt
+  - libvirt-daemon
+  - python3-libvirt
+  - python3-lxml
+  - python3-pycdlib

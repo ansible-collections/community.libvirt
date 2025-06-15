@@ -18,7 +18,7 @@ description:
      - Manages virtual machines supported by I(libvirt).
 options:
     flags:
-        choices: [ 'managed_save', 'snapshots_metadata', 'nvram', 'keep_nvram', 'checkpoints_metadata']
+        choices: [ 'managed_save', 'snapshots_metadata', 'nvram', 'keep_nvram', 'checkpoints_metadata', 'delete_volumes']
         description:
             - Pass additional parameters.
             - Currently only implemented with command C(undefine).
@@ -48,6 +48,10 @@ extends_documentation_fragment:
     - community.libvirt.virt.options_command
     - community.libvirt.virt.options_mutate_flags
     - community.libvirt.requirements
+attributes:
+    check_mode:
+        description: Supports check_mode.
+        support: full
 author:
     - Ansible Core Team
     - Michael DeHaan
@@ -176,7 +180,7 @@ VIRT_SUCCESS = 0
 VIRT_UNAVAILABLE = 2
 
 ALL_COMMANDS = []
-VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause']
+VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'get_interfaces', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause', 'uuid']
 HOST_COMMANDS = ['freemem', 'info', 'list_vms', 'nodeinfo', 'virttype']
 ALL_COMMANDS.extend(VM_COMMANDS)
 ALL_COMMANDS.extend(HOST_COMMANDS)
@@ -197,6 +201,7 @@ ENTRY_UNDEFINE_FLAGS_MAP = {
     'nvram': 4,
     'keep_nvram': 8,
     'checkpoints_metadata': 16,
+    'delete_volumes': 32,
 }
 
 MUTATE_FLAGS = ['ADD_UUID', 'ADD_MAC_ADDRESSES', 'ADD_MAC_ADDRESSES_FUZZY']
@@ -269,7 +274,10 @@ class LibvirtConnection(object):
         return self.find_vm(vmid).destroy()
 
     def undefine(self, vmid, flag):
-        return self.find_vm(vmid).undefineFlags(flag)
+        vm = self.find_vm(vmid)
+        if flag & 32:
+            self.delete_domain_volumes(vmid)
+        return vm.undefineFlags(flag)
 
     def get_status2(self, vm):
         state = vm.info()[0]
@@ -310,6 +318,51 @@ class LibvirtConnection(object):
 
     def define_from_xml(self, xml):
         return self.conn.defineXML(xml)
+
+    def get_uuid(self, vmid):
+        vm = self.conn.lookupByName(vmid)
+        return vm.UUIDString()
+
+    def get_interfaces(self, vmid):
+        dom_xml = self.get_xml(vmid)
+        root = etree.fromstring(dom_xml)
+        interfaces = root.findall("./devices/interface")
+        interface_type_map = {
+            'network': 'NAT',
+            'direct': 'macvtap',
+            'bridge': 'bridge'
+        }
+        interface_counter = 0
+        interfaces_dict = {}
+        interfaces_dict['network_interfaces'] = {}
+        for interface in interfaces:
+            interface_counter += 1
+            interface_type = interface.get('type')
+            source = interface.find("source").get({
+                'bridge': 'bridge',
+                'direct': 'dev',
+                'network': 'network'
+            }.get(interface_type))
+            mac_address = interface.find("mac").get("address")
+            pci_bus = interface.find("address").get("bus")
+            interface_info = {
+                "type": interface_type_map.get(interface_type, interface_type),
+                "mac": mac_address,
+                "pci_bus": pci_bus,
+                "source": source
+            }
+            interfaces_dict['network_interfaces'].update({"interface_{0}".format(interface_counter): interface_info})
+        return interfaces_dict
+
+    def delete_domain_volumes(self, vmid):
+        dom_xml = self.get_xml(vmid)
+        root = etree.fromstring(dom_xml)
+        disk_objects = root.findall(".//disk[@type='file']/source")
+        for disk in disk_objects:
+            disk_path = disk.get('file')
+            disk_volumes = self.conn.storageVolLookupByPath(disk_path)
+            if disk_volumes:
+                disk_volumes.delete()
 
 
 class Virt(object):
@@ -391,6 +444,9 @@ class Virt(object):
 
     def autostart(self, vmid, as_flag):
         self.conn = self.__get_conn()
+        if self.module.check_mode:
+            return self.conn.get_autostart(vmid) != as_flag
+
         # Change autostart flag only if needed
         if self.conn.get_autostart(vmid) != as_flag:
             self.conn.set_autostart(vmid, as_flag)
@@ -404,44 +460,60 @@ class Virt(object):
 
     def shutdown(self, vmid):
         """ Make the machine with the given vmid stop running.  Whatever that takes.  """
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         self.conn.shutdown(vmid)
         return 0
 
     def pause(self, vmid):
         """ Pause the machine with the given vmid.  """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.suspend(vmid)
 
     def unpause(self, vmid):
         """ Unpause the machine with the given vmid.  """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.resume(vmid)
 
     def create(self, vmid):
         """ Start the machine via the given vmid """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.create(vmid)
 
     def start(self, vmid):
         """ Start the machine via the given id/name """
-
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.create(vmid)
 
     def destroy(self, vmid):
         """ Pull the virtual power from the virtual domain, giving it virtually no time to virtually shut down.  """
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.destroy(vmid)
 
     def undefine(self, vmid, flag):
         """ Stop a domain, and then wipe it from the face of the earth.  (delete disk/config file) """
-
+        if self.module.check_mode:
+            return {
+                'changed': vmid in self.list_vms(),
+                'command': 0,
+            }
         self.__get_conn()
-        return self.conn.undefine(vmid, flag)
+        res = self.conn.undefine(vmid, flag)
+        return {
+            'changed': res == 0,
+            'command': res,
+        }
 
     def status(self, vmid):
         """
@@ -479,8 +551,25 @@ class Virt(object):
         """
         Define a guest with the given xml
         """
+        if self.module.check_mode:
+            return 0
         self.__get_conn()
         return self.conn.define_from_xml(xml)
+
+    def get_uuid(self, vmid):
+        self.__get_conn()
+        return self.conn.get_uuid(vmid)
+
+    def get_interfaces(self, vmid):
+        """
+        Get Interface Name and Mac Address from xml
+        """
+        self.__get_conn()
+        return self.conn.get_interfaces(vmid)
+
+    def delete_domain_volumes(self, vmid):
+        self.__get_conn()
+        return self.conn.delete_domain_volumes(vmid)
 
 
 # A dict of interface types (found in their `type` attribute) to the
@@ -503,11 +592,12 @@ def handle_define(module, v):
     guest = module.params.get('name', None)
     autostart = module.params.get('autostart', None)
     mutate_flags = module.params.get('mutate_flags', [])
+    parser = etree.XMLParser(remove_blank_text=True)
 
     if not xml:
         module.fail_json(msg="define requires 'xml' argument")
     try:
-        incoming_xml = etree.fromstring(xml)
+        incoming_xml = etree.fromstring(xml, parser)
     except etree.XMLSyntaxError:
         # TODO: provide info from parser
         module.fail_json(msg="given XML is invalid")
@@ -549,7 +639,7 @@ def handle_define(module, v):
     try:
         existing_domain = v.get_vm(domain_name)
         existing_xml_raw = existing_domain.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
-        existing_xml = etree.fromstring(existing_xml_raw)
+        existing_xml = etree.fromstring(existing_xml_raw, parser)
     except VMNotFound:
         existing_domain = None
         existing_xml_raw = None
@@ -643,9 +733,19 @@ def handle_define(module, v):
                         ))
 
     try:
-        domain_xml = etree.tostring(incoming_xml).decode()
+        domain_xml = etree.tostring(incoming_xml, pretty_print=True).decode()
 
-        # TODO: support check mode
+        if module.check_mode:
+            before = etree.tostring(existing_xml, pretty_print=True).decode() if existing_xml else ''
+            res.update({
+                'changed': before != domain_xml,
+                'diff': {
+                    'before': before,
+                    'after': domain_xml
+                },
+            })
+            return res
+
         domain = v.define(domain_xml)
 
         if existing_domain is not None:
@@ -737,6 +837,12 @@ def core(module):
         return VIRT_SUCCESS, res
 
     if command:
+        def exec_virt(*args):
+            res = getattr(v, command)(*args)
+            if not isinstance(res, dict):
+                res = {command: res}
+            return res
+
         if command in VM_COMMANDS:
             if command == 'define':
                 res.update(handle_define(module, v))
@@ -748,7 +854,7 @@ def core(module):
                 # Use the undefine function with flag to also handle various metadata.
                 # This is especially important for UEFI enabled guests with nvram.
                 # Provide flag as an integer of all desired bits, see 'ENTRY_UNDEFINE_FLAGS_MAP'.
-                # Integer 23 takes care of all cases (23 = 1 + 2 + 4 + 16).
+                # Integer 55 takes care of all cases (55 = 1 + 2 + 4 + 16 + 32).                flag = 0
                 flag = 0
                 if flags is not None:
                     if force is True:
@@ -761,23 +867,20 @@ def core(module):
                         # Get and add flag integer from mapping, otherwise 0.
                         flag += ENTRY_UNDEFINE_FLAGS_MAP.get(item, 0)
                 elif force is True:
-                    flag = 23
+                    flag = 55
                 # Finally, execute with flag
-                res = getattr(v, command)(guest, flag)
-                if not isinstance(res, dict):
-                    res = {command: res}
+                res = exec_virt(guest, flag)
+
+            elif command == 'uuid':
+                res = {'uuid': v.get_uuid(guest)}
 
             else:
-                res = getattr(v, command)(guest)
-                if not isinstance(res, dict):
-                    res = {command: res}
+                res = exec_virt(guest)
 
             return VIRT_SUCCESS, res
 
         elif hasattr(v, command):
-            res = getattr(v, command)()
-            if not isinstance(res, dict):
-                res = {command: res}
+            res = exec_virt()
             return VIRT_SUCCESS, res
 
         else:
@@ -799,6 +902,7 @@ def main():
             xml=dict(type='str'),
             mutate_flags=dict(type='list', elements='str', choices=MUTATE_FLAGS, default=['ADD_UUID']),
         ),
+        supports_check_mode=True
     )
 
     if not HAS_VIRT:

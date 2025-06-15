@@ -1,0 +1,36 @@
+FROM fedora:latest
+
+RUN dnf install @virtualization -y
+
+RUN dnf update -y && \
+    dnf install -y \
+        bridge-utils \
+        dmidecode \
+        dnsmasq \
+        ebtables \
+        iproute \
+        iptables \
+        edk2-ovmf \
+        qemu-kvm \
+        tini \
+        python3-pip \
+        python3-libvirt \
+        python3-lxml \
+        && \
+    dnf clean all
+
+RUN ln -s /usr/bin/qemu-system-x86_64 /usr/libexec/qemu-kvm
+
+RUN sed -i '/^#stdio_handler/ a\stdio_handler = "file"' /etc/libvirt/qemu.conf
+
+COPY config/pools/* /etc/libvirt/storage/
+COPY config/networks/* /etc/libvirt/qemu/networks/
+RUN mkdir -p /etc/libvirt/storage/autostart /etc/libvirt/qemu/networks/autostart && \
+    for pool in /etc/libvirt/storage/*.xml; do \
+        ln -sf "../${pool##*/}" /etc/libvirt/storage/autostart/; \
+    done && \
+    for net in /etc/libvirt/qemu/networks/*.xml; do \
+        ln -sf "../${net##*/}" /etc/libvirt/qemu/networks/autostart/; \
+    done
+
+CMD ["/usr/bin/tini", "/usr/sbin/libvirtd"]
