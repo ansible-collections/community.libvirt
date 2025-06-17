@@ -59,7 +59,7 @@
       register: r__list_volumes1
 
     - name: Assert that volume is created
-      assert: { that: [ volume_name in r__list_volumes1.list_volumes ] }
+      assert: { that: [ volume_name in r__list_volumes1.list_volumes | map(attribute='name') | list ] }
 
     - name: Create volume again (using state)
       community.libvirt.virt_volume:
@@ -86,7 +86,7 @@
       register: r__list_volumes2
 
     - name: Assert that volume is removed
-      assert: { that: [ volume_name not in r__list_volumes2.list_volumes ] }
+      assert: { that: [ volume_name not in r__list_volumes2.list_volumes | map(attribute='name') | list ] }
 
     - name: Create volume (using command=create)
       community.libvirt.virt_volume:
@@ -103,7 +103,7 @@
       register: r__list_volumes3
 
     - name: Assert that volume is created
-      assert: { that: [ volume_name in r__list_volumes3.list_volumes ] }
+      assert: { that: [ volume_name in r__list_volumes3.list_volumes | map(attribute='name') | list ] }
 
     - name: Delete volume with a wipe first (using command=delete)
       community.libvirt.virt_volume:
@@ -119,7 +119,7 @@
       register: r__list_volumes4
 
     - name: Assert that volume is removed
-      assert: { that: [ volume_name not in r__list_volumes4.list_volumes ] }
+      assert: { that: [ volume_name not in r__list_volumes4.list_volumes | map(attribute='name') | list ] }
 
 #
 # Tests for volume create with clone_source
@@ -151,8 +151,8 @@
     - name: Assert that both volumes exist after cloning
       assert:
         that:
-          - volume_name in r__list_volumes5.list_volumes
-          - volume_name_clone in r__list_volumes5.list_volumes
+          - volume_name in r__list_volumes5.list_volumes | map(attribute='name') | list
+          - volume_name_clone in r__list_volumes5.list_volumes | map(attribute='name') | list
 
     - name: Wipe volumes
       community.libvirt.virt_volume:
@@ -190,7 +190,7 @@
       register: r__list_volumes6
 
     - name: Assert that volume is created
-      assert: { that: [ volume_name_cidata in r__list_volumes6.list_volumes ] }
+      assert: { that: [ volume_name_cidata in r__list_volumes6.list_volumes | map(attribute='name') | list ] }
 
     - name: get_xml for volume
       community.libvirt.virt_volume:

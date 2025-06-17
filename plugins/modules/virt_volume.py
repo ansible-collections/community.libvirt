@@ -129,12 +129,12 @@ EXAMPLES = '''
   community.libvirt.virt_volume:
     pool: default
     command: create
-    clone_source: gold-ubuntu2404-base-image.qcow2
+    clone_source: gold-ubuntu2404-base-image
     xml: |
       <volume type='file'>
-      <name>testing_volume--boot.qcow2</name>
-      <capacity unit='G'>10</capacity>
-      <target><format type='qcow2'/></target>
+        <name>testing_volume--boot</name>
+        <capacity unit='G'>10</capacity>
+        <target><format type='qcow2'/></target>
       </volume>
 
 - name: Create CIDATA (cloud-init) cdrom
@@ -333,7 +333,7 @@ class LibvirtConnection(object):
         """ List all volumes in the storage pool (https://libvirt.org/html/libvirt-libvirt-storage.html#virStoragePoolListAllVolumes) """
         results = []
         for entry in self.pool_ptr.listAllVolumes():
-            results.append(entry.name())
+            results.append({ 'name': entry.name(), 'path': entry.path(), 'key': entry.key(), 'XMLDesc': entry.XMLDesc(0), 'info': entry.info() })
         return {'changed': False, 'res': results}
 
 
