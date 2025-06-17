@@ -53,10 +53,10 @@ options:
     type: str
   cloudinit_config:
     description:
-      - YAML formatted cloud-init data to create a CIDATA CDROM.
-      - The YAML data should contain the keys C(METADATA), C(USERDATA), and/or C(NETWORK_CONFIG).
+      - Ansible dict of cloud-init data to create a CIDATA CDROM.
+      - The data should contain the keys C(METADATA), C(USERDATA), and/or C(NETWORK_CONFIG).
       - This is required if C(command) is C(create_cidata_cdrom).
-    type: yaml
+    type: dict
   clone_source:
     description:
       - Name of the volume to clone from.
@@ -64,6 +64,7 @@ options:
     type: str
   wipe:
     description: Whether to wipe the volume before deleting it.
+    default: False
     type: bool
 extends_documentation_fragment:
   - community.libvirt.virt.options_uri

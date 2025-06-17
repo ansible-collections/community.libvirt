@@ -151,8 +151,8 @@
     - name: Assert that both volumes exist after cloning
       assert:
         that:
-          -  volume_name in r__list_volumes5.list_volumes
-          -  volume_name_clone in r__list_volumes5.list_volumes
+          - volume_name in r__list_volumes5.list_volumes
+          - volume_name_clone in r__list_volumes5.list_volumes
 
     - name: Wipe volumes
       community.libvirt.virt_volume:
