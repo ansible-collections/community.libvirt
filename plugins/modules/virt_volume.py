@@ -333,7 +333,7 @@ class LibvirtConnection(object):
         """ List all volumes in the storage pool (https://libvirt.org/html/libvirt-libvirt-storage.html#virStoragePoolListAllVolumes) """
         results = []
         for entry in self.pool_ptr.listAllVolumes():
-            results.append({ 'name': entry.name(), 'path': entry.path(), 'key': entry.key(), 'XMLDesc': entry.XMLDesc(0), 'info': entry.info() })
+            results.append({'name': entry.name(), 'path': entry.path(), 'key': entry.key(), 'XMLDesc': entry.XMLDesc(0), 'info': entry.info()})
         return {'changed': False, 'res': results}
 
 
