@@ -12,161 +12,138 @@ DOCUMENTATION = '''
 module: virt_volume
 version_added: '1.4.0'
 author:
-    - Dougal Seeley (@dseeley)
+  - Dougal Seeley (@dseeley)
 short_description: Manage libvirt volumes inside a storage pool
 description:
-    - Manage I(libvirt) volumes inside a storage pool.
+  - Manage I(libvirt) volumes inside a storage pool.
 options:
-    name:
-        aliases: [ "volume" ]
-        description:
-            - Name of the volume being managed. Note that the volume must be previously
-              defined with xml.
-        type: str
-    pool:
-        required: true
-        description:
-            - Name of the storage pool, where the volume is located.
-        type: str
-    state:
-        choices: [ "present", "absent" ]
-        description:
-            - Analagous to command C(create) or C(wipe).
-            - Mutually exclusive with C(command).
-            - If C(present), C(xml) must be provided. The name of the volume is specified in the XML.
-            - If C(absent), C(name) must be provided.
-    command:
-        choices: [ "create", "create_from", "delete", "wipe", "list_volumes", "get_xml", "create_cidata_cdrom" ]
-        description:
-            - Mutually exclusive with C(state).
-            - C(create):
-                - Creates a new empty volume with the XML provided.
-                - The name of the volume is specified in the XML (if a C(name) parameter is provided, it is ignored)
-                - C(xml) must be provided.
-            - C(create_from):
-                - Creates a new volume with the XML provided, cloning from the image in C(clone_source).
-                - The name of the volume is specified in the XML (if a C(name) parameter is provided, it is ignored)
-                - C(xml) and C(clone_source) must be provided.
-            - C(delete):
-                - Deletes the volume specified by C(name) from the storage pool.
-                - C(name) must be provided.
-            - C(wipe):
-                - Performs a wipe the of the volume specified by C(name), then deletes it.
-                - C(name) must be provided.
-            - C(list_volumes).
-            - C(get_xml):
-                - C(name) must be provided to get the XML of the volume.
-            - C(create_cidata_cdrom):
-                - Creates a CIDATA CDROM with the provided cloud-init data.  Enables bootstrapping of cloud-init enabled VMs.
-                - C(cloudinit_data) must be provided.
-        type: str
-    xml:
-        description:
-            - XML definition of the volume to be created.
-            - This is required if C(command) is C(create) or C(create_from).
-        type: str
-    cloudinit_data:
-        description:
-            - YAML formatted cloud-init data to create a CIDATA CDROM.
-            - The YAML data should contain the keys C(METADATA), C(USERDATA), and/or C(NETWORK_CONFIG).
-            - This is required if C(command) is C(create_cidata_cdrom).
-        type: yaml
-    clone_source:
-        description:
-            - Name of the volume to clone from.
-            - This is required if C(command) is C(create_from).
-        type: str
-        type: str
+  name:
+    aliases: [ "volume" ]
+    description:
+      - Name of the volume being managed. Note that the volume must be previously defined with xml.
+    type: str
+  pool:
+    required: true
+    description:
+      - Name of the storage pool, where the volume is located.
+    type: str
+  state:
+    choices: [ "present", "absent" ]
+    description:
+      - If C(present), Creates a new volume with the XML provided, optionally cloning from the image in C(clone_source). The name of the volume is specified in the XML (if a C(name) parameter is provided, it is ignored). C(xml) must be provided.
+      - If C(absent), Deletes the volume specified by C(name) from the storage pool.  If C(wipe) is set to C(true), the volume will be wiped before deletion.
+      - Mutually exclusive with C(command).
+    type: str
+  command:
+    choices: [ "create", "delete", "wipe", "list_volumes", "get_xml", "create_cidata_cdrom" ]
+    description:
+      - C(create) - Analagous to C(state) / C(present)
+      - C(delete) - Analagous to C(state) / C(absent)
+      - C(wipe) - Performs a wipe *only* of the volume specified by C(name) - *does not delete* the volume.
+      - C(list_volumes) - Lists all volumes in the storage pool.
+      - C(get_xml) - Retrieves the XML of the volume specified by C(name).
+      - C(create_cidata_cdrom) - Creates a CIDATA CDROM with the provided C(cloudinit_config) data. Enables bootstrapping of cloud-init enabled VMs.
+      - Mutually exclusive with C(state).
+    type: str
+  xml:
+    description:
+      - XML definition of the volume to be created.
+      - This is required if C(command) is C(create)
+    type: str
+  cloudinit_config:
+    description:
+      - YAML formatted cloud-init data to create a CIDATA CDROM.
+      - The YAML data should contain the keys C(METADATA), C(USERDATA), and/or C(NETWORK_CONFIG).
+      - This is required if C(command) is C(create_cidata_cdrom).
+    type: yaml
+  clone_source:
+    description:
+      - Name of the volume to clone from.
+      - Optionally provided with C(state) C(present) or C(command) C(create).
+    type: str
+  wipe:
+    description: Whether to wipe the volume before deleting it.
+    type: bool
 extends_documentation_fragment:
-    - community.libvirt.virt.options_uri
-    - community.libvirt.virt.options_xml
-    - community.libvirt.requirements
+  - community.libvirt.virt.options_uri
+  - community.libvirt.virt.options_xml
+  - community.libvirt.requirements
+requirements:
+  - "libvirt"
+  - "lxml"
+  - "pycdlib"
 '''
 
 EXAMPLES = '''
-- name: "Create volume in existing default pool (using C(state) parameter)"
+- name: Create volume in existing default pool
   community.libvirt.virt_volume:
     state: present
     pool: default
     xml: |
       <volume>
-        <name>testing-volume</name>
-        <allocation>0</allocation>
-        <capacity unit="M">10</capacity>
-        <target>
-          <permissions>
-            <mode>0644</mode>
-            <label>virt_image_t</label>
-          </permissions>
-        </target>
+      <name>testing-volume</name>
+      <allocation>0</allocation>
+      <capacity unit="M">10</capacity>
+      <target>
+        <permissions>
+          <mode>0644</mode>
+          <label>virt_image_t</label>
+        </permissions>
+      </target>
       </volume>
-  register: r__virt_volume__state_present
-  
-- name: "Create volume in existing default pool (using C(command) parameter)"
-  community.libvirt.virt_volume:
-    command: create
-    pool: default
-    xml: |
-      <volume type='file'>
-        <name>testing_volume.qcow2</name>
-        <capacity unit='G'>10</capacity>
-        <target><format type='qcow2'/></target>
-      </volume>
-  register: r__virt_volume__state_present
 
-- name: "List volumes in default pool"
+- name: List volumes in default pool
   community.libvirt.virt_volume:
+    pool: default
     command: list_volumes
-    pool: default
-  register: r__virt_volume__list_volumes
 
-- name: "Get volume XML"
+- name: Get volume XML
   community.libvirt.virt_volume:
-    name: testing-volume
-    command: get_xml
     pool: default
+    command: get_xml
+    name: testing-volume
   register: r__virt_volume__get_xml
 
-- name: "Delete volume from default pool (using C(state) parameter)"
+- name: Wipe a volume
   community.libvirt.virt_volume:
-    name: testing-volume
-    state: absent
     pool: default
-
-- name: "Delete volume from default pool (using C(command) parameter)"
-  community.libvirt.virt_volume:
-    name: testing-volume
-    command: absent
-    pool: default
-
-- name: "Wipe and delete volume from default pool"
-  community.libvirt.virt_volume:
-    name: testing-volume
     command: wipe
-    pool: default
+    name: testing-volume
 
-- name: "Create a volume from an existing image (clone)"
+- name: Delete volume from default pool, wiping it first (using state parameter)
   community.libvirt.virt_volume:
-    command: create_from
+    pool: default
+    state: absent
+    name: testing-volume
+    wipe: true
+
+- name: Delete volume from default pool (using command parameter)
+  community.libvirt.virt_volume:
+    pool: default
+    command: delete
+    name: testing-volume
+
+- name: Create a volume from an existing image (clone)
+  community.libvirt.virt_volume:
+    pool: default
+    command: create
     clone_source: gold-ubuntu2404-base-image.qcow2
     xml: |
       <volume type='file'>
-        <name>testing_volume--boot.qcow2</name>
-        <capacity unit='G'>10</capacity>
-        <target><format type='qcow2'/></target>
+      <name>testing_volume--boot.qcow2</name>
+      <capacity unit='G'>10</capacity>
+      <target><format type='qcow2'/></target>
       </volume>
-    pool: default
-  register: r__virt_volume__create_from
 
-- name: create/libvirt | create CIDATA (cloud-init) cdrom
-  dseeley.libvirt.virt_volume:
-    command: "create_cidata_cdrom"
-    name: "testing_cidata.iso"
-    pool: "default"
+- name: Create CIDATA (cloud-init) cdrom
+  community.libvirt.virt_volume:
+    pool: default
+    command: create_cidata_cdrom
+    name: testing_cidata.iso
     cloudinit_config:
-      NETWORK_CONFIG: {version: '2', ethernets: {eth0: {dhcp4: 'true'}}}
-      USERDATA: {users: [{name: testuser, lock_passwd: 'false', shell: /bin/bash, ssh_authorized_keys: ["ssh-rsa xxxxxxxxxxxxxxxxxxxxx=="]}]}
-      METADATA: { "local-hostname": "my_host" }
+      NETWORK_CONFIG: {version: 2, ethernets: {eth0: {dhcp4: true}}}
+      USERDATA: {users: [{name: testuser, lock_passwd: false, shell: /bin/bash, ssh_authorized_keys: ["ssh-rsa xxxxxxxxxxxxxxxxxxxxx=="]}]}
+      METADATA: {local-hostname: my_host}
   register: r__virt_volume__create_cidata_cdrom
 '''
 
@@ -197,52 +174,53 @@ class LibvirtConnection(object):
 
         self.pool_ptr = self.conn.storagePoolLookupByName(pool) if pool is not None else None
 
-    def create(self, xml, **kwargs):
-        """ Creates a new volume with the XML provided, with the name specified in the XML (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolCreateXML) """
+
+    def create(self, xml, clone_source=None, name=None, **kwargs):
+        """
+        Creates a new volume with the XML provided, with the name specified in the XML, optionally cloning the image from the clone_source
+        (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolCreateXMLFrom)
+        """
         isChanged = False
-
         xml_etree = etree.fromstring(xml)
+        xml_vol_name = xml_etree.xpath("/volume/name")[0].text
 
-        newname = xml_etree.xpath("/volume/name")[0].text
+        warnings_list = []
+        if name:
+            warnings_list.append("The 'name' parameter is ignored; the volume name is taken from the XML definition ('%s')." % xml_vol_name)
+
         try:
-            createdStorageVolPtr = self.pool_ptr.storageVolLookupByName(newname)
+            createdStorageVolPtr = self.pool_ptr.storageVolLookupByName(xml_vol_name)
         except libvirt.libvirtError as e:
             if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
-                createdStorageVolPtr = self.pool_ptr.createXML(xml)
-                isChanged = True
+                if clone_source:
+                    # Ensure clone_source is valid
+                    if not self.pool_ptr.storageVolLookupByName(clone_source):
+                        raise libvirt.libvirtError("Clone source volume '%s' does not exist." % clone_source)
+
+                    clone_source_vol_ptr = self.pool_ptr.storageVolLookupByName(clone_source)
+                    createdStorageVolPtr = self.pool_ptr.createXMLFrom(xml, clone_source_vol_ptr, 0)
+
+                    if xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]"):
+                        size_bytes = xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]")[0].text
+                        createdStorageVolPtr.resize(int(size_bytes))
+
+                    isChanged = True
+                else:
+                    # If no clone_source is provided, just create an empty volume
+                    createdStorageVolPtr = self.pool_ptr.createXML(xml)
+
+                    isChanged = True
             else:
                 raise e
 
-        return {'changed': isChanged, 'res': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
-                                              'name': createdStorageVolPtr.name(),
-                                              'path': createdStorageVolPtr.path(),
-                                              'key': createdStorageVolPtr.key()}}
+        result = {'changed': isChanged, 'res': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
+                                                'name': createdStorageVolPtr.name(),
+                                                'path': createdStorageVolPtr.path(),
+                                                'key': createdStorageVolPtr.key()}}
+        if warnings_list:
+            result['warnings'] = warnings_list
 
-    def create_from(self, xml, clone_source, **kwargs):
-        """ Creates a new volume with the XML provided, with the name specified in the XML, cloning the image from the clone_source (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolCreateXMLFrom)"""
-        isChanged = False
-        xml_etree = etree.fromstring(xml)
-
-        newname = xml_etree.xpath("/volume/name")[0].text
-        try:
-            createdStorageVolPtr = self.pool_ptr.storageVolLookupByName(newname)
-        except libvirt.libvirtError as e:
-            if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
-                clone_source_vol_ptr = self.pool_ptr.storageVolLookupByName(clone_source)
-                createdStorageVolPtr = self.pool_ptr.createXMLFrom(xml, clone_source_vol_ptr, 0)
-
-                if xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]"):
-                    size_bytes = xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]")[0].text
-                    createdStorageVolPtr.resize(int(size_bytes))
-
-                isChanged = True
-            else:
-                raise e
-
-        return {'changed': isChanged, 'res': {'XMLDesc': createdStorageVolPtr.XMLDesc(0),
-                                              'name': createdStorageVolPtr.name(),
-                                              'path': createdStorageVolPtr.path(),
-                                              'key': createdStorageVolPtr.key()}}
+        return result
 
     def create_cidata_cdrom(self, name, cloudinit_config, **kwargs):
         """ Create a properly formatted CD image containing cloud-init files, then upload it to the host """
@@ -315,10 +293,12 @@ class LibvirtConnection(object):
         else:
             return {'changed': False, 'res': {'Error': 'No CIDATA to create'}}
 
-    def delete(self, name, **kwargs):
+    def delete(self, name, wipe=False, **kwargs):
         """ Delete a storage volume (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolDelete) """
         try:
-            res_delete = self.pool_ptr.storageVolLookupByName(name).delete()
+            if wipe:
+                self.pool_ptr.storageVolLookupByName(name).wipe(0)
+            self.pool_ptr.storageVolLookupByName(name).delete()
             return {'changed': True, 'res': 'Deleted %s' % name}
         except libvirt.libvirtError as e:
             if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
@@ -327,10 +307,9 @@ class LibvirtConnection(object):
                 raise e
 
     def wipe(self, name, **kwargs):
-        """ Wipe, and then delete a storage volume (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolWipe)"""
+        """ Wipe a storage volume (doesn't delete) (https://libvirt.org/html/libvirt-libvirt-storage.html#virStorageVolWipe)"""
         try:
             self.pool_ptr.storageVolLookupByName(name).wipe(0)
-            self.delete(name, **kwargs)
             return {'changed': True, 'res': 'Wiped and deleted %s' % name}
         except libvirt.libvirtError as e:
             if e.get_error_code() == libvirt.VIR_ERR_NO_STORAGE_VOL:
@@ -363,11 +342,12 @@ def main():
             name=dict(aliases=['volume']),
             pool=dict(required=True),
             state=dict(choices=['present', 'absent']),
-            command=dict(),
+            command=dict(choices=['create', 'delete', 'wipe', 'list_volumes', 'get_xml', 'create_cidata_cdrom']),
             uri=dict(default='qemu:///system'),
             xml=dict(),
             clone_source=dict(type='str'),
             cloudinit_config=dict(type='dict'),
+            wipe=dict(type='bool', default=False)
         ),
         mutually_exclusive=[['state', 'command']],
         supports_check_mode=False
@@ -390,7 +370,7 @@ def main():
         if state in ['present']:
             command = 'create'
         elif state in ['absent']:
-            command = 'wipe'
+            command = 'delete'
         else:
             module.fail_json(msg="unexpected state, %s" % state)
 
