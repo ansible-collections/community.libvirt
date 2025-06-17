@@ -30,7 +30,8 @@ options:
   state:
     choices: [ "present", "absent" ]
     description:
-      - If C(present), Creates a new volume with the XML provided, optionally cloning from the image in C(clone_source). The name of the volume is specified in the XML (if a C(name) parameter is provided, it is ignored). C(xml) must be provided.
+      - If C(present), Creates a new volume with the XML provided, optionally cloning from the image in C(clone_source). The name of the volume is specified
+        in the XML (if a C(name) parameter is provided, it is ignored). C(xml) must be provided.
       - If C(absent), Deletes the volume specified by C(name) from the storage pool.  If C(wipe) is set to C(true), the volume will be wiped before deletion.
       - Mutually exclusive with C(command).
     type: str
@@ -173,7 +174,6 @@ class LibvirtConnection(object):
         self.check_mode = check_mode
 
         self.pool_ptr = self.conn.storagePoolLookupByName(pool) if pool is not None else None
-
 
     def create(self, xml, clone_source=None, name=None, **kwargs):
         """
