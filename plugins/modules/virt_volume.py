@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# (c) 2022, Dougal Seeley <git@dougalseeley.com>
+# (c) 2015, Maciej Delmanowski <drybjed@gmail.com>
+# (c) 2025, Dougal Seeley <git@dougalseeley.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -12,6 +13,8 @@ DOCUMENTATION = '''
 module: virt_volume
 version_added: '1.4.0'
 author:
+  - Leonardo Galli (@galli-leo)
+  - Niclas Kretschmer (@NK308)
   - Dougal Seeley (@dseeley)
 short_description: Manage libvirt volumes inside a storage pool
 description:
