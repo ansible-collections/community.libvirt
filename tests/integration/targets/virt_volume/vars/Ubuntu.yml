@@ -1,0 +1,7 @@
+---
+virt_domain_packages:
+  - libvirt-daemon
+  - libvirt-daemon-system
+  - python3-libvirt
+  - python3-lxml
+  - python3-pycdlib
