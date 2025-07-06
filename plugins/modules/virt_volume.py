@@ -204,9 +204,20 @@ class LibvirtConnection(object):
                     clone_source_vol_ptr = self.pool_ptr.storageVolLookupByName(clone_source)
                     createdStorageVolPtr = self.pool_ptr.createXMLFrom(xml, clone_source_vol_ptr, 0)
 
-                    if xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]"):
-                        size_bytes = xml_etree.xpath("/volume/capacity[@unit=\"bytes\"]")[0].text
-                        createdStorageVolPtr.resize(int(size_bytes))
+                    if xml_etree.xpath("/volume/capacity"):
+                        capacity_elem = xml_etree.xpath("/volume/capacity")[0]
+                        unit = capacity_elem.get("unit", "bytes").lower()
+
+                        # Conversion factors to bytes
+                        unit_factors = { "bytes": 1, "b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4 }
+
+                        # Convert size to bytes
+                        try:
+                            size_bytes = int(float(capacity_elem.text) * unit_factors.get(unit, 1))
+                        except (ValueError, KeyError):
+                            raise Exception(f"Unknown or invalid unit for capacity: {unit}")
+
+                        createdStorageVolPtr.resize(size_bytes)
 
                     isChanged = True
                 else:
