@@ -209,7 +209,7 @@ class LibvirtConnection(object):
                         unit = capacity_elem.get("unit", "bytes").lower()
 
                         # Conversion factors to bytes
-                        unit_factors = { "bytes": 1, "b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4 }
+                        unit_factors = {"bytes": 1, "b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
 
                         # Convert size to bytes
                         try:
