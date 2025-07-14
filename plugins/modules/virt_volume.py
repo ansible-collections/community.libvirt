@@ -59,7 +59,7 @@ extends_documentation_fragment:
 
 EXAMPLES = '''
 - name: "Create volume in existing default pool"
-    community.libvirt.virt_volume:
+  community.libvirt.virt_volume:
     name: testing-volume
     state: present
     pool: default
@@ -70,27 +70,27 @@ EXAMPLES = '''
             <capacity unit="M">10</capacity>
             <target>
             <permissions>
-                <mode>0644</mode>
+                <mode>"0644"</mode>
                 <label>virt_image_t</label>
             </permissions>
             </target>
         </volume>
 
 - name: "List volumes in default pool"
-    community.libvirt.virt_volume:
+  community.libvirt.virt_volume:
     command: list_volumes
     pool: default
     register: __result_list_volumes
 
 - name: "Get volume XML"
-    community.libvirt.virt_volume:
+  community.libvirt.virt_volume:
     name: testing-volume
     command: get_xml
     pool: default
     register: __result_vol_xml
 
 - name: "Delete volume from default pool"
-    community.libvirt.virt_volume:
+  community.libvirt.virt_volume:
     name: testing-volume
     state: absent
     pool: default
