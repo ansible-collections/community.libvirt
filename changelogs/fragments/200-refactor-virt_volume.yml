@@ -1,0 +1,16 @@
+major_changes:
+  - virt_volume appears to have been derived from virt_pool, but not cleaned up to remove much non-functional code.  It has been refactored to remove the pool-specific code, and to make it more flexible.
+  - The mechanism of passing variables to the member functions was not flexible enough to cope with differing parameter requirements. All parameters are now passed as kwargs, which allows the member functions to select the parameters they need.
+  - A new command 'create_cidata_cdrom' enables the creation of a cloud-init CDROM, which can be attached to a cloud-init enabled base image, for bootstrapping networking, users etc.
+  - The commands create_from, delete, download, info, resize, upload, wipe, facts did not work and were not tested. They have either been refactored to work, and tested, or removed.
+bugfixes:
+  - info, facts, download, upload commands have been removed as they were not functional (and not tested).
+  - create_from was non-functional, and is now folded into create (added clone_source parameter). Fixes #148
+  - wipe command now works (and is also a boolean option for 'state/absent' and 'command/delete').
+removed_features:
+  - The 'deleted' state has been removed as its definition was not entirely accurate, and the 'wipe' boolean option is added to 'state/absent' and 'command/delete'.
+  - Undocumented but unused/non-functional functions (get_status, get_status2, get_state, get_uuid, build) have been removed.
+  - Undocumented but unused FLAGS have been removed.
+  - PoolConnection class has been removed
+known_issues:
+  - check_mode is disabled. It was not fully supported in the previous code either ('state/present', 'command/create' did not support it).

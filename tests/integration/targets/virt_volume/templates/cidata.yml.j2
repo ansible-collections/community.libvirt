@@ -1,0 +1,14 @@
+NETWORK_CONFIG:
+  version: '2'
+  ethernets:
+    eth0:
+      dhcp4: 'true'
+USERDATA:
+  users:
+    - name: test
+      lock_passwd: 'false'
+      shell: /bin/bash
+      ssh_authorized_keys:
+        - ssh-rsa xxxxxxxxxxxxxxxxxxxxx==
+METADATA:
+  local-hostname: my_new_host

@@ -4,3 +4,6 @@ virt_volume_package:
   - libvirt-daemon
   - libvirt-python
   - python-lxml
+
+virt_volume_pip_packages:
+  - pycdlib
