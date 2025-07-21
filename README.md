@@ -26,9 +26,10 @@ For more information about communication, see the [Ansible communication guide](
 ## Tested with Ansible
 <!-- List the versions of Ansible the collection has been tested with. Must match what is in galaxy.yml. -->
 
-- 2.9
-- 2.10
-- 2.11
+- 2.17
+- 2.18
+- 2.19
+- 2.20
 - devel
 
 ## External requirements
@@ -135,6 +136,14 @@ It is necessary for maintainers of this collection to be subscribed to:
 * The "Changes Impacting Collection Contributors and Maintainers" [issue](https://github.com/ansible-collections/overview/issues/45).
 
 They also should be subscribed to Ansible's [The Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn).
+
+### Releases Support Timeline
+
+We maintain each major release version (1.x.y, 2.x.y, ...) for one year after the next major version is released.
+
+Here is the table for the support timeline:
+- 1.x.y: released 2020-08-18, maintained until 2026-07-21 (bugfixes only)
+- 2.x.y: released 2025-07-21, current
 
 ### Publishing New Version
 
