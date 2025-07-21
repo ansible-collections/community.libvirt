@@ -4,6 +4,49 @@ Community.Libvirt Release Notes
 
 .. contents:: Topics
 
+v2.0.0
+======
+
+Release Summary
+---------------
+
+This is a major release of the ``community.libvirt`` collection.
+This changelog contains all changes to the modules and plugins in this collection
+that have been made after the previous release.
+
+Major Changes
+-------------
+
+- virt_volume - a new command 'create_cidata_cdrom' enables the creation of a cloud-init CDROM, which can be attached to a cloud-init enabled base image, for bootstrapping networking, users etc.
+- virt_volume - the commands create_from, delete, download, info, resize, upload, wipe, facts did not work and were not tested. They have either been refactored to work, and tested, or removed.
+- virt_volume - the mechanism of passing variables to the member functions was not flexible enough to cope with differing parameter requirements. All parameters are now passed as kwargs, which allows the member functions to select the parameters they need.
+- virt_volume - the module appears to have been derived from virt_pool, but not cleaned up to remove much non-functional code.  It has been refactored to remove the pool-specific code, and to make it more flexible.
+
+Removed Features (previously deprecated)
+----------------------------------------
+
+- virt_volume - PoolConnection class has been removed
+- virt_volume - the 'deleted' state has been removed as its definition was not entirely accurate, and the 'wipe' boolean option is added to 'state/absent' and 'command/delete'.
+- virt_volume - undocumented but unused FLAGS have been removed.
+- virt_volume - undocumented but unused/non-functional functions (get_status, get_status2, get_state, get_uuid, build) have been removed.
+
+Bugfixes
+--------
+
+- virt_volume - create_from was non-functional, and is now folded into create (added clone_source parameter). Fixes
+- virt_volume - info, facts, download, upload commands have been removed as they were not functional (and not tested).
+- virt_volume - wipe command now works (and is also a boolean option for 'state/absent' and 'command/delete').
+
+Known Issues
+------------
+
+- virt_volume - check_mode is disabled. It was not fully supported in the previous code either ('state/present', 'command/create' did not support it).
+
+New Modules
+-----------
+
+- community.libvirt.virt_install - Provision new virtual machines using virt-install tool
+
 v1.4.0
 ======
 

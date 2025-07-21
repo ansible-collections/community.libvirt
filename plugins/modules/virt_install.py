@@ -11,7 +11,7 @@ __metaclass__ = type
 DOCUMENTATION = """
 ---
 module: virt_install
-version_added: 1.5.0
+version_added: 2.0.0
 author: "Joey Zhang (@thinkdoggie)"
 short_description: Provision new virtual machines using virt-install tool
 description:
