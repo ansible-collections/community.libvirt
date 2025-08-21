@@ -152,6 +152,25 @@ EXAMPLES = '''
   register: r__virt_volume__create_cidata_cdrom
 '''
 
+RETURN = r"""
+type:
+  description: When I(command=list_volumes) returns the type of the volume based on the underlying type of the pool.
+  returned: success
+  type: str
+  sample: "file"
+capacity:
+  description: When I(command=list_volumes) returns the total capacity of the volume in bytes.
+  returned: success
+  type: int
+  sample: "8589934592"
+allocation:
+  description: When I(command=list_volumes) returns the current allocated size of the volume in bytes.
+  returned: success
+  type: int
+  sample: "2740523008"
+"""
+
+from ansible_collections.community.libvirt.plugins.module_utils.constants import VOLUME_TYPE_INFO_MAP
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
 import traceback
 
@@ -347,7 +366,14 @@ class LibvirtConnection(object):
         """ List all volumes in the storage pool (https://libvirt.org/html/libvirt-libvirt-storage.html#virStoragePoolListAllVolumes) """
         results = []
         for entry in self.pool_ptr.listAllVolumes():
-            results.append({'name': entry.name(), 'path': entry.path(), 'key': entry.key(), 'XMLDesc': entry.XMLDesc(0), 'info': entry.info()})
+            results.append({'name': entry.name(),
+                            'path': entry.path(),
+                            'key': entry.key(),
+                            'XMLDesc': entry.XMLDesc(0),
+                            'capacity': entry.info()[1],
+                            'allocation': entry.info()[2],
+                            'type': VOLUME_TYPE_INFO_MAP.get(entry.info()[0], 'unknown'),
+                            'info': entry.info()})
         return {'changed': False, 'res': results}
 
 
