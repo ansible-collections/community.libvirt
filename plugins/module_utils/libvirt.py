@@ -22,6 +22,10 @@ else:
     HAS_XML = True
 
 
+VIRT_FAILED = 1
+VIRT_SUCCESS = 0
+VIRT_UNAVAILABLE = 2
+
 VIRT_STATE_NAME_MAP = {
     0: 'running',
     1: 'running',
