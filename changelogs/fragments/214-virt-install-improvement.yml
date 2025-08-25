@@ -1,0 +1,7 @@
+major_changes:
+  - virt_install - refactored common virt-install functionality into module_utils and doc_fragments to enable code reuse between modules.
+bugfixes:
+  - virt_install - fixed the dict-based options handling for events, resource, and sysinfo options.
+  - virt_cloud_instance - fixed the dict-based options handling for events, resource, and sysinfo options.
+  - virt_install - fixed cloud_init configuration handling for file-based sub-options (meta-data, user-data, and network-config).
+  - virt_cloud_instance - fixed cloud_init configuration handling for file-based sub-options (meta-data).

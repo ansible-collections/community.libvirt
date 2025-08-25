@@ -235,17 +235,20 @@ class VirtInstallTool(object):
             self._add_parameter('--machine', self.params['machine'])
 
         if self.params.get('metadata') is not None:
-            self._add_parameter('--metadata', self.params['metadata'])
+            self._add_parameter('--metadata',
+                                dict_value=self.params['metadata'])
 
         if self.params.get('events') is not None:
             self._add_parameter('--events',
                                 dict_value=self.params['events'])
 
         if self.params.get('resource') is not None:
-            self._add_parameter('--resource', self.params['resource'])
+            self._add_parameter('--resource',
+                                dict_value=self.params['resource'])
 
         if self.params.get('sysinfo') is not None:
-            self._add_parameter('--sysinfo', self.params['sysinfo'])
+            self._add_parameter('--sysinfo',
+                                dict_value=self.params['sysinfo'])
 
         if self.params.get('qemu_commandline') is not None:
             self._add_parameter(
@@ -271,7 +274,8 @@ class VirtInstallTool(object):
                                 dict_mapping=numatune_mapping)
 
         if self.params.get('memtune') is not None:
-            self._add_parameter('--memtune', dict_value=self.params['memtune'])
+            self._add_parameter('--memtune',
+                                dict_value=self.params['memtune'])
 
         if self.params.get('blkiotune') is not None:
             blkiotune_mapping = {
@@ -1245,6 +1249,12 @@ def get_pxe_args():
     )
 
 
+def get_import_args():
+    args = dict()
+    args['import'] = dict(type='bool')
+    return args
+
+
 def get_extra_args_args():
     return dict(
         extra_args=dict(type='str'),
@@ -1300,7 +1310,7 @@ def get_cloud_init_args():
                 root_ssh_key=dict(type='str', no_log=True),
                 clouduser_ssh_key=dict(type='str', no_log=True),
                 network_config=dict(type='str'),
-                meta_data=dict(type='dict'),
+                meta_data=dict(type='str'),
                 user_data=dict(type='str'),
             ),
         ),

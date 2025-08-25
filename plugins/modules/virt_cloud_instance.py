@@ -674,7 +674,7 @@ def main():
 
     # Cloud-init options
     argument_spec.update(virtinst_util.get_cloud_init_args())
-    # Hardware configuration
+    # General options
     argument_spec.update(virtinst_util.get_memory_args())
     argument_spec.update(virtinst_util.get_memorybacking_args())
     argument_spec.update(virtinst_util.get_arch_args())
@@ -684,7 +684,6 @@ def main():
     argument_spec.update(virtinst_util.get_resource_args())
     argument_spec.update(virtinst_util.get_sysinfo_args())
     argument_spec.update(virtinst_util.get_qmeu_commandline_args())
-    # CPU configuration
     argument_spec.update(virtinst_util.get_vcpu_args())
     argument_spec.update(virtinst_util.get_numatune_args())
     argument_spec.update(virtinst_util.get_memtune_args())
