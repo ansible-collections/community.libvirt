@@ -199,6 +199,22 @@ class VirtInstallTool(object):
 
         return combined_items
 
+    def _convert_raw_to_string(self, value):
+        """Convert raw type parameter (str or dict) to string content.
+        """
+        if isinstance(value, str):
+            return value
+        elif isinstance(value, dict):
+            try:
+                import yaml
+                return yaml.safe_dump(value, default_flow_style=False, allow_unicode=True)
+            except ImportError:
+                self.module.fail_json(
+                    msg="PyYAML is required to process dictionary cloud-init parameters")
+        else:
+            # This should not happen due to validation, but provide a fallback
+            return str(value)
+
     def _build_basic_options(self):
         """Build basic VM configuration options"""
         # Required options
@@ -235,17 +251,20 @@ class VirtInstallTool(object):
             self._add_parameter('--machine', self.params['machine'])
 
         if self.params.get('metadata') is not None:
-            self._add_parameter('--metadata', self.params['metadata'])
+            self._add_parameter('--metadata',
+                                dict_value=self.params['metadata'])
 
         if self.params.get('events') is not None:
             self._add_parameter('--events',
                                 dict_value=self.params['events'])
 
         if self.params.get('resource') is not None:
-            self._add_parameter('--resource', self.params['resource'])
+            self._add_parameter('--resource',
+                                dict_value=self.params['resource'])
 
         if self.params.get('sysinfo') is not None:
-            self._add_parameter('--sysinfo', self.params['sysinfo'])
+            self._add_parameter('--sysinfo',
+                                dict_value=self.params['sysinfo'])
 
         if self.params.get('qemu_commandline') is not None:
             self._add_parameter(
@@ -271,7 +290,8 @@ class VirtInstallTool(object):
                                 dict_mapping=numatune_mapping)
 
         if self.params.get('memtune') is not None:
-            self._add_parameter('--memtune', dict_value=self.params['memtune'])
+            self._add_parameter('--memtune',
+                                dict_value=self.params['memtune'])
 
         if self.params.get('blkiotune') is not None:
             blkiotune_mapping = {
@@ -424,15 +444,15 @@ class VirtInstallTool(object):
             cloud_init_params = self.params['cloud_init'].copy()
 
             if cloud_init_params.get('network_config'):
-                network_config_content = cloud_init_params['network_config']
+                network_config_content = self._convert_raw_to_string(cloud_init_params['network_config'])
                 cloud_init_params['network-config'] = self._save_string_to_tempfile(network_config_content)
                 del cloud_init_params['network_config']
             if cloud_init_params.get('meta_data'):
-                meta_data_content = cloud_init_params['meta_data']
+                meta_data_content = self._convert_raw_to_string(cloud_init_params['meta_data'])
                 cloud_init_params['meta-data'] = self._save_string_to_tempfile(meta_data_content)
                 del cloud_init_params['meta_data']
             if cloud_init_params.get('user_data'):
-                user_data_content = cloud_init_params['user_data']
+                user_data_content = self._convert_raw_to_string(cloud_init_params['user_data'])
                 cloud_init_params['user-data'] = self._save_string_to_tempfile(user_data_content)
                 del cloud_init_params['user_data']
 
@@ -741,6 +761,19 @@ class VirtInstallTool(object):
                 self.module.fail_json(
                     msg="{} requires {} to be specified".format(
                         extra_key, param_key))
+
+        # Validate cloud-init raw type parameters
+        if self.params.get('cloud_init') is not None:
+            cloud_init_params = self.params['cloud_init']
+            raw_type_params = ['network_config', 'meta_data', 'user_data']
+
+            for param_name in raw_type_params:
+                if cloud_init_params.get(param_name) is not None:
+                    param_value = cloud_init_params[param_name]
+                    if not isinstance(param_value, (str, dict)):
+                        self.module.fail_json(
+                            msg="cloud_init.{} must be a string or dictionary, got {}".format(
+                                param_name, type(param_value).__name__))
 
     def _build_command(self):
         """Build the complete virt-install command"""
@@ -1245,6 +1278,12 @@ def get_pxe_args():
     )
 
 
+def get_import_args():
+    args = dict()
+    args['import'] = dict(type='bool')
+    return args
+
+
 def get_extra_args_args():
     return dict(
         extra_args=dict(type='str'),
@@ -1299,9 +1338,9 @@ def get_cloud_init_args():
                 root_password_file=dict(type='str'),
                 root_ssh_key=dict(type='str', no_log=True),
                 clouduser_ssh_key=dict(type='str', no_log=True),
-                network_config=dict(type='str'),
-                meta_data=dict(type='dict'),
-                user_data=dict(type='str'),
+                network_config=dict(type='raw'),
+                meta_data=dict(type='raw'),
+                user_data=dict(type='raw'),
             ),
         ),
     )

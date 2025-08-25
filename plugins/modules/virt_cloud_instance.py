@@ -518,7 +518,7 @@ def validate_disks(disks):
         raise ValueError("The first disk must have a size")
 
 
-def update_virtinst_params(virtInstall, system_disk, extra_user_data=None):
+def update_virtinst_params(module, virtInstall, system_disk, extra_user_data=None):
     disks = virtInstall.params.get('disks')
 
     if not isinstance(disks, list) \
@@ -533,6 +533,15 @@ def update_virtinst_params(virtInstall, system_disk, extra_user_data=None):
             virtInstall.params['cloud_init'] = {}
 
         orignal_user_data = virtInstall.params['cloud_init'].get('user_data', "")
+
+        if isinstance(orignal_user_data, dict):
+            try:
+                import yaml
+                orignal_user_data = yaml.safe_dump(orignal_user_data, default_flow_style=False, allow_unicode=True)
+            except ImportError:
+                module.fail_json(
+                    msg="PyYAML is required to process dictionary cloud-init parameters")
+
         modified_user_data = orignal_user_data + extra_user_data
         virtInstall.params['cloud_init']['user_data'] = modified_user_data
 
@@ -619,7 +628,7 @@ def core(module):
             wait_timeout = cloud_init_reboot_timeout
 
         # run virt-install to create new vm
-        update_virtinst_params(virtInstall, system_disk, extra_user_data)
+        update_virtinst_params(module, virtInstall, system_disk, extra_user_data)
         changed, rc, extra_res = virtInstall.execute(dryrun=module.check_mode, wait_timeout=wait_timeout)
         # result['virt_install_command'] = ' '.join(virtInstall.command_argv)
         result['changed'] = changed
@@ -674,7 +683,7 @@ def main():
 
     # Cloud-init options
     argument_spec.update(virtinst_util.get_cloud_init_args())
-    # Hardware configuration
+    # General options
     argument_spec.update(virtinst_util.get_memory_args())
     argument_spec.update(virtinst_util.get_memorybacking_args())
     argument_spec.update(virtinst_util.get_arch_args())
@@ -684,7 +693,6 @@ def main():
     argument_spec.update(virtinst_util.get_resource_args())
     argument_spec.update(virtinst_util.get_sysinfo_args())
     argument_spec.update(virtinst_util.get_qmeu_commandline_args())
-    # CPU configuration
     argument_spec.update(virtinst_util.get_vcpu_args())
     argument_spec.update(virtinst_util.get_numatune_args())
     argument_spec.update(virtinst_util.get_memtune_args())
