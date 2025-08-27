@@ -921,7 +921,7 @@ options:
         description:
           - Specify a cloud-init network-config file content.
       meta_data:
-        type: dict
+        type: str
         description:
           - Specify a cloud-init meta-data file content.
       user_data:
