@@ -97,6 +97,12 @@ EXAMPLES = '''
       </target>
       </volume>
 
+- name: Create a volume from a template
+  community.libvirt.virt_volume:
+    pool: default
+    xml: "{{ lookup('ansible.builtin.template', 'volume-template.xml.j2') }}"
+    state: present
+
 - name: List volumes in default pool
   community.libvirt.virt_volume:
     pool: default
