@@ -1,0 +1,9 @@
+minor_changes:
+  - virt_install - enhanced cloud_init configuration handling for sub-options (meta-data, user-data, and network-config) to support both string and dictionary inputs.
+  - virt_cloud_instance - enhanced cloud_init configuration handling for sub-options (meta-data, user-data, and network-config) to support both string and dictionary inputs.
+  - virt_install - refactored common virt-install functionality into module_utils and doc_fragments to enable code reuse between modules.
+bugfixes:
+  - virt_install - fixed the dict-based options handling for events, resource, and sysinfo options.
+  - virt_cloud_instance - fixed the dict-based options handling for resource, and sysinfo options.
+  - virt_install - fixed cloud_init configuration handling for meta-data, user-data, and network-config.
+  - virt_cloud_instance - fixed cloud_init configuration handling for meta-data.

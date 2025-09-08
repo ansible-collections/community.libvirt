@@ -917,18 +917,23 @@ options:
         description:
           - Specify a public key file to inject into the guest, providing ssh access to the default cloud-init user account.
       network_config:
-        type: str
+        type: raw
         description:
           - Specify a cloud-init network-config file content.
+          - Can be provided as a YAML string (e.g., using the '|' operator in Ansible) or as a dictionary structure.
+          - "Note: String values are preferred as dictionary values cannot ensure order preservation."
       meta_data:
-        type: dict
+        type: raw
         description:
           - Specify a cloud-init meta-data file content.
+          - Can be provided as a YAML string (e.g., using the '|' operator in Ansible) or as a dictionary structure.
+          - "Note: String values are preferred as dictionary values cannot ensure order preservation."
       user_data:
-        type: str
+        type: raw
         description:
           - Specify a cloud-init user-data file content.
-          - Can be provided as a YAML string (e.g., using the '|' operator in Ansible).
+          - Can be provided as a YAML string (e.g., using the '|' operator in Ansible) or as a dictionary structure.
+          - "Note: String values are preferred as dictionary values cannot ensure order preservation."
     """
 
     OPTIONS_BOOT = """
