@@ -50,7 +50,6 @@ uri: 'qemu:///system'
 
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.errors import AnsibleError
-from ansible.module_utils.six import raise_from
 
 try:
     import libvirt
@@ -67,9 +66,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
     def parse(self, inventory, loader, path, cache=True):
         if LIBVIRT_IMPORT_ERROR:
-            raise_from(
-                AnsibleError('libvirt python bindings must be installed to use this plugin'),
-                LIBVIRT_IMPORT_ERROR)
+            raise AnsibleError('libvirt python bindings must be installed to use this plugin') from LIBVIRT_IMPORT_ERROR
 
         super(InventoryModule, self).parse(
             inventory,

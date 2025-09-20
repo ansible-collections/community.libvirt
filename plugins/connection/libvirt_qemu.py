@@ -60,7 +60,6 @@ else:
 
 from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNotFound
 from ansible.module_utils._text import to_bytes, to_native, to_text
-from ansible.module_utils.six import raise_from
 from ansible.plugins.connection import ConnectionBase, BUFSIZE
 from ansible.plugins.shell.powershell import _parse_clixml
 from ansible.utils.display import Display
@@ -91,9 +90,7 @@ class Connection(ConnectionBase):
 
     def __init__(self, play_context, new_stdin, *args, **kwargs):
         if LIBVIRT_IMPORT_ERROR:
-            raise_from(
-                AnsibleError('libvirt python bindings must be installed to use this plugin'),
-                LIBVIRT_IMPORT_ERROR)
+            raise AnsibleError('libvirt python bindings must be installed to use this plugin') from LIBVIRT_IMPORT_ERROR
 
         super(Connection, self).__init__(play_context, new_stdin, *args, **kwargs)
 

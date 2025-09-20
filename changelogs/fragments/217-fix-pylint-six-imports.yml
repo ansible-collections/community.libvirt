@@ -1,0 +1,2 @@
+minor_changes:
+  - Remove deprecated ansible.module_utils.six imports since Ansible collections now target Python 3+ environments
