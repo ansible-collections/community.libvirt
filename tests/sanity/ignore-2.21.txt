@@ -1,2 +1,6 @@
-tests/utils/shippable/timing.py shebang
+plugins/connection/libvirt_qemu.py pylint:ansible-bad-import-from
+plugins/inventory/libvirt.py pylint:ansible-bad-import-from
 tests/unit/compat/builtins.py pylint:unused-import
+tests/unit/mock/procenv.py pylint:ansible-bad-import-from
+tests/unit/mock/yaml_helper.py pylint:ansible-bad-import-from
+tests/utils/shippable/timing.py shebang

@@ -177,6 +177,7 @@ stages:
     dependsOn:
       - Ansible_devel
       - Ansible_2_20
+      - Ansible_2_19
       - Ansible_2_18
       - Ansible_2_17
       - Docker_devel
