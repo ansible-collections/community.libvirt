@@ -524,6 +524,7 @@ class VirtInstallTool(object):
             network_mapping = {
                 'trust_guest_rx_filters': ('trustGuestRxFilters', None),
                 'state': ('link.state', None),
+                'source_opts': ('source', None),
             }
             for network in network_param:
                 self._add_parameter('--network',
@@ -774,6 +775,19 @@ class VirtInstallTool(object):
                         self.module.fail_json(
                             msg="cloud_init.{} must be a string or dictionary, got {}".format(
                                 param_name, type(param_value).__name__))
+
+        if self.params.get('networks') is not None:
+            for idx, network in enumerate(self.params['networks']):
+                if network.get('source') is not None:
+                    source_value = network['source']
+                    if not isinstance(source_value, (str, dict)):
+                        self.module.fail_json(
+                            msg="networks[{}].source must be a string or dictionary, got {}".format(
+                                idx, type(source_value).__name__))
+
+                    if isinstance(source_value, dict) and network.get('source_opts') is not None:
+                        self.module.fail_json(
+                            msg="networks[{}].source and networks[{}].source_opts cannot both be dictionaries.")
 
     def _build_command(self):
         """Build the complete virt-install command"""
@@ -1491,7 +1505,8 @@ def get_networks_args():
                 network=dict(type='str'),
                 bridge=dict(type='str'),
                 hostdev=dict(type='str'),
-                source=dict(type='dict'),
+                source=dict(type='raw'),
+                source_opts=dict(type='dict'),
                 mac=dict(type='dict', options=dict(address=dict(type='str'))),
                 mtu=dict(type='dict'),
                 state=dict(type='dict'),

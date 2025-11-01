@@ -2235,5 +2235,127 @@ class TestVirtInstallToolExecute(unittest.TestCase):
         self.assertIsInstance(rc, int)
 
 
+class TestNetworkSourceSourceOpts(unittest.TestCase):
+    """Tests for the new networks.source and networks.source_opts functionality"""
+
+    def setUp(self):
+        """Set up test fixtures"""
+        self.mock_module = mock.MagicMock()
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'uri': 'qemu:///system',
+        }
+        self.mock_module.run_command.return_value = (0, "Success", "")
+        self.mock_module.tmpdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up test fixtures"""
+        if hasattr(self, 'mock_module') and hasattr(self.mock_module, 'tmpdir'):
+            shutil.rmtree(self.mock_module.tmpdir, ignore_errors=True)
+
+    def test_network_source_as_string_only(self):
+        """Test network with source as string"""
+        self.mock_module.params['networks'] = [
+            {
+                'type': 'direct',
+                'source': 'bond0',
+                'model': {'type': 'virtio'}
+            }
+        ]
+
+        virt_install = VirtInstallTool(self.mock_module)
+        virt_install._build_network_options()
+
+        # Verify command contains the network option
+        command_str = ' '.join(virt_install.command_argv)
+        self.assertIn('--network', command_str)
+        self.assertIn('source=bond0', command_str)
+
+    def test_network_source_string_with_source_opts(self):
+        """Test network with source as string and source_opts as dict"""
+        self.mock_module.params['networks'] = [
+            {
+                'type': 'direct',
+                'source': 'bond0',
+                'source_opts': {'mode': 'bridge'},
+                'model': {'type': 'virtio'}
+            }
+        ]
+
+        virt_install = VirtInstallTool(self.mock_module)
+        virt_install._build_network_options()
+
+        # Verify command contains the network option with source.mode
+        command_str = ' '.join(virt_install.command_argv)
+        self.assertIn('--network', command_str)
+        self.assertIn('source=bond0', command_str)
+        self.assertIn('source.mode=bridge', command_str)
+
+    def test_network_source_as_dict_backward_compatible(self):
+        """Test network with source as dict"""
+        self.mock_module.params['networks'] = [
+            {
+                'type': 'direct',
+                'source': {'dev': 'bond0', 'mode': 'bridge'},
+                'model': {'type': 'virtio'}
+            }
+        ]
+
+        virt_install = VirtInstallTool(self.mock_module)
+        virt_install._build_network_options()
+
+        # Verify command contains the network option with source properties
+        command_str = ' '.join(virt_install.command_argv)
+        self.assertIn('--network', command_str)
+        self.assertIn('source.dev=bond0', command_str)
+        self.assertIn('source.mode=bridge', command_str)
+
+    def test_network_multiple_source_opts(self):
+        """Test network with source string and multiple source_opts properties"""
+        self.mock_module.params['networks'] = [
+            {
+                'type': 'direct',
+                'source': 'eth0',
+                'source_opts': {
+                    'mode': 'vepa',
+                    'portgroup': 'engineering'
+                },
+                'model': {'type': 'virtio'}
+            }
+        ]
+
+        virt_install = VirtInstallTool(self.mock_module)
+        virt_install._build_network_options()
+
+        # Verify command contains all source options
+        command_str = ' '.join(virt_install.command_argv)
+        self.assertIn('source=eth0', command_str)
+        self.assertIn('source.mode=vepa', command_str)
+        self.assertIn('source.portgroup=engineering', command_str)
+
+    def test_validation_source_dict_with_source_opts(self):
+        """Test validation fails when both source (as dict) and source_opts are provided"""
+        self.mock_module.params['networks'] = [
+            {
+                'source': {'dev': 'bond0'},
+                'source_opts': {'mode': 'bridge'}
+            }
+        ]
+
+        # Make fail_json raise an exception
+        self.mock_module.fail_json.side_effect = Exception("Validation failed")
+
+        virt_install = VirtInstallTool(self.mock_module)
+
+        # Should fail validation
+        with self.assertRaises(Exception):
+            virt_install._validate_params()
+
+        # Verify fail_json was called with appropriate message
+        self.mock_module.fail_json.assert_called()
+        call_args = self.mock_module.fail_json.call_args[1]
+        self.assertIn('cannot both be dictionaries', call_args['msg'])
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

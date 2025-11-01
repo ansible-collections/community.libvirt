@@ -1301,9 +1301,17 @@ options:
           - Specify the interface ROM BIOS configuration
           - The dictionary contains key/value pairs that define individual properties.
       source:
+        type: raw
+        description:
+          - Specify the source host interface.
+          - Can be either a string of IFACE name or a dictionary with detailed configuration.
+          - When provided as a string, use I(source_opts) to specify additional source properties.
+          - "Example as string: V(bond0)"
+          - "Example with source_opts: I(source=bond0) and I(source_opts={mode: bridge})"
+      source_opts:
         type: dict
         description:
-          - Specify the details of the source network interface.
+          - Additional options for the direct attached macvtap interface.
           - The dictionary contains key/value pairs that define individual properties.
       target:
         type: dict
