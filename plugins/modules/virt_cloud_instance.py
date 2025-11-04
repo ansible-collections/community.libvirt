@@ -56,6 +56,15 @@ options:
       - Only used when O(base_image) is a URL.
       - Useful for updating cached images to their latest versions.
     default: false
+  force_disk:
+    type: bool
+    description:
+      - Force deletion and recreation of existing disk files.
+      - When set to V(true), any existing disk files specified in O(disks) will be removed and recreated.
+      - When set to V(false), the module will fail if any disk file already exists.
+      - This parameter only affects disk file creation, not VM definition.
+      - Use with O(recreate=true) to recreate both the VM and its disk files.
+    default: false
   image_checksum:
     type: str
     description:
@@ -245,6 +254,21 @@ EXAMPLES = """
       meta_data:
         instance-id: web-server-01
         local-hostname: web-server-01
+
+# Force overwrite existing disk files
+- name: Create VM and force overwrite existing disk
+  community.libvirt.virt_cloud_instance:
+    name: test-vm
+    base_image: /srv/images/ubuntu-22.04-server-cloudimg-amd64.img
+    force_disk: true
+    disks:
+      - path: /var/lib/libvirt/images/test-vm.qcow2
+        size: 20
+        format: qcow2
+    memory: 2048
+    vcpus: 2
+    networks:
+      - network: default
 """
 
 RETURN = r"""
@@ -431,20 +455,30 @@ class BaseImageOperator(object):
         self.module.fail_json(
             msg="Unable to find a checksum for file '%s' in '%s'" % (filename, checksum_url))
 
-    def build_system_disk(self, disk_param):
+    def build_system_disk(self, disk_param, force_disk=False):
         """
         Build system disk from base image.
 
         This operation creates and modifies disk files, so it respects check_mode.
         In check_mode, validation is performed but no files are created or modified.
+
+        Args:
+            disk_param: Disk configuration dictionary
+            force_disk: If True, remove existing disk file before creating new one
         """
         system_disk = self._resolve_system_disk(disk_param)
         disk_path = self.system_disk_path
         base_image_path = self.base_image_path
 
         if os.path.exists(disk_path):
-            self.module.fail_json(
-                msg="The system disk file already exists: %s" % disk_path)
+            if force_disk:
+                # In check_mode, don't actually delete the file
+                if not self.module.check_mode:
+                    os.remove(disk_path)
+                    self.module.log("Removed existing disk file: %s" % disk_path)
+            else:
+                self.module.fail_json(
+                    msg="The system disk file already exists: %s" % disk_path)
 
         qemuImgTool = QemuImgTool(self.module)
 
@@ -563,6 +597,7 @@ def core(module):
     base_image = module.params.get('base_image')
     image_cache_dir = module.params.get('image_cache_dir')
     force_pull = module.params.get('force_pull', False)
+    force_disk = module.params.get('force_disk', False)
     disks = module.params.get('disks', [])
     image_checksum = module.params.get('image_checksum')
     url_timeout = module.params.get('url_timeout')
@@ -614,7 +649,7 @@ def core(module):
         if not image_operator.validate_checksum():
             module.fail_json(
                 msg="The checksum of the base image does not match the expected value")
-        system_disk = image_operator.build_system_disk(disks[0])
+        system_disk = image_operator.build_system_disk(disks[0], force_disk=force_disk)
 
         # Add base_image_path to result
         result['base_image_path'] = image_operator.base_image_path
@@ -672,6 +707,7 @@ def main():
         base_image=dict(type='str', required=True),
         image_cache_dir=dict(type='path'),
         force_pull=dict(type='bool', default=False),
+        force_disk=dict(type='bool', default=False),
         image_checksum=dict(type='str'),
         url_timeout=dict(type='int', default=60),
         url_username=dict(type='str'),

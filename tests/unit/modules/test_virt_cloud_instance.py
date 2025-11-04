@@ -699,6 +699,89 @@ class TestBaseImageOperatorBuildSystemDisk(unittest.TestCase):
             msg=f"The system disk size is too small to import the base image: {expected_system_size} < 21474836480"
         )
 
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.QemuImgTool')
+    @mock.patch('os.path.exists')
+    @mock.patch('os.remove')
+    def test_build_system_disk_force_disk_removes_existing(self, mock_remove, mock_exists, mock_qemu_tool_class):
+        """Test building system disk with force_disk=True removes existing file"""
+        mock_exists.return_value = True  # System disk exists
+
+        # Configure the mocked QemuImgTool
+        mock_qemu_instance = mock.Mock()
+        mock_qemu_tool_class.return_value = mock_qemu_instance
+        mock_qemu_instance.info.return_value = (0, {
+            'format': 'qcow2',
+            'virtual-size': 1073741824  # 1GB
+        }, '')
+        mock_qemu_instance.resize.return_value = (0, '', '')
+
+        disk_param = {
+            'path': '/var/lib/libvirt/images/vm.qcow2',
+            'size': 20,
+            'format': 'qcow2'
+        }
+
+        result = self.operator.build_system_disk(disk_param, force_disk=True)
+
+        # Verify the existing file was removed
+        mock_remove.assert_called_once_with('/var/lib/libvirt/images/vm.qcow2')
+        self.assertEqual(result, disk_param)
+
+        # Verify disk was created after removal
+        self.mock_module.preserved_copy.assert_called_once_with(
+            '/path/to/base.qcow2', '/var/lib/libvirt/images/vm.qcow2'
+        )
+        mock_qemu_instance.resize.assert_called_once()
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.QemuImgTool')
+    @mock.patch('os.path.exists')
+    @mock.patch('os.remove')
+    def test_build_system_disk_force_disk_check_mode(self, mock_remove, mock_exists, mock_qemu_tool_class):
+        """Test building system disk with force_disk=True in check_mode doesn't remove file"""
+        self.mock_module.check_mode = True
+        # System disk exists, base image doesn't exist
+        mock_exists.side_effect = lambda path: path == '/var/lib/libvirt/images/vm.qcow2'
+
+        # Configure the mocked QemuImgTool
+        mock_qemu_instance = mock.Mock()
+        mock_qemu_tool_class.return_value = mock_qemu_instance
+
+        disk_param = {
+            'path': '/var/lib/libvirt/images/vm.qcow2',
+            'size': 20,
+            'format': 'qcow2'
+        }
+
+        result = self.operator.build_system_disk(disk_param, force_disk=True)
+
+        # In check_mode, file should NOT be removed
+        mock_remove.assert_not_called()
+
+        # Should return disk config without creating files
+        self.assertEqual(result, disk_param)
+        self.mock_module.preserved_copy.assert_not_called()
+        mock_qemu_instance.resize.assert_not_called()
+
+    @mock.patch('os.path.exists')
+    def test_build_system_disk_force_disk_false_existing_fails(self, mock_exists):
+        """Test building system disk with force_disk=False fails when disk exists"""
+        mock_exists.return_value = True  # System disk exists
+
+        # Make fail_json raise an exception to simulate real behavior
+        self.mock_module.fail_json.side_effect = Exception("Module failed")
+
+        disk_param = {
+            'path': '/var/lib/libvirt/images/vm.qcow2',
+            'size': 20
+        }
+
+        with self.assertRaises(Exception):
+            self.operator.build_system_disk(disk_param, force_disk=False)
+
+        self.mock_module.fail_json.assert_called_once_with(
+            msg="The system disk file already exists: /var/lib/libvirt/images/vm.qcow2"
+        )
+
 
 class TestBaseImageOperatorCheckMode(unittest.TestCase):
     """Test BaseImageOperator check_mode support"""
@@ -928,9 +1011,13 @@ class TestCore(unittest.TestCase):
             'base_image': 'https://example.com/image.qcow2',
             'image_cache_dir': '/tmp/cache',
             'force_pull': False,
+            'force_disk': False,
             'disks': [{'path': '/var/lib/libvirt/images/test.qcow2', 'size': 20}],
             'image_checksum': None,
-            'url_timeout': None
+            'url_timeout': None,
+            'wait_for_cloud_init_reboot': True,
+            'cloud_init_auto_reboot': True,
+            'cloud_init_reboot_timeout': 600
         }
 
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.BaseImageOperator')
@@ -973,7 +1060,7 @@ class TestCore(unittest.TestCase):
         mock_operator.validate_checksum.assert_called_once()
         mock_operator.build_system_disk.assert_called_once()
         mock_update_params.assert_called_once()
-        mock_virt_install.execute.assert_called_once_with(dryrun=False, wait_timeout=None)
+        mock_virt_install.execute.assert_called_once_with(dryrun=False, wait_timeout=600)
 
         # VM should not be destroyed (doesn't exist)
         mock_virt_conn.destroy.assert_not_called()
@@ -1068,7 +1155,7 @@ class TestCore(unittest.TestCase):
         mock_operator.fetch_image.assert_called_once()
         mock_operator.validate_checksum.assert_called_once()
         mock_operator.build_system_disk.assert_called_once()
-        mock_virt_install.execute.assert_called_once_with(dryrun=False, wait_timeout=None)
+        mock_virt_install.execute.assert_called_once_with(dryrun=False, wait_timeout=600)
 
         # Should return success
         self.assertEqual(rc, VIRT_SUCCESS)
@@ -1258,9 +1345,101 @@ class TestCore(unittest.TestCase):
         mock_virt_conn.undefine.assert_not_called()
 
         # But virt-install should be called with dryrun=True
-        mock_virt_install.execute.assert_called_once_with(dryrun=True, wait_timeout=None)
+        mock_virt_install.execute.assert_called_once_with(dryrun=True, wait_timeout=600)
 
         # Should still return success
+        self.assertEqual(rc, VIRT_SUCCESS)
+        self.assertTrue(result['changed'])
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.BaseImageOperator')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.LibvirtWrapper')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.validate_disks')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.update_virtinst_params')
+    def test_core_force_disk_passed_to_build_system_disk(self, mock_update_params, mock_validate_disks,
+                                                         mock_libvirt_wrapper_class, mock_virt_install_class,
+                                                         mock_base_image_operator_class):
+        """Test that force_disk parameter is passed to build_system_disk"""
+        from ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance import core, VIRT_SUCCESS
+        from ansible_collections.community.libvirt.plugins.module_utils.libvirt import VMNotFound
+
+        # Set force_disk to True
+        self.mock_module.params['force_disk'] = True
+
+        # Mock LibvirtWrapper - VM doesn't exist
+        mock_virt_conn = mock.Mock()
+        mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
+        mock_libvirt_wrapper_class.return_value = mock_virt_conn
+
+        # Mock VirtInstallTool
+        mock_virt_install = mock.Mock()
+        mock_virt_install.execute.return_value = (
+            True, VIRT_SUCCESS, {'some': 'data'})
+        mock_virt_install_class.return_value = mock_virt_install
+
+        # Mock BaseImageOperator
+        mock_operator = mock.Mock()
+        mock_operator.validate_checksum.return_value = True
+        mock_operator.build_system_disk.return_value = {
+            'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_base_image_operator_class.return_value = mock_operator
+
+        # Execute core function
+        rc, result = core(self.mock_module)
+
+        # Verify force_disk=True was passed to build_system_disk
+        mock_operator.build_system_disk.assert_called_once_with(
+            {'path': '/var/lib/libvirt/images/test.qcow2', 'size': 20},
+            force_disk=True
+        )
+
+        # Should return success
+        self.assertEqual(rc, VIRT_SUCCESS)
+        self.assertTrue(result['changed'])
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.BaseImageOperator')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.LibvirtWrapper')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.validate_disks')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.update_virtinst_params')
+    def test_core_force_disk_false_passed_to_build_system_disk(self, mock_update_params, mock_validate_disks,
+                                                               mock_libvirt_wrapper_class, mock_virt_install_class,
+                                                               mock_base_image_operator_class):
+        """Test that force_disk=False parameter is passed to build_system_disk"""
+        from ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance import core, VIRT_SUCCESS
+        from ansible_collections.community.libvirt.plugins.module_utils.libvirt import VMNotFound
+
+        # Ensure force_disk is False (default)
+        self.mock_module.params['force_disk'] = False
+
+        # Mock LibvirtWrapper - VM doesn't exist
+        mock_virt_conn = mock.Mock()
+        mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
+        mock_libvirt_wrapper_class.return_value = mock_virt_conn
+
+        # Mock VirtInstallTool
+        mock_virt_install = mock.Mock()
+        mock_virt_install.execute.return_value = (
+            True, VIRT_SUCCESS, {'some': 'data'})
+        mock_virt_install_class.return_value = mock_virt_install
+
+        # Mock BaseImageOperator
+        mock_operator = mock.Mock()
+        mock_operator.validate_checksum.return_value = True
+        mock_operator.build_system_disk.return_value = {
+            'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_base_image_operator_class.return_value = mock_operator
+
+        # Execute core function
+        rc, result = core(self.mock_module)
+
+        # Verify force_disk=False was passed to build_system_disk
+        mock_operator.build_system_disk.assert_called_once_with(
+            {'path': '/var/lib/libvirt/images/test.qcow2', 'size': 20},
+            force_disk=False
+        )
+
+        # Should return success
         self.assertEqual(rc, VIRT_SUCCESS)
         self.assertTrue(result['changed'])
 
