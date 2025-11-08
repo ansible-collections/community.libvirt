@@ -1313,6 +1313,7 @@ options:
         description:
           - Additional options for the direct attached macvtap interface.
           - The dictionary contains key/value pairs that define individual properties.
+        version_added: '2.1.0'
       target:
         type: dict
         description:
