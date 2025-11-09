@@ -1,5 +1,0 @@
-minor_changes:
-  - virt_install - added new networks.source_opts parameter to provide additional macvtap options.
-  - virt_cloud_instance - added new networks.source_opts parameter to provide additional macvtap options.
-  - virt_install - enhanced networks.source parameter to support both string and dictionary inputs.
-  - virt_cloud_instance - enhanced networks.source parameter to support both string and dictionary inputs.
