@@ -73,8 +73,25 @@ def _dict2options(obj, mapping, prefix=""):
     if not isinstance(obj, dict):
         return str(obj)
 
+    # Extract primary value if present
+    # Priority: _value takes precedence over value
+    primary_value = None
+    primary_key = None
+
+    if '_value' in obj:
+        primary_value = obj['_value']
+        primary_key = '_value'
+    elif 'value' in obj:
+        primary_value = obj['value']
+        primary_key = 'value'
+
+    # Create a copy of the dict without the primary key for processing
+    obj_copy = obj.copy()
+    if primary_key:
+        del obj_copy[primary_key]
+
     parts = []
-    for k, v in obj.items():
+    for k, v in obj_copy.items():
         if v is None:
             continue
 
@@ -122,7 +139,24 @@ def _dict2options(obj, mapping, prefix=""):
         else:
             parts.append("{}{}={}".format(prefix, name, str(v)))
 
-    if parts:
+    # Combine primary value with other parts
+    if primary_value is not None:
+        primary_str = str(primary_value)
+
+        # If we have a prefix, the primary value should be associated with it
+        # Remove trailing dot from prefix for the primary value assignment
+        if prefix:
+            prefix_without_dot = prefix.rstrip('.')
+            primary_part = "{}={}".format(prefix_without_dot, primary_str)
+        else:
+            # At root level, primary value stands alone
+            primary_part = primary_str
+
+        if parts:
+            return "{},{}".format(primary_part, ",".join(parts))
+        else:
+            return primary_part
+    elif parts:
         return ",".join(parts)
     else:
         return ""
@@ -524,7 +558,6 @@ class VirtInstallTool(object):
             network_mapping = {
                 'trust_guest_rx_filters': ('trustGuestRxFilters', None),
                 'state': ('link.state', None),
-                'source_opts': ('source', None),
             }
             for network in network_param:
                 self._add_parameter('--network',
@@ -775,19 +808,6 @@ class VirtInstallTool(object):
                         self.module.fail_json(
                             msg="cloud_init.{} must be a string or dictionary, got {}".format(
                                 param_name, type(param_value).__name__))
-
-        if self.params.get('networks') is not None:
-            for idx, network in enumerate(self.params['networks']):
-                if network.get('source') is not None:
-                    source_value = network['source']
-                    if not isinstance(source_value, (str, dict)):
-                        self.module.fail_json(
-                            msg="networks[{}].source must be a string or dictionary, got {}".format(
-                                idx, type(source_value).__name__))
-
-                    if isinstance(source_value, dict) and network.get('source_opts') is not None:
-                        self.module.fail_json(
-                            msg="networks[{}].source and networks[{}].source_opts cannot both be dictionaries.")
 
     def _build_command(self):
         """Build the complete virt-install command"""
@@ -1505,8 +1525,7 @@ def get_networks_args():
                 network=dict(type='str'),
                 bridge=dict(type='str'),
                 hostdev=dict(type='str'),
-                source=dict(type='raw'),
-                source_opts=dict(type='dict'),
+                source=dict(type='dict'),
                 mac=dict(type='dict', options=dict(address=dict(type='str'))),
                 mtu=dict(type='dict'),
                 state=dict(type='dict'),

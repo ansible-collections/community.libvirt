@@ -265,7 +265,7 @@ class TestDict2Options(unittest.TestCase):
         """Test prefix handling in recursive calls"""
         obj = {"level1": {"level2": {"value": "test"}}}
         result = _dict2options(obj, None, prefix="root.")
-        self.assertEqual(result, "root.level1.level2.value=test")
+        self.assertEqual(result, "root.level1.level2=test")
 
     def test_numeric_values(self):
         """Test various numeric value types"""
@@ -286,6 +286,286 @@ class TestDict2Options(unittest.TestCase):
 
         for part in expected_parts:
             self.assertIn(part, result)
+
+
+class TestPrimaryValueFeature(unittest.TestCase):
+    """Test the primary value feature (value/_value attribute)"""
+
+    def test_value_at_root_level_only(self):
+        """Test primary value alone at root level"""
+        obj = {"value": "primary"}
+        result = _dict2options(obj, None)
+        self.assertEqual(result, "primary")
+
+    def test_value_at_root_level_with_other_properties(self):
+        """Test primary value with other properties at root level"""
+        obj = {"value": "primary", "prop1": "val1", "prop2": "val2"}
+        result = _dict2options(obj, None)
+        # Primary value should come first
+        self.assertTrue(result.startswith("primary,"))
+        self.assertIn("prop1=val1", result)
+        self.assertIn("prop2=val2", result)
+
+    def test_value_with_prefix_only(self):
+        """Test primary value with prefix, no other properties"""
+        obj = {"nested": {"value": "test"}}
+        result = _dict2options(obj, None)
+        self.assertEqual(result, "nested=test")
+
+    def test_value_with_prefix_and_properties(self):
+        """Test primary value with prefix and other properties"""
+        obj = {"nested": {"value": "primary", "prop1": "val1"}}
+        result = _dict2options(obj, None)
+        # Should be: nested=primary,nested.prop1=val1
+        self.assertIn("nested=primary", result)
+        self.assertIn("nested.prop1=val1", result)
+
+    def test_underscore_value_takes_precedence(self):
+        """Test that _value takes precedence over value"""
+        obj = {"_value": "underscore", "value": "regular", "prop": "test"}
+        result = _dict2options(obj, None)
+        # _value should be used as primary, not value
+        self.assertTrue(result.startswith("underscore,"))
+        self.assertIn("prop=test", result)
+        # When _value is present, "value" is treated as a regular property
+        self.assertIn("value=regular", result)
+
+    def test_only_underscore_value(self):
+        """Test _value alone"""
+        obj = {"_value": "underscore_primary"}
+        result = _dict2options(obj, None)
+        self.assertEqual(result, "underscore_primary")
+
+    def test_value_empty_string(self):
+        """Test empty string as primary value"""
+        obj = {"value": "", "prop": "test"}
+        result = _dict2options(obj, None)
+        # Empty string should still be treated as a primary value
+        self.assertTrue(result.startswith(","))
+        self.assertIn("prop=test", result)
+
+    def test_value_numeric(self):
+        """Test numeric value as primary"""
+        obj = {"value": 123, "prop": "test"}
+        result = _dict2options(obj, None)
+        self.assertTrue(result.startswith("123,"))
+        self.assertIn("prop=test", result)
+
+    def test_value_boolean_true(self):
+        """Test boolean True as primary value"""
+        obj = {"value": True, "prop": "test"}
+        result = _dict2options(obj, None)
+        self.assertTrue(result.startswith("True,"))
+        self.assertIn("prop=test", result)
+
+    def test_value_boolean_false(self):
+        """Test boolean False as primary value"""
+        obj = {"value": False, "prop": "test"}
+        result = _dict2options(obj, None)
+        self.assertTrue(result.startswith("False,"))
+        self.assertIn("prop=test", result)
+
+    def test_value_none_should_be_skipped(self):
+        """Test None as primary value - should be treated as no value"""
+        obj = {"value": None, "prop": "test"}
+        result = _dict2options(obj, None)
+        # None should result in empty primary value
+        self.assertEqual(result, "prop=test")
+
+    def test_value_with_nested_dict(self):
+        """Test primary value with nested dictionary"""
+        obj = {"value": "primary", "nested": {"key": "val"}}
+        result = _dict2options(obj, None)
+        self.assertTrue(result.startswith("primary,"))
+        self.assertIn("nested.key=val", result)
+
+    def test_value_in_deeply_nested_structure(self):
+        """Test primary value in deeply nested structure"""
+        obj = {
+            "level1": {
+                "level2": {
+                    "value": "deep_primary",
+                    "prop": "test"
+                }
+            }
+        }
+        result = _dict2options(obj, None)
+        self.assertIn("level1.level2=deep_primary", result)
+        self.assertIn("level1.level2.prop=test", result)
+
+    def test_multiple_nested_values(self):
+        """Test multiple nested dictionaries each with value"""
+        obj = {
+            "section1": {"value": "primary1", "prop1": "val1"},
+            "section2": {"value": "primary2", "prop2": "val2"}
+        }
+        result = _dict2options(obj, None)
+        self.assertIn("section1=primary1", result)
+        self.assertIn("section1.prop1=val1", result)
+        self.assertIn("section2=primary2", result)
+        self.assertIn("section2.prop2=val2", result)
+
+    def test_value_with_list_of_strings(self):
+        """Test primary value with list of strings"""
+        obj = {"value": "primary", "items": ["a", "b", "c"]}
+        result = _dict2options(obj, None)
+        self.assertTrue(result.startswith("primary,"))
+        self.assertIn("items0=a", result)
+        self.assertIn("items1=b", result)
+        self.assertIn("items2=c", result)
+
+    def test_value_with_list_of_dicts(self):
+        """Test primary value with list of dictionaries"""
+        obj = {
+            "value": "primary",
+            "items": [
+                {"name": "item1", "enabled": True},
+                {"name": "item2", "enabled": False}
+            ]
+        }
+        result = _dict2options(obj, None)
+        self.assertTrue(result.startswith("primary,"))
+        self.assertIn("items0.name=item1", result)
+        self.assertIn("items0.enabled=yes", result)
+        self.assertIn("items1.name=item2", result)
+        self.assertIn("items1.enabled=no", result)
+
+    def test_list_items_with_value_attribute(self):
+        """Test list where items themselves have value attribute"""
+        obj = {
+            "items": [
+                {"value": "primary1", "prop": "val1"},
+                {"value": "primary2", "prop": "val2"}
+            ]
+        }
+        result = _dict2options(obj, None)
+        # Each list item's primary value should be formatted correctly
+        self.assertIn("items0=primary1", result)
+        self.assertIn("items0.prop=val1", result)
+        self.assertIn("items1=primary2", result)
+        self.assertIn("items1.prop=val2", result)
+
+    def test_value_with_boolean_default_mapping(self):
+        """Test primary value with boolean using default yes/no mapping"""
+        obj = {"value": "primary", "enabled": True, "disabled": False}
+        result = _dict2options(obj, None)
+        self.assertTrue(result.startswith("primary,"))
+        self.assertIn("enabled=yes", result)
+        self.assertIn("disabled=no", result)
+
+    def test_value_with_boolean_onoff_mapping(self):
+        """Test primary value with boolean using on/off mapping"""
+        obj = {"value": "primary", "enabled": True, "disabled": False}
+        mapping = {
+            "enabled": (None, OPTION_BOOL_ONOFF),
+            "disabled": (None, OPTION_BOOL_ONOFF)
+        }
+        result = _dict2options(obj, mapping)
+        self.assertTrue(result.startswith("primary,"))
+        self.assertIn("enabled=on", result)
+        self.assertIn("disabled=off", result)
+
+    def test_value_with_explicit_prefix(self):
+        """Test primary value with explicit prefix parameter"""
+        obj = {"value": "test", "prop": "val"}
+        result = _dict2options(obj, None, prefix="root.")
+        self.assertIn("root=test", result)
+        self.assertIn("root.prop=val", result)
+
+    def test_nested_value_with_explicit_prefix(self):
+        """Test nested value with explicit prefix"""
+        obj = {"level1": {"value": "test", "prop": "val"}}
+        result = _dict2options(obj, None, prefix="root.")
+        self.assertIn("root.level1=test", result)
+        self.assertIn("root.level1.prop=val", result)
+
+    def test_value_with_name_mapping(self):
+        """Test that value attribute is not affected by mapping"""
+        obj = {"value": "primary", "old_name": "test"}
+        mapping = {"old_name": ("new_name", None)}
+        result = _dict2options(obj, mapping)
+        self.assertTrue(result.startswith("primary,"))
+        self.assertIn("new_name=test", result)
+
+    def test_value_with_special_characters(self):
+        """Test primary value with special characters"""
+        obj = {"value": "test=value,with=special", "prop": "test"}
+        result = _dict2options(obj, None)
+        self.assertIn("test=value,with=special", result)
+
+    def test_value_with_spaces(self):
+        """Test primary value with spaces"""
+        obj = {"value": "value with spaces", "prop": "test"}
+        result = _dict2options(obj, None)
+        self.assertIn("value with spaces", result)
+
+    def test_value_with_all_none_properties(self):
+        """Test primary value with all other properties being None"""
+        obj = {"value": "primary", "prop1": None, "prop2": None}
+        result = _dict2options(obj, None)
+        # Should only return the primary value
+        self.assertEqual(result, "primary")
+
+    def test_deeply_nested_underscore_value(self):
+        """Test _value in deeply nested structure"""
+        obj = {
+            "level1": {
+                "level2": {
+                    "level3": {
+                        "_value": "deep",
+                        "prop": "test"
+                    }
+                }
+            }
+        }
+        result = _dict2options(obj, None)
+        self.assertIn("level1.level2.level3=deep", result)
+        self.assertIn("level1.level2.level3.prop=test", result)
+
+    def test_value_precedence_over_regular_key(self):
+        """Test that value attribute doesn't conflict with regular keys"""
+        obj = {
+            "value": "primary",
+            "other_value": "regular",
+            "prop": "test"
+        }
+        result = _dict2options(obj, None)
+        # Primary value should be first
+        self.assertTrue(result.startswith("primary,"))
+        # Regular key should be included
+        self.assertIn("other_value=regular", result)
+        self.assertIn("prop=test", result)
+
+    def test_dict_without_value_unchanged(self):
+        """Test that dicts without value attribute work as before"""
+        obj = {"prop1": "val1", "prop2": "val2"}
+        result = _dict2options(obj, None)
+        self.assertIn("prop1=val1", result)
+        self.assertIn("prop2=val2", result)
+
+    def test_nested_dict_without_value_unchanged(self):
+        """Test nested structures without value attribute"""
+        obj = {
+            "nested": {
+                "prop1": "val1",
+                "prop2": "val2"
+            }
+        }
+        result = _dict2options(obj, None)
+        self.assertIn("nested.prop1=val1", result)
+        self.assertIn("nested.prop2=val2", result)
+
+    def test_list_without_value_unchanged(self):
+        """Test lists without value attribute"""
+        obj = {
+            "items": [
+                {"name": "item1"},
+                {"name": "item2"}
+            ]
+        }
+        result = _dict2options(obj, None)
+        self.assertIn("items0.name=item1", result)
+        self.assertIn("items1.name=item2", result)
 
 
 class TestAddParameter(unittest.TestCase):
@@ -2233,128 +2513,6 @@ class TestVirtInstallToolExecute(unittest.TestCase):
         # Verify return types
         self.assertIsInstance(changed, bool)
         self.assertIsInstance(rc, int)
-
-
-class TestNetworkSourceSourceOpts(unittest.TestCase):
-    """Tests for the new networks.source and networks.source_opts functionality"""
-
-    def setUp(self):
-        """Set up test fixtures"""
-        self.mock_module = mock.MagicMock()
-        self.mock_module.params = {
-            'name': 'test-vm',
-            'uri': 'qemu:///system',
-        }
-        self.mock_module.run_command.return_value = (0, "Success", "")
-        self.mock_module.tmpdir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        """Clean up test fixtures"""
-        if hasattr(self, 'mock_module') and hasattr(self.mock_module, 'tmpdir'):
-            shutil.rmtree(self.mock_module.tmpdir, ignore_errors=True)
-
-    def test_network_source_as_string_only(self):
-        """Test network with source as string"""
-        self.mock_module.params['networks'] = [
-            {
-                'type': 'direct',
-                'source': 'bond0',
-                'model': {'type': 'virtio'}
-            }
-        ]
-
-        virt_install = VirtInstallTool(self.mock_module)
-        virt_install._build_network_options()
-
-        # Verify command contains the network option
-        command_str = ' '.join(virt_install.command_argv)
-        self.assertIn('--network', command_str)
-        self.assertIn('source=bond0', command_str)
-
-    def test_network_source_string_with_source_opts(self):
-        """Test network with source as string and source_opts as dict"""
-        self.mock_module.params['networks'] = [
-            {
-                'type': 'direct',
-                'source': 'bond0',
-                'source_opts': {'mode': 'bridge'},
-                'model': {'type': 'virtio'}
-            }
-        ]
-
-        virt_install = VirtInstallTool(self.mock_module)
-        virt_install._build_network_options()
-
-        # Verify command contains the network option with source.mode
-        command_str = ' '.join(virt_install.command_argv)
-        self.assertIn('--network', command_str)
-        self.assertIn('source=bond0', command_str)
-        self.assertIn('source.mode=bridge', command_str)
-
-    def test_network_source_as_dict_backward_compatible(self):
-        """Test network with source as dict"""
-        self.mock_module.params['networks'] = [
-            {
-                'type': 'direct',
-                'source': {'dev': 'bond0', 'mode': 'bridge'},
-                'model': {'type': 'virtio'}
-            }
-        ]
-
-        virt_install = VirtInstallTool(self.mock_module)
-        virt_install._build_network_options()
-
-        # Verify command contains the network option with source properties
-        command_str = ' '.join(virt_install.command_argv)
-        self.assertIn('--network', command_str)
-        self.assertIn('source.dev=bond0', command_str)
-        self.assertIn('source.mode=bridge', command_str)
-
-    def test_network_multiple_source_opts(self):
-        """Test network with source string and multiple source_opts properties"""
-        self.mock_module.params['networks'] = [
-            {
-                'type': 'direct',
-                'source': 'eth0',
-                'source_opts': {
-                    'mode': 'vepa',
-                    'portgroup': 'engineering'
-                },
-                'model': {'type': 'virtio'}
-            }
-        ]
-
-        virt_install = VirtInstallTool(self.mock_module)
-        virt_install._build_network_options()
-
-        # Verify command contains all source options
-        command_str = ' '.join(virt_install.command_argv)
-        self.assertIn('source=eth0', command_str)
-        self.assertIn('source.mode=vepa', command_str)
-        self.assertIn('source.portgroup=engineering', command_str)
-
-    def test_validation_source_dict_with_source_opts(self):
-        """Test validation fails when both source (as dict) and source_opts are provided"""
-        self.mock_module.params['networks'] = [
-            {
-                'source': {'dev': 'bond0'},
-                'source_opts': {'mode': 'bridge'}
-            }
-        ]
-
-        # Make fail_json raise an exception
-        self.mock_module.fail_json.side_effect = Exception("Validation failed")
-
-        virt_install = VirtInstallTool(self.mock_module)
-
-        # Should fail validation
-        with self.assertRaises(Exception):
-            virt_install._validate_params()
-
-        # Verify fail_json was called with appropriate message
-        self.mock_module.fail_json.assert_called()
-        call_args = self.mock_module.fail_json.call_args[1]
-        self.assertIn('cannot both be dictionaries', call_args['msg'])
 
 
 if __name__ == '__main__':

@@ -283,6 +283,20 @@ EXAMPLES = """
     import: true
 
 
+# VM with PCI passthrough for a network device
+- name: Create VM with PCI network passthrough
+  community.libvirt.virt_install:
+    name: passthrough-vm
+    memory: 4096
+    vcpus: 4
+    disks:
+      - size: 30
+    osinfo:
+      name: ubuntu20.04
+    import: true
+    host_devices:
+      - value: "81:00.0"
+
 # Recreate existing VM
 - name: Recreate existing VM with new configuration
   community.libvirt.virt_install:
