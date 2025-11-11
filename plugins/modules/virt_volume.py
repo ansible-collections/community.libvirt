@@ -37,6 +37,7 @@ options:
         in the XML (if a C(name) parameter is provided, it is ignored). C(xml) must be provided.
       - If C(absent), Deletes the volume specified by C(name) from the storage pool.  If C(wipe) is set to C(true), the volume will be wiped before deletion.
       - Mutually exclusive with C(command).
+      - Can be used to resize existing volumes if C(xml) has bigger capacity than current volume capacity.
     type: str
   command:
     choices: [ "create", "delete", "wipe", "list_volumes", "get_xml", "create_cidata_cdrom" ]

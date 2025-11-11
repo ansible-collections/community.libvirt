@@ -7,3 +7,5 @@ pool_info:
   unit: M
   pool_name: test_pool
   path: /tmp/test_pool
+  volume_initial_size: 10
+  volume_new_size: 20
