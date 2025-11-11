@@ -212,6 +212,68 @@
         name: "{{ r__virt_volume__cidata_cdrom.create_cidata_cdrom.name }}"
 
 #
+# Tests for volume resize
+#
+    - name: Create volume (volume_initial_size)
+      community.libvirt.virt_volume:
+        pool: "{{ pool_name }}"
+        state: present
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
+      vars:
+        v__volume: "{{ volume_name }}"
+        size: "{{ volume_initial_size }}"
+
+    - name: Create on existing volume with the same size (volume_initial_size)
+      community.libvirt.virt_volume:
+        pool: "{{ pool_name }}"
+        state: present
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
+      vars:
+        v__volume: "{{ volume_name }}"
+        size: "{{ volume_initial_size }}"
+      register: r__virt_volume__create
+
+    - name: Resize existing volume (volume_new_size)
+      community.libvirt.virt_volume:
+        pool: "{{ pool_name }}"
+        state: present
+        xml: '{{ lookup("template", "volume_definition.xml.j2") }}'
+      vars:
+        v__volume: "{{ volume_name }}"
+        size: "{{ volume_new_size }}"
+      register: r__virt_volume__resize
+
+    - name: get_xml for volume
+      community.libvirt.virt_volume:
+        pool: "{{ pool_name }}"
+        command: get_xml
+        name: "{{ volume_name }}"
+      register: r__virt_volume__get_xml
+
+    - name: Assert
+      vars:
+        unit_multiplier:
+          bytes: 1
+          b: 1
+          k: 1024
+          m: 1048576
+          g: 1073741824
+          t: 1099511627776
+        new_size_bytes: "{{ volume_new_size * unit_multiplier[unit | lower] }}"
+        capacity: "<capacity unit='bytes'>{{ new_size_bytes }}</capacity>"
+      ansible.builtin.assert:
+        that:
+          - not r__virt_volume__create.changed
+          - r__virt_volume__resize.changed
+          - capacity in r__virt_volume__get_xml.get_xml
+
+    - name: Delete volume (using state=absent)
+      community.libvirt.virt_volume:
+        pool: "{{ pool_name }}"
+        state: absent
+        name: "{{ volume_name }}"
+
+#
 # Cleanup tasks for libvirt volume management
 #
     - name: Destroy the pool

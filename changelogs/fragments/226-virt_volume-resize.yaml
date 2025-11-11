@@ -1,0 +1,4 @@
+minor_changes:
+  - Added ability to resize volumes if defined capacity is different
+    If volume already exists and defined capacity in XML differs a resize is
+    attempted.
