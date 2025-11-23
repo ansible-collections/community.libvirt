@@ -12,8 +12,6 @@ __metaclass__ = type
 from ansible_collections.community.libvirt.plugins.module_utils.common import (
     VirtModule, libvirt_error_to_none, STATE_CHOICES)
 from dataclasses import dataclass, asdict
-# from copy import deepcopy
-import epdb;
 
 try:
     from libvirt import libvirtError
@@ -24,6 +22,184 @@ try:
     from lxml import etree
 except ImportError:
     import xml.etree.ElementTree as etree
+
+DOCUMENTATION = r'''
+---
+module: virt_secret
+version_added: '2.0.?'
+author:
+  - Denys Mishchenko (denis@mischenko.org.ua)
+
+short_description: Manage libvirt secrets and their values
+description:
+  - Manage I(libvirt) secrets.
+options:
+  uuid:
+    description:
+      - Secret UUID. The value is unique across all secret types.
+    type: str
+  secret:
+    description:
+      - Defines a secret as a set of fields instead of raw xml. Subelements:
+      - [ephemeral, private, usage, usage_id, description]
+      - C(ephemeral): bool. if C(True), secret will only be kept in memory
+      - C(private): bool. if C(True), value will not be retrivable
+      - C(usage): str. Specifies what this secret is used for.
+      - Possible C(usage) options: [none, volume, ceph, iscsi, tls, vtpm]
+      - C(usage_id): stc. Defines unique secret_ID. Unique for each C(usage)
+      - C(description): stc. Free form description for the secret
+      - This property is mutually exclusive with C(xml)
+      - If C(uuid) is not defined, C(usage) and C(usage_id) must be defined
+    type: dict
+  password:
+    description:
+      - A value of the secret. A password which will be stored in the secret.
+      - As in majority cases secrets are private, password is defined only
+      - during secret creation and in set_value C(command)
+    type: str
+    no_log: True
+  uri:
+    description:
+      - URL to libvirt api.
+    default: qemu:///system
+    type: str
+  state:
+    description:
+      - Alternative for the command parameter.
+      - If C(present), creates a volume described by either C(xml) or (secret).
+      - Can be used to update existing secrets properties
+      - If C(absent), removes secret defined by either UUID, state or xml
+      - Mutually exclusive with C(command)
+    type: str
+    choices: ["present", "absent"]
+  command:
+    choices: ["create", "delete, "list_secrets", "get_xml", "set_value"]
+    description:
+      - C(create) Analagous to C(state) / C(present)
+      - C(delete) Analagous to C(state) / C(absent)
+      - C(list_secrets) Returns list of XML for all existing secrets
+      - C(get_xml) Returns xml for defined in libvirt secrets
+      - C(set_value) Defines secret value. Not idempotent
+    type: str
+  xml:
+    description:
+      - Raw XML definition of the secret.
+      - Mutually exclusive with C(secret)
+      - If contains UUID, its value will be used instead of the one, defined
+      - in the C(uuid) property
+
+requirements:
+  - "libvirt"
+  - "lxml"
+'''
+
+EXAMPLES = r'''
+- name: Create new secret using xml definition and command
+  community.libvirt.virt_secret:
+    command: create
+    xml: |
+    <secret ephemeral='no' private='yes'>
+        <uuid>{{ 'test_secret' | to_uuid }}</uuid>
+        <description>test ceph pool secret</description>
+        <usage type='ceph'>
+        <name>test_secret</name>
+        </usage>
+    </secret>
+
+- name: get_xml by uuid
+  community.libvirt.virt_secret:
+    uuid: "{{ 'test_secret' | to_uuid }}"
+    command: get_xml
+  register: result
+
+- name: get_xml by secret usage and usage_id
+  community.libvirt.virt_secret:
+    secret:
+      usage: ceph
+      usage_id: test_secret
+    command: get_xml
+  register: result
+
+- name: Print found xml
+  ansible.builtin.debug:
+    msg: "{{ result.secretXML }}
+
+- name: Define secret using params
+  community.libvirt.virt_secret:
+    uuid: "{{ 'test_secret' | to_uuid }}"
+    secret:
+      usage: tls
+      usage_id: test_secret
+      description: Test TLS secret
+    state: present
+
+- name: List all defined secrets
+  community.libvirt.virt_secret:
+    command: list_secrets
+  register: result
+
+- name: Print found xml
+  ansible.builtin.debug:
+    msg: "{{ result.secrets_list }}
+
+- name: Set secret value
+  community.libvirt.virt_secret:
+    uuid: "{{ 'test_secret' | to_uuid }}"
+    command: set_value
+    password: somesecureandrandomsecret1234
+
+- name: Remove vTPM secret
+  community.libvirt.virt_secret:
+    uuid: "{{ 'vtpm_secret' | to_uuid }}"
+    state: absent
+'''
+
+# ["create", "delete, "list_secrets", "get_xml", "set_value"]
+RETURN = r'''
+secretXML:
+  type: str
+  description: When I(command=get_xml) return xml definition of the secret
+  sample: |
+    <secret ephemeral="no" private="yes">
+      <uuid>e4b5978c-ba37-5605-97c1-4a20413d0fc9</uuid>
+      <description>test_secret pool secret</description>
+      <usage type="ceph">
+        <name>test_secret</name>
+      </usage>
+    </secret>"
+diff:
+  type: dict
+  description: Contains C(before) and C(after) representing made changes using create or delete
+  sample: |
+    -{}
+    +description: Secret puppy name
+    +ephemeral: false
+    +private: true
+    +usage: volume
+    +usageid: /var/lib/libvirt/images/puppyname.img
+    +uuid: null
+list_secrets:
+  type: list
+  description: When I(command=list_secrets) returns secrets_list of secrets in xml format
+  sample:
+    - |
+      <secret ephemeral='no' private='yes'>
+        <uuid>fce0c61a-f0fc-5727-90b2-56c92534070f</uuid>
+        <description>sample vTPM secret</description>
+        <usage type='vtpm'><name>VTPM_example</name></usage></secret>
+    - |
+      <secret ephemeral='no' private='yes'>
+        <uuid>e4b5978c-ba37-5605-97c1-4a20413d0fc9</uuid>
+        <description>changed_test pool secret</description>
+        <usage type='ceph'><name>test_secret</name></usage>
+      </secret>
+    - |
+      <secret ephemeral='no' private='yes'>
+        <uuid>edfa6124-eb0e-4449-a680-66f5fa7aedeb</uuid>
+        <description>Secret puppy name</description>
+        <usage type='volume'><volume>/var/lib/libvirt/images/puppyname.img</volume></usage>
+      </secret>
+'''
 
 
 COMMAND_CHOICES = [

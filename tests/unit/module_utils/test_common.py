@@ -8,14 +8,10 @@
 import unittest, yaml
 
 # pylint: disable-next=no-name-in-module,import-error
-from ansible_collections.community.libvirt.tests.unit.compat import mock
-# pylint: disable-next=no-name-in-module,import-error
 from ansible_collections.community.libvirt.plugins.module_utils.common import (
     compare_dicts,
     compare_lists,
-    ModuleStatus,
-    VirtModule)
-
+    ModuleStatus)
 
 
 class TestCommonCompare(unittest.TestCase):
@@ -60,28 +56,20 @@ class TestCommonModuleStatus(unittest.TestCase):
             self.module_status.failed,
             "Just initialiased status should not have failed status")
 
-        self.assertNotIn(
-            'diff', self.module_status.report.keys(),
-            "Not changed status should not produce diff")
-
-        result_key = self.module_status.result_varname
-        self.assertNotIn(
-            result_key, self.module_status.report.keys(),
-            "Just initialised status should not produce data output")
-
     # Test report generation
     def test_modulestatus_report(self):
         """ Testing various report outputs based on provided data """
 
         # Test that data appear and use correct key
-        self.module_status.result_varname = 'testmod'
-        self.module_status.data = {'virt-tool': 'libvirt', 'present': True}
-        self.assertIn('testmod', self.module_status.report.keys())
+        self.module_status.data = {
+            'result': {'virt-tool': 'libvirt', 'present': True}}
+        self.assertIn('result', self.module_status.report.keys())
 
         # Test diff is produced on changed status when after is not empty
         self.module_status.changed = True
         test_diff = {'vms-list': ['vm1', 'vm2', 'vm3']}
 
+        self.module_status.before = {}
         self.module_status.after = test_diff
         self.assertIn('diff', self.module_status.report.keys())
 

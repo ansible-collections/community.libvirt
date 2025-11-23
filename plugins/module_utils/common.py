@@ -6,7 +6,6 @@ from dataclasses import dataclass, asdict, field
 from typing import Dict, List
 from yaml import safe_dump
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
-import epdb
 
 try:
     import libvirt
@@ -61,6 +60,7 @@ def compare_lists(list_one:list, list_two:list) -> bool:
             return False
     return True
 
+
 def libvirt_error_to_none(func):
     """ Decorator to replace libvirt errors to None value return
 
@@ -78,7 +78,6 @@ def libvirt_error_to_none(func):
     return wrapper
 
 
-
 @dataclass
 class ModuleStatus:
     """ Ansible module status """
@@ -90,7 +89,6 @@ class ModuleStatus:
     after: Dict = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
     data: Dict = field(default_factory=dict)
-    # result_varname: str = 'result'
 
     @property
     def report(self):
@@ -111,8 +109,6 @@ class ModuleStatus:
             # TODO: Add sort on results to produce better diff
         # We may have additional data supplied for the return from module
         if self.data != {}:
-            # epdb.serve()
-            # ansible_report[self.result_varname] = self.data
             ansible_report.update(self.data)
         return ansible_report
 
@@ -130,11 +126,8 @@ def data_as_dict(structure):
 
 def parse_xml_etree(xml:str) -> dict:
     """ Parse xml etree and return it as dict """
-    # xml_etree = etree.fromstring(xml)
-    # epdb.serve()
     result = {}
     for element in etree.fromstring(xml).iterchildren():
-        # epdb.serve()
         if len(element.items()) > 0:
             result[element.tag] = element.items()
             continue
@@ -206,14 +199,3 @@ class VirtModule():
             self.ansible.fail_json(**self.mod_status.report)
         else:
             self.ansible.exit_json(**self.mod_status.report)
-
-# class test(AnsibleModule):
-#     def __init__(self, argument_spec, bypass_checks=False, no_log=False,
-#                  mutually_exclusive=None, required_together=None,
-#                  required_one_of=None, add_file_common_args=False,
-#                  supports_check_mode=False, required_if=None, required_by=None):
-#         super().__init__(argument_spec, bypass_checks, no_log,
-#                          mutually_exclusive, required_together,
-#                          required_one_of, add_file_common_args,
-#                          supports_check_mode, required_if, required_by)
-
