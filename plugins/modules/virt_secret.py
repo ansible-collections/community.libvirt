@@ -10,7 +10,7 @@ __metaclass__ = type
 # ansible module_utils uses own path structure and must be imported first
 # pylint: disable-next=no-name-in-module,import-error,wrong-import-order
 from ansible_collections.community.libvirt.plugins.module_utils.common import (
-    VirtModule, STATE_CHOICES)
+    VirtModule, libvirt_error_to_none, STATE_CHOICES)
 from dataclasses import dataclass, asdict
 # from copy import deepcopy
 import epdb;
@@ -162,15 +162,17 @@ class LibvirtSecretModule(VirtModule):
         """
         self._check_duplicated_uuid()  # A warning for UUID defined twice
         defined_element = self.defined_element
-        if defined_element.uuid is not None:
-            existing_element = self._get_secret_by_uuid(defined_element.uuid)
-        else:
-            existing_element = self._get_secret_by_usage(
-                defined_element.usage, defined_element.usageid)
-            # if we managed to find secret by its usage and id, we should
-            # consider we know uuid of the secret defined
-            if existing_element:
-                defined_element.uuid = existing_element.uuid
+
+        existing_virtsecret = self.get_virsecret()
+        existing_element = self._form_element_from_virtsecret(
+            existing_virtsecret)
+
+        # TODO: Check if defined element was at all defined
+        # We might have created secret without uuid supplied, but want to
+        # compare objects defined vs existing
+        if defined_element.uuid is None and existing_element:
+            defined_element.uuid = existing_element.uuid
+
         if defined_element != existing_element:
             self.mod_status.changed = True
             if existing_element is not None:
@@ -178,74 +180,108 @@ class LibvirtSecretModule(VirtModule):
             else:
                 self.mod_status.before = {}
             self.mod_status.after = asdict(defined_element)
-            # epdb.serve()
             if not self.check:
                 self.conn.secretDefineXML(defined_element.to_xmlstr())
         self.exit()
 
-    def _get_secret_by_usage(
-            self, usage:str, usage_id:str) -> SecretElement|None:
-        """ Attempt to find existing secret by usage and usageID
+    @libvirt_error_to_none
+    def get_virsecret(self):
+        """ Lookup of the secret by its uuid or usage
 
-        :param usage: usage type one of VIR_SECRET_USAGE_ID keys
-        :param usage_id: text identificator of a secret within a type
-        :return: SecretElement object or None if it wasn't found
+        Ansible module will make sure that uuid, secret or xml is defined.
+
+        :return: libvirt.virSecret object or None if it wasn't found
         """
-        int_usage = VIR_SECRET_USAGE_ID[usage]
-        try:
-            found_element = self.conn.secretLookupByUsage(int_usage, usage_id)
-            found_xml = etree.fromstring(found_element.XMLDesc())
-            element = SecretElement(
-                uuid=found_element.UUIDString(),
-                usage=VIR_SECRET_USAGE_TYPE[found_element.usageType()],
-                usageid=found_element.usageID(),
-                ephemeral=bool_map[found_xml.get('ephemeral', 'no')],
-                private=bool_map[found_xml.get('private', 'yes')],
-                description=found_xml.findtext('description'))
-        except libvirtError:
-            element = None
-        return element
+        if self.defined_uuid:
+            return self.conn.secretLookupByUUIDString(self.defined_uuid)
+        secret = self.defined_element
+        if secret is None:
+            return None
+        if secret.usage is None or secret.usageid is None:
+            self.mod_status.failed = True
+            self.mod_status.msg = \
+                "Usage and usage_id must be defined if uuid is missing"
+            self.exit()
+        int_usage = VIR_SECRET_USAGE_ID[secret.usage]
+        return self.conn.secretLookupByUsage(int_usage, secret.usageid)
+
+    def _form_element_from_virtsecret(self, element) -> SecretElement|None:
+        """ Convert libvirt.virSecret to SecretElement
+
+        :param element: libvirt.virSecret object
+        :return: SecretElement class secret
+        """
+        if element is None:
+            return None
+
+        an_xml = etree.fromstring(element.XMLDesc())
+        return SecretElement(
+            uuid=element.UUIDString(),
+            usage=VIR_SECRET_USAGE_TYPE[element.usageType()],
+            usageid=element.usageID(),
+            ephemeral=bool_map[an_xml.get('ephemeral', 'no')],
+            private=bool_map[an_xml.get('private', 'yes')],
+            description=an_xml.findtext('description'))
 
     @property
-    def defined_xml(self) -> str:
+    def defined_xml(self) -> str|None:
         """ Forms defined XML
 
         It looks like this function has chicken and the egg problem, but if
-        secret property is defined, defined_element will be calculated first
-        and we will get results. Otherwise we will provide xml for the
-        defined_element to be calculated.
+        xml property is defined, defined_element will be calculated first based
+        on its values. If it is not, we expect secret to be defined and will
+        use it instead.
         """
-        secret = self.ansible.params.get('secret')
-        if secret is not None:
-            the_xml = self.defined_element.to_xmlstr()
-        else:
-            the_xml = self.ansible.params.get('xml')
-        return the_xml
+        defined_xml = self.ansible.params.get('xml')
+        if defined_xml is not None:
+            return defined_xml
+        # To break possible infinity recursion we'll check for secret here as
+        # we already know that xml is not defined
+        if self.ansible.params.get('secret') is not None:
+            element = self.defined_element
+            if element is not None:
+                return element.to_xmlstr()
+        return None
 
     @property
-    def defined_element(self) -> SecretElement:
+    def defined_element(self) -> SecretElement|None:
         """ generate defined secret element """
         secret = self.ansible.params.get('secret')
         if secret is not None:
-            defined_element = self._parse_secret_param()
-        else:
-            defined_element = self._parse_xml_secret(self.defined_xml)
-        return defined_element
+            return self._parse_secret_param()
+        if self.defined_xml is not None:
+            return self._parse_xml_secret(self.defined_xml)
+        return None
 
     def _check_duplicated_uuid(self) -> None:
-        """ We need to inform user if uuid was provided multiple times
-        UUID from XML takes precedance over uuid param.
+        """ Get UUID provided in the module params
+
+        We need to inform user if uuid was provided multiple times
+        UUID from XML takes precedance over uuid param. Function is dedicated
+        for exactly this purpose to not produce multiple warnings.
         """
-        xml = self.ansible.params.get('xml')
-        if xml is None:
-            return
-        secret_element = etree.fromstring(xml)
-        xml_uuid = secret_element.findtext('uuid')
+
         param_uuid = self.ansible.params.get('uuid')
-        if xml_uuid is not None and param_uuid is not None:
+        if self.defined_xml_uuid is not None and param_uuid is not None:
             self.ansible.warn(
                 'UUID provided multiple times, using the one defined in XML!')
         return
+
+    @property
+    def defined_xml_uuid(self) -> str|None:
+        """ Finds if we have defined UUID in the XML param """
+        xml = self.ansible.params.get('xml')
+        if xml is None:
+            return None
+        secret_element = etree.fromstring(xml)
+        return secret_element.findtext('uuid')
+
+    @property
+    def defined_uuid(self) -> str|None:
+        """ Defined UUID either in XML or as a separate param """
+        xml_uuid = self.defined_xml_uuid
+        param_uuid = self.ansible.params.get('uuid')
+        return xml_uuid if xml_uuid is not None else param_uuid
 
     def _parse_secret_param(self) -> SecretElement:
         """ Form SecretElement from secret module params """
@@ -265,27 +301,7 @@ class LibvirtSecretModule(VirtModule):
         )
         return element
 
-    def _get_secret_by_uuid(self, uuid) -> SecretElement|None:
-        """ Try to fetch existing secret by its uuid
-
-        :param uuid: string uuid of the secret
-        :return: SecretElement object or None if it wasn't found
-        """
-        try:
-            found_element = self.conn.secretLookupByUUIDString(uuid)
-            found_xml = etree.fromstring(found_element.XMLDesc())
-            element = SecretElement(
-                uuid=found_element.UUIDString(),
-                usage=VIR_SECRET_USAGE_TYPE[found_element.usageType()],
-                usageid=found_element.usageID(),
-                ephemeral=bool_map[found_xml.get('ephemeral', 'no')],
-                private=bool_map[found_xml.get('private', 'yes')],
-                description=found_xml.findtext('description'))
-        except libvirtError:
-            element = None
-        return element
-
-    def _parse_xml_secret(self, xml:str) -> SecretElement:
+    def _parse_xml_secret(self, xml:str) -> SecretElement|None:
         """ Parse xml string and return it as SecretElement object
 
         :param xml: string containing xml of the secret. Param left for future
@@ -309,13 +325,12 @@ class LibvirtSecretModule(VirtModule):
                 self.mod_status.failed = True
                 self.mod_status.mgs = 'Unable to find usageid in the xml'
                 self.exit()
-                usage_id = 'error'
+                return None  # never reached, but better than linter asertion
         else:
             self.mod_status.failed = True
             self.mod_status.mgs = 'Unable to find usage element in the xml'
-            self.exit()  # It might be goot to split method and use return
-            usage = 'error'  # better than linter exceptions
-            usage_id = 'error'  # better than linter exceptions
+            self.exit()
+            return None  # never reached, but better than linter asertion
 
         uuid_element = an_xml.find('uuid')
         if uuid_element is not None:
@@ -333,43 +348,19 @@ class LibvirtSecretModule(VirtModule):
 
         return element
 
-
     def delete(self):
         """ Delete defined secret """
-        # epdb.serve()
-        uuid = self.ansible.params.get('uuid')
-        secret = self.ansible.params.get('secret')
-        if uuid:
-            secret_object = self.conn.secretLookupByUUIDString(uuid)
-            before = self._get_secret_by_uuid(uuid)
-            # TODO: retuce api calls by splitting _get_secret_by_uuid method
-        elif secret:
-            usage = secret.get('usage')
-            usage_id = secret.get('usage_id')
-            if usage is None and usage_id is None:
-                self.mod_status.failed = True
-                self.mod_status.msg = \
-                    "Either uuid or secret usage and usage_id must be defined"
-                self.exit()
-            int_usage = VIR_SECRET_USAGE_ID[usage]
-            secret_object = self.conn.secretLookupByUsage(int_usage, usage_id)
-            before = self._get_secret_by_usage(usage, usage_id)
-            # TODO: retuce api calls by splitting _get_secret_by_usage method
-        else:
-            before = None  # linters
-            # self.mod_status.changed = False
-            # self.mod_status.msg = "Requested secret was not found"
-            # self.exit()
 
+        virsecret = self.get_virsecret()
+        before = self._form_element_from_virtsecret(virsecret)
         if before is not None:
             self.mod_status.before = asdict(before)
         else:
-            self.mod_status.msg = "Requested secret was not found"
+            self.mod_status.msg = "Requested secret not found"
             self.exit()
 
         if not self.check:
-            secret_object.undefine()
-
+            virsecret.undefine()  # type: ignore
         self.mod_status.changed = True
         self.mod_status.after = {}
         self.exit()
@@ -381,36 +372,37 @@ class LibvirtSecretModule(VirtModule):
             secret.XMLDesc()
             for secret in self.conn.listAllSecrets()]
         if len(current_secrets) > 0:
-            self.mod_status.msg = "Managed to find some secrets"
+            self.mod_status.msg = "Found defined secrets"
         else:
-            self.mod_status.msg = "No secrets defined"
+            self.mod_status.msg = "No secrets currently defined"
         self.mod_status.data = {
             'secrets_list': current_secrets}
         self.exit()
 
     def set_value(self):
-        pass
+        """ Set secret value to a defined password """
+        password = self.ansible.params.get('password')
+        virsecret = self.get_virsecret()
+        if virsecret is None:
+            self.mod_status.failed = True
+            self.mod_status.msg = "Unable to find a secret to set a value"
+            self.exit()
+        if not self.check:
+            result = virsecret.setValue(password)
+            if result != 0:
+                self.mod_status.failed = True
+                self.mod_status.msg = "Failed to set the value"
+        self.mod_status.msg = "The value for the secret was successfully set"
+        self.mod_status.changed = True
+        self.exit()
 
     def get_xml(self):
         """ Get defined secret XML
 
         There are two options to get the secret: using uuid and by its usage
         """
-        uuid = self.ansible.params.get('uuid')
-        secret = self.ansible.params.get('secret')
-        if uuid:
-            secret_object = self._get_secret_by_uuid(uuid)
-        elif secret:
-            usage = secret.get('usage')
-            usage_id = secret.get('usage_id')
-            if usage is None and usage_id is None:
-                self.mod_status.failed = True
-                self.mod_status.msg = \
-                    "Either uuid or secret usage and usage_id must be defined"
-                self.exit()
-            secret_object = self._get_secret_by_usage(usage, usage_id)
-        else:
-            secret_object = None  # imposible, but linter likes it
+        virsecret = self.get_virsecret()
+        secret_object = self._form_element_from_virtsecret(virsecret)
         if secret_object:
             result = secret_object.to_xmlstr()
             self.mod_status.msg = "Found secret"

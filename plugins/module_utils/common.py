@@ -61,6 +61,23 @@ def compare_lists(list_one:list, list_two:list) -> bool:
             return False
     return True
 
+def libvirt_error_to_none(func):
+    """ Decorator to replace libvirt errors to None value return
+
+    When we search for absent object in libvirt we get exception, but
+    sometimes we just want a None value to be returned instead.
+
+    :param func: Callable function to wrap and check the status.
+        """
+
+    def wrapper(self, **kwargs):
+        try:
+            return func(self)
+        except libvirt.libvirtError:
+            return None
+    return wrapper
+
+
 
 @dataclass
 class ModuleStatus:
@@ -144,11 +161,15 @@ class VirtModule():
         if LIBVIRT_IMPORT_ERR:
             self.mod_status.msg = missing_required_lib("libvirt")
             self.mod_status.exception = LIBVIRT_IMPORT_ERR
-            self.ansible.fail_json(**self.mod_status.report)
+            self.mod_status.failed = True
+            self.exit()
+            # self.ansible.fail_json(**self.mod_status.report)
         if LXML_IMPORT_ERR:
             self.mod_status.msg = missing_required_lib("lxml")
             self.mod_status.exception = LXML_IMPORT_ERR
-            self.ansible.fail_json(**self.mod_status.report)
+            self.mod_status.failed = True
+            self.exit()
+            # self.ansible.fail_json(**self.mod_status.report)
 
     def libvirt_connect(self):
         """ Connects to libvirt and returns libvirt.virConnect object """
