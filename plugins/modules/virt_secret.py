@@ -4,60 +4,71 @@
 # (c) 2025, Denys Mishchenko <denis@mischenko.org.ua>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-# ansible module_utils uses own path structure and must be imported first
-# pylint: disable-next=no-name-in-module,import-error,wrong-import-order
-from ansible_collections.community.libvirt.plugins.module_utils.common import (
-    VirtModule, libvirt_error_to_none, STATE_CHOICES)
-from dataclasses import dataclass, asdict
-
-try:
-    from libvirt import libvirtError
-except ImportError:
-    pass  # do nothing, exception handling will happen in a common module
-
-try:
-    from lxml import etree
-except ImportError:
-    import xml.etree.ElementTree as etree
 
 DOCUMENTATION = r'''
 ---
 module: virt_secret
-version_added: '2.0.?'
+version_added: '2.1.0'
 author:
-  - Denys Mishchenko (denis@mischenko.org.ua)
+  - Denys Mishchenko (@arddennis)
 
 short_description: Manage libvirt secrets and their values
 description:
-  - Manage I(libvirt) secrets.
+  - Manage I(libvirt) secrets. Can add remove or update secrets in libvirt
 options:
   uuid:
     description:
       - Secret UUID. The value is unique across all secret types.
     type: str
   secret:
+    type: dict
     description:
-      - Defines a secret as a set of fields instead of raw xml. Subelements:
-      - [ephemeral, private, usage, usage_id, description]
-      - C(ephemeral): bool. if C(True), secret will only be kept in memory
-      - C(private): bool. if C(True), value will not be retrivable
-      - C(usage): str. Specifies what this secret is used for.
-      - Possible C(usage) options: [none, volume, ceph, iscsi, tls, vtpm]
-      - C(usage_id): stc. Defines unique secret_ID. Unique for each C(usage)
-      - C(description): stc. Free form description for the secret
+      - Defines a secret as a set of fields instead of raw xml
       - This property is mutually exclusive with C(xml)
       - If C(uuid) is not defined, C(usage) and C(usage_id) must be defined
-    type: dict
+    suboptions:
+      ephemeral:
+        description:
+          - if C(True), secret will only be kept in memory
+          - default value is C(False)
+        type: bool
+        default: False
+      private:
+        description:
+          - if C(True), value will not be retrivable
+          - default value is C(False)
+        type: bool
+        default: True
+      usage:
+        type: str
+        description:
+          - Specifies what this secret is used for.
+          - Possible values are none, volume, ceph, iscsi, tls, vtpm
+        choices:
+          - none
+          - volume
+          - ceph
+          - iscsi
+          - tls
+          - vtpm
+      usage_id:
+        description:
+          - Defines unique secret_ID. Unique for each C(usage)
+        type: str
+      description:
+        type: str
+        description:
+          - Defines secret description
   password:
     description:
       - A value of the secret. A password which will be stored in the secret.
       - As in majority cases secrets are private, password is defined only
       - during secret creation and in set_value C(command)
     type: str
-    no_log: True
   uri:
     description:
       - URL to libvirt api.
@@ -71,9 +82,14 @@ options:
       - If C(absent), removes secret defined by either UUID, state or xml
       - Mutually exclusive with C(command)
     type: str
-    choices: ["present", "absent"]
+    choices: [present, absent]
   command:
-    choices: ["create", "delete, "list_secrets", "get_xml", "set_value"]
+    choices:
+      - create
+      - delete
+      - list_secrets
+      - get_xml
+      - set_value
     description:
       - C(create) Analagous to C(state) / C(present)
       - C(delete) Analagous to C(state) / C(absent)
@@ -82,6 +98,7 @@ options:
       - C(set_value) Defines secret value. Not idempotent
     type: str
   xml:
+    type: str
     description:
       - Raw XML definition of the secret.
       - Mutually exclusive with C(secret)
@@ -91,24 +108,26 @@ options:
 requirements:
   - "libvirt"
   - "lxml"
+  - "PyYAML"
 '''
 
 EXAMPLES = r'''
+---
 - name: Create new secret using xml definition and command
   community.libvirt.virt_secret:
     command: create
     xml: |
-    <secret ephemeral='no' private='yes'>
-        <uuid>{{ 'test_secret' | to_uuid }}</uuid>
+      <secret ephemeral='no' private='yes'>
+        <uuid>e4b5978c-ba37-5605-97c1-4a20413d0fc9</uuid>
         <description>test ceph pool secret</description>
         <usage type='ceph'>
         <name>test_secret</name>
         </usage>
-    </secret>
+      </secret>
 
 - name: get_xml by uuid
   community.libvirt.virt_secret:
-    uuid: "{{ 'test_secret' | to_uuid }}"
+    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
     command: get_xml
   register: result
 
@@ -122,11 +141,11 @@ EXAMPLES = r'''
 
 - name: Print found xml
   ansible.builtin.debug:
-    msg: "{{ result.secretXML }}
+    var: result.secretXML
 
 - name: Define secret using params
   community.libvirt.virt_secret:
-    uuid: "{{ 'test_secret' | to_uuid }}"
+    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
     secret:
       usage: tls
       usage_id: test_secret
@@ -140,25 +159,25 @@ EXAMPLES = r'''
 
 - name: Print found xml
   ansible.builtin.debug:
-    msg: "{{ result.secrets_list }}
+    var: result.secrets_list
 
 - name: Set secret value
   community.libvirt.virt_secret:
-    uuid: "{{ 'test_secret' | to_uuid }}"
+    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
     command: set_value
     password: somesecureandrandomsecret1234
 
 - name: Remove vTPM secret
   community.libvirt.virt_secret:
-    uuid: "{{ 'vtpm_secret' | to_uuid }}"
+    uuid: 57ea8fd0-9b82-4e54-9d16-df7d2765844d
     state: absent
 '''
 
-# ["create", "delete, "list_secrets", "get_xml", "set_value"]
 RETURN = r'''
 secretXML:
   type: str
   description: When I(command=get_xml) return xml definition of the secret
+  returned: success
   sample: |
     <secret ephemeral="no" private="yes">
       <uuid>e4b5978c-ba37-5605-97c1-4a20413d0fc9</uuid>
@@ -167,19 +186,9 @@ secretXML:
         <name>test_secret</name>
       </usage>
     </secret>"
-diff:
-  type: dict
-  description: Contains C(before) and C(after) representing made changes using create or delete
-  sample: |
-    -{}
-    +description: Secret puppy name
-    +ephemeral: false
-    +private: true
-    +usage: volume
-    +usageid: /var/lib/libvirt/images/puppyname.img
-    +uuid: null
 list_secrets:
   type: list
+  returned: success
   description: When I(command=list_secrets) returns secrets_list of secrets in xml format
   sample:
     - |
@@ -200,6 +209,18 @@ list_secrets:
         <usage type='volume'><volume>/var/lib/libvirt/images/puppyname.img</volume></usage>
       </secret>
 '''
+
+# ansible module_utils uses own path structure and must be imported first
+# pylint: disable-next=no-name-in-module,import-error,wrong-import-order
+from ansible_collections.community.libvirt.plugins.module_utils.common import (
+    VirtModule, libvirt_error_to_none)
+from dataclasses import dataclass, asdict
+from typing import Union
+
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.ElementTree as etree
 
 
 COMMAND_CHOICES = [
@@ -230,6 +251,7 @@ VIR_SECRET_USAGE_TYPE = {
     5: 'vtpm'
 }
 
+
 VIR_SECRET_USAGE_ID = {
     'none': 0,
     'volume': 1,
@@ -239,10 +261,12 @@ VIR_SECRET_USAGE_ID = {
     'vtpm': 5
 }
 
+
 bool_map = {
     'yes': True,
     'no': False
 }
+
 
 @dataclass
 class SecretUsage():
@@ -263,12 +287,12 @@ class SecretUsage():
 @dataclass
 class SecretElement():
     """ Libvirt secret record """
-    uuid: str| None  # We might not have uuid defined in the module
+    uuid: Union[str, None]  # We might not have uuid defined in the module
     usage: str
     usageid: str
     ephemeral: bool = False
     private: bool = True
-    description: str|None = ''
+    description: Union[str, None] = ''
 
     def to_xmlstr(self) -> str:
         """ form xml secret suitable for libvirt """
@@ -381,7 +405,8 @@ class LibvirtSecretModule(VirtModule):
         int_usage = VIR_SECRET_USAGE_ID[secret.usage]
         return self.conn.secretLookupByUsage(int_usage, secret.usageid)
 
-    def _form_element_from_virtsecret(self, element) -> SecretElement|None:
+    def _form_element_from_virtsecret(self, element) -> Union[
+            SecretElement, None]:
         """ Convert libvirt.virSecret to SecretElement
 
         :param element: libvirt.virSecret object
@@ -400,7 +425,7 @@ class LibvirtSecretModule(VirtModule):
             description=an_xml.findtext('description'))
 
     @property
-    def defined_xml(self) -> str|None:
+    def defined_xml(self) -> Union[str, None]:
         """ Forms defined XML
 
         It looks like this function has chicken and the egg problem, but if
@@ -420,7 +445,7 @@ class LibvirtSecretModule(VirtModule):
         return None
 
     @property
-    def defined_element(self) -> SecretElement|None:
+    def defined_element(self) -> Union[SecretElement, None]:
         """ generate defined secret element """
         secret = self.ansible.params.get('secret')
         if secret is not None:
@@ -444,7 +469,7 @@ class LibvirtSecretModule(VirtModule):
         return
 
     @property
-    def defined_xml_uuid(self) -> str|None:
+    def defined_xml_uuid(self) -> Union[str, None]:
         """ Finds if we have defined UUID in the XML param """
         xml = self.ansible.params.get('xml')
         if xml is None:
@@ -453,7 +478,7 @@ class LibvirtSecretModule(VirtModule):
         return secret_element.findtext('uuid')
 
     @property
-    def defined_uuid(self) -> str|None:
+    def defined_uuid(self) -> Union[str, None]:
         """ Defined UUID either in XML or as a separate param """
         xml_uuid = self.defined_xml_uuid
         param_uuid = self.ansible.params.get('uuid')
@@ -477,7 +502,7 @@ class LibvirtSecretModule(VirtModule):
         )
         return element
 
-    def _parse_xml_secret(self, xml:str) -> SecretElement|None:
+    def _parse_xml_secret(self, xml: str) -> Union[SecretElement, None]:
         """ Parse xml string and return it as SecretElement object
 
         :param xml: string containing xml of the secret. Param left for future
@@ -591,21 +616,30 @@ class LibvirtSecretModule(VirtModule):
     def secret_undefine(self):
         """ Undefine secret if it exist """
 
+
 def main():
     """ Module execution """
     argument_spec = {
         'uuid': {'type': 'str'},
         'secret': {
             'type': 'dict',
-            'ephemeral': {'type': bool, 'default': False},
-            'private': {'type': bool, 'default': True},
-            'usage': {'type': 'str',
-                      'choices': VIR_SECRET_USAGE_TYPE.values()},
-            'usage_id': {'type': 'list', 'elements': 'str'},
-            'description': {'type': 'str'}},
+            'no_log': False,
+            "options": {
+                'ephemeral': {'type': 'bool', 'default': False},
+                'private': {'type': 'bool', 'default': True},
+                'usage': {'type': 'str',
+                          'choices': [
+                              'none',
+                              'volume',
+                              'ceph',
+                              'iscsi',
+                              'tls',
+                              'vtpm']},
+                'usage_id': {'type': 'str'},
+                'description': {'type': 'str'}}},
         'password': {'type': 'str', 'no_log': True},
         'uri': {'type': 'str', 'default': 'qemu:///system'},
-        'state': {'type': 'str', 'choices': STATE_CHOICES},
+        'state': {'type': 'str', 'choices': ['present', 'absent']},
         'command': {'type': 'str', 'choices': COMMAND_CHOICES},
         'xml': {'type': 'str'}}
     required_if = [
@@ -616,7 +650,7 @@ def main():
         ('command', 'set_value', ['password'], False),
         ('command', 'get_xml', ['uuid', 'secret'], True)]
     mutually_exclusive = [['state', 'command'], ['xml', 'secret']]
-    required_one_of=[('state', 'command')]
+    required_one_of = [('state', 'command')]
 
     module = LibvirtSecretModule(argument_spec=argument_spec,
                                  required_if=required_if,

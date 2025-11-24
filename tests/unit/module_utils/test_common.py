@@ -4,8 +4,8 @@
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-
-import unittest, yaml
+import unittest
+import yaml
 
 # pylint: disable-next=no-name-in-module,import-error
 from ansible_collections.community.libvirt.plugins.module_utils.common import (
@@ -33,11 +33,12 @@ class TestCommonCompare(unittest.TestCase):
         """ Test compare_lists function """
 
         a_list = ['apple', 'meloon', 'orange', 65, 'pineaple']
-        list_equal =  [65, 'apple', 'orange', 'pineaple', 'meloon']
+        list_equal = [65, 'apple', 'orange', 'pineaple', 'meloon']
         list_valdiff = ['apple', 'meloon', 'orange', '65', 'pineaple']
 
         self.assertTrue(compare_lists(a_list, list_equal))
         self.assertFalse(compare_lists(a_list, list_valdiff))
+
 
 class TestCommonModuleStatus(unittest.TestCase):
     """ Testing dataclass for generating ansible exit response """

@@ -2,10 +2,16 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 import abc
-from dataclasses import dataclass, asdict, field
-from typing import Dict, List
-from yaml import safe_dump
-from ansible.module_utils.basic import AnsibleModule, missing_required_lib
+from dataclasses import dataclass
+from dataclasses import asdict
+from dataclasses import field
+from typing import Dict
+from typing import List
+from typing import Union
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import missing_required_lib
+
 
 try:
     import libvirt
@@ -21,11 +27,18 @@ except ImportError as lxml_import_exception:
     LXML_IMPORT_ERR = lxml_import_exception
     import xml.etree.ElementTree as etree
 
+try:
+    from yaml import safe_dump
+except ImportError as safe_dump_import_exception:
+    SAFE_DUMP_IMPORT_ERR = safe_dump_import_exception
+else:
+    SAFE_DUMP_IMPORT_ERR = None
+
 
 STATE_CHOICES = ['present', 'absent']
 
 
-def compare_dicts(dict_one:dict, dict_two:dict) -> bool:
+def compare_dicts(dict_one: dict, dict_two: dict) -> bool:
     """ Compare two dicts.
 
     Return True if two dict contents are equal
@@ -46,7 +59,7 @@ def compare_dicts(dict_one:dict, dict_two:dict) -> bool:
     return True
 
 
-def compare_lists(list_one:list, list_two:list) -> bool:
+def compare_lists(list_one: list, list_two: list) -> bool:
     """ Compare two unsorted lists """
     if list_one == list_two:
         return True
@@ -83,8 +96,8 @@ class ModuleStatus:
     """ Ansible module status """
     changed: bool = False
     failed: bool = False
-    msg: str|None = None
-    exception: str|ImportError|None = None
+    msg: Union[str, None] = None  # linter refuse 'str | None'
+    exception: Union[str, ImportError, None] = None
     before: Dict = field(default_factory=dict)
     after: Dict = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
@@ -124,7 +137,8 @@ def data_as_dict(structure):
         result.append(dict_item)
     return result
 
-def parse_xml_etree(xml:str) -> dict:
+
+def parse_xml_etree(xml: str) -> dict:
     """ Parse xml etree and return it as dict """
     result = {}
     for element in etree.fromstring(xml).iterchildren():
@@ -138,7 +152,7 @@ def parse_xml_etree(xml:str) -> dict:
 class VirtModule():
     """ Virt Ansible module is a base class for all Virt Module classes """
 
-    def __init__(self, **module_kwargs:dict):
+    def __init__(self, **module_kwargs: dict):
         """ Initialize Virt base class """
         self.mod_status = ModuleStatus()
         # Might be a bad idea and all possible varnames needs to be listed, but
@@ -156,13 +170,16 @@ class VirtModule():
             self.mod_status.exception = LIBVIRT_IMPORT_ERR
             self.mod_status.failed = True
             self.exit()
-            # self.ansible.fail_json(**self.mod_status.report)
         if LXML_IMPORT_ERR:
             self.mod_status.msg = missing_required_lib("lxml")
             self.mod_status.exception = LXML_IMPORT_ERR
             self.mod_status.failed = True
             self.exit()
-            # self.ansible.fail_json(**self.mod_status.report)
+        if SAFE_DUMP_IMPORT_ERR:
+            self.mod_status.msg = missing_required_lib("pyYAML")
+            self.mod_status.exception = SAFE_DUMP_IMPORT_ERR
+            self.mod_status.failed = True
+            self.exit()
 
     def libvirt_connect(self):
         """ Connects to libvirt and returns libvirt.virConnect object """
