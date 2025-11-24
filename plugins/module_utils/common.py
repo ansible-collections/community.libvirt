@@ -11,7 +11,8 @@ from typing import Union
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.basic import missing_required_lib
-
+from ansible_collections.community.libvirt.plugins.module_utils.libvirt import (
+    LibvirtConnection)
 
 try:
     import libvirt
@@ -85,7 +86,7 @@ def libvirt_error_to_none(func):
 
     def wrapper(self, **kwargs):
         try:
-            return func(self)
+            return func(self, **kwargs)
         except libvirt.libvirtError:
             return None
     return wrapper
@@ -161,7 +162,11 @@ class VirtModule():
         self.check = self.ansible.check_mode
         self.warn = self.ansible.warn
         self.check_imports()
-        self.conn = self.libvirt_connect()
+        # Alternative and minimal libvirt connection:
+        # self.conn = self.libvirt_connect()
+        uri = self.ansible.params.get('uri', 'qemu:///system')
+        self.libvirt = LibvirtConnection(uri, self.ansible)
+        self.conn = self.libvirt.conn
 
     def check_imports(self):
         """ Check imports and fail if libraries imports wasn't successfull """
@@ -185,12 +190,28 @@ class VirtModule():
         """ Connects to libvirt and returns libvirt.virConnect object """
         uri = self.ansible.params.get('uri', 'qemu:///system')
         try:
-            connection = libvirt.open(uri)
+            if 'xen' in self._uname_string:
+                return libvirt.open(None)
+            if 'esx' in uri:
+                auth = [
+                    [libvirt.VIR_CRED_AUTHNAME, libvirt.VIR_CRED_NOECHOPROMPT],
+                    [],
+                    None]
+                return libvirt.openAuth(uri, auth)
+            return libvirt.open(uri)
+
         except libvirt.libvirtError as exception:
             self.mod_status.msg = "hypervisor connection failure"
             self.mod_status.exception = exception
             self.ansible.fail_json(**self.mod_status.report)
-        return connection
+            return None
+
+    @property
+    def _uname_string(self):
+
+        cmd = "uname -r"
+        _, stdout, _ = self.ansible.run_command(cmd)
+        return stdout
 
     @abc.abstractmethod
     def logic(self):
