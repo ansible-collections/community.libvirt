@@ -18,36 +18,38 @@ author:
 
 short_description: Manage libvirt secrets and their values
 description:
-  - Manage I(libvirt) secrets. Can add remove or update secrets in libvirt
+  - Manage I(libvirt) secrets. Can add, remove or update secrets in libvirt.
+  - Can be used to set secrets value.
 options:
   uuid:
     description:
       - Secret UUID. The value is unique across all secret types.
+      - If UUID value is also defined in the O(xml) this option is ignored.
     type: str
   secret:
     type: dict
     description:
-      - Defines a secret as a set of fields instead of raw xml
-      - This property is mutually exclusive with C(xml)
-      - If C(uuid) is not defined, C(usage) and C(usage_id) must be defined
+      - Defines a secret as a set of fields instead of raw XML.
+      - This property is mutually exclusive with O(xml).
+      - If O(uuid) is not defined, O(secret.usage) and O(secret.usage_id) must be defined.
     suboptions:
       ephemeral:
         description:
-          - if C(True), secret will only be kept in memory
-          - default value is C(False)
+          - If V(True), secret will only be kept in memory.
+          - Default value is V(False).
         type: bool
         default: False
       private:
         description:
-          - if C(True), value will not be retrivable
-          - default value is C(False)
+          - If V(True), value will not be retrivable from libvirt.
+          - Default value is V(False).
         type: bool
         default: True
       usage:
         type: str
         description:
           - Specifies what this secret is used for.
-          - Possible values are none, volume, ceph, iscsi, tls, vtpm
+          - Possible values are V(none), V(volume), V(ceph), V(iscsi), V(tls), V(vtpm).
         choices:
           - none
           - volume
@@ -57,30 +59,32 @@ options:
           - vtpm
       usage_id:
         description:
-          - Defines unique secret_ID. Unique for each C(usage)
+          - Defines unique secret_ID. Unique for each O(secret.usage).
         type: str
       description:
         type: str
         description:
-          - Defines secret description
+          - Defines secret description.
   password:
     description:
-      - A value of the secret. A password which will be stored in the secret.
-      - As in majority cases secrets are private, password is defined only
-      - during secret creation and in set_value C(command)
-    type: str
-  uri:
-    description:
-      - URL to libvirt api.
-    default: qemu:///system
+      - A value of the secret which will be stored in the libvirt secret.
+      - |
+        As in majority cases secrets are private, password is defined only
+        during secret creation or when O(command=set_value) is executed. If the
+        secret already exist and the O(password) is defined, it will not try to
+        set it once again. Even if different password is provided.
     type: str
   state:
     description:
-      - Alternative for the command parameter.
-      - If C(present), creates a volume described by either C(xml) or (secret).
-      - Can be used to update existing secrets properties
-      - If C(absent), removes secret defined by either UUID, state or xml
-      - Mutually exclusive with C(command)
+      - Alternative for the O(command) option.
+      - If V(present), creates a volume described by either O(xml) or O(secret).
+      - Can be used to update existing secrets properties.
+      - If V(absent), removes secret defined by either O(uuid), O(state) or O(xml).
+      - |
+        If V(present) and UUID is not specified in either O(uuid) or O(xml), it
+        will try to find existing secret using O(secret.usage) and
+        O(secret.usage_id)
+      - Mutually exclusive with O(command).
     type: str
     choices: [present, absent]
   command:
@@ -91,87 +95,63 @@ options:
       - get_xml
       - set_value
     description:
-      - C(create) Analagous to C(state) / C(present)
-      - C(delete) Analagous to C(state) / C(absent)
-      - C(list_secrets) Returns list of XML for all existing secrets
-      - C(get_xml) Returns xml for defined in libvirt secrets
-      - C(set_value) Defines secret value. Not idempotent
+      - Executes commands to manage secret.
+      - |
+        If defined V(create), creates secret described by either O(xml)
+        or(secret). It is analagous to O(state=present).
+      - |
+        If defined V(delete), removes secret defined by either O(uuid),
+        O(state), O(xml). It is analagous to O(state=absent).
+      - |
+        If defined V(list_secrets) it will return RV(list_secrets) with all
+        existing secrets in XML format.
+      - |
+        If defined V(get_xml) module will try to get secret definition from
+        libvirt. If existing secret found, returns RV(secretXML). Otherwise it
+        will return None.
+      - |
+        If defined V(set_value) module will define a secret value. This command
+        is not idempotent and will always show changed. Requires O(password) to
+        be defined.
     type: str
-  xml:
-    type: str
-    description:
-      - Raw XML definition of the secret.
-      - Mutually exclusive with C(secret)
-      - If contains UUID, its value will be used instead of the one, defined
-      - in the C(uuid) property
-
+extends_documentation_fragment:
+  - community.libvirt.virt.options_uri
+  - community.libvirt.virt.options_xml
 requirements:
   - "libvirt"
   - "lxml"
   - "PyYAML"
+attributes:
+  check_mode:
+    description: Check mode is fully supported.
+    support: full
+    details:
+      - In check mode, secrets are not actually created, updated or deleted.
+      - |
+        Module compares existing state of the secret in libvirt and check if
+        change is required.
+      - Will always produce changed with O(command=set_value).
+  diff_mode:
+    description: Module provides state change as a dict.
+    support: full
+    details:
+      - |
+        For all made changes except O(command=set_value) module will return
+        diff in a dict form to illustrate was was changed.
+      - |
+        In check_mode diff will contain the same output as if it was executed
+        normally.
+  idempotent:
+    description: In most cases, this module is idempotent.
+    support: partial
+    details:
+      - |
+        If O(command=set_value) the module is not idempotent as it don't try to
+        get secrets from libvirt and always return changed.
+      - In most of the cases secrets are private and their value is not
+        obtainable from the libvirt.
 '''
 
-EXAMPLES = r'''
----
-- name: Create new secret using xml definition and command
-  community.libvirt.virt_secret:
-    command: create
-    xml: |
-      <secret ephemeral='no' private='yes'>
-        <uuid>e4b5978c-ba37-5605-97c1-4a20413d0fc9</uuid>
-        <description>test ceph pool secret</description>
-        <usage type='ceph'>
-        <name>test_secret</name>
-        </usage>
-      </secret>
-
-- name: get_xml by uuid
-  community.libvirt.virt_secret:
-    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
-    command: get_xml
-  register: result
-
-- name: get_xml by secret usage and usage_id
-  community.libvirt.virt_secret:
-    secret:
-      usage: ceph
-      usage_id: test_secret
-    command: get_xml
-  register: result
-
-- name: Print found xml
-  ansible.builtin.debug:
-    var: result.secretXML
-
-- name: Define secret using params
-  community.libvirt.virt_secret:
-    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
-    secret:
-      usage: tls
-      usage_id: test_secret
-      description: Test TLS secret
-    state: present
-
-- name: List all defined secrets
-  community.libvirt.virt_secret:
-    command: list_secrets
-  register: result
-
-- name: Print found xml
-  ansible.builtin.debug:
-    var: result.secrets_list
-
-- name: Set secret value
-  community.libvirt.virt_secret:
-    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
-    command: set_value
-    password: somesecureandrandomsecret1234
-
-- name: Remove vTPM secret
-  community.libvirt.virt_secret:
-    uuid: 57ea8fd0-9b82-4e54-9d16-df7d2765844d
-    state: absent
-'''
 
 RETURN = r'''
 secretXML:
@@ -188,8 +168,9 @@ secretXML:
     </secret>"
 list_secrets:
   type: list
+  elements: str
   returned: success
-  description: When I(command=list_secrets) returns secrets_list of secrets in xml format
+  description: When (command=list_secrets) returns secrets_list of secrets in xml format
   sample:
     - |
       <secret ephemeral='no' private='yes'>
@@ -209,6 +190,70 @@ list_secrets:
         <usage type='volume'><volume>/var/lib/libvirt/images/puppyname.img</volume></usage>
       </secret>
 '''
+
+
+EXAMPLES = r'''
+---
+- name: Create new secret using xml definition and command
+  community.libvirt.virt_secret:
+    command: create
+    xml: |
+      <secret ephemeral='no' private='yes'>
+        <uuid>e4b5978c-ba37-5605-97c1-4a20413d0fc9</uuid>
+        <description>test ceph pool secret</description>
+        <usage type='ceph'>
+        <name>test_secret</name>
+        </usage>
+      </secret>
+
+- name: Get secret XML by uuid
+  community.libvirt.virt_secret:
+    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
+    command: get_xml
+  register: result
+
+- name: Get XML by secret usage and usage_id
+  community.libvirt.virt_secret:
+    secret:
+      usage: ceph
+      usage_id: test_secret
+    command: get_xml
+  register: result
+
+- name: Print found XML
+  ansible.builtin.debug:
+    var: result.secretXML
+
+- name: Define secret using options secret and uuid
+  community.libvirt.virt_secret:
+    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
+    secret:
+      usage: tls
+      usage_id: test_secret
+      description: Test TLS secret
+    state: present
+
+- name: List all currently defined secrets
+  community.libvirt.virt_secret:
+    command: list_secrets
+  register: result
+
+- name: Print found secrets list
+  ansible.builtin.debug:
+    var: result.secrets_list
+
+- name: Set value of the secret
+  community.libvirt.virt_secret:
+    uuid: e4b5978c-ba37-5605-97c1-4a20413d0fc9
+    command: set_value
+    password: somesecureandrandomsecret1234
+
+- name: Remove secret
+  community.libvirt.virt_secret:
+    uuid: 57ea8fd0-9b82-4e54-9d16-df7d2765844d
+    state: absent
+'''
+
 
 # ansible module_utils uses own path structure and must be imported first
 # pylint: disable-next=no-name-in-module,import-error,wrong-import-order
@@ -231,6 +276,7 @@ COMMAND_CHOICES = [
     'set_value'
 ]
 
+
 # https://libvirt.org/formatsecret.html
 USAGE_TYPES_TAGS = {
     'none': 'name',
@@ -240,6 +286,7 @@ USAGE_TYPES_TAGS = {
     'tls': 'name',
     'vtpm': 'name'
 }
+
 
 # https://libvirt.org/html/libvirt-libvirt-secret.html#virSecretUsageType
 VIR_SECRET_USAGE_TYPE = {
@@ -362,12 +409,12 @@ class LibvirtSecretModule(VirtModule):
         """
         self._check_duplicated_uuid()  # A warning for UUID defined twice
         defined_element = self.defined_element
+        password = self.ansible.params.get('password')
 
         existing_virtsecret = self.get_virsecret()
         existing_element = self._form_element_from_virtsecret(
             existing_virtsecret)
 
-        # TODO: Check if defined element was at all defined
         # We might have created secret without uuid supplied, but want to
         # compare objects defined vs existing
         if defined_element.uuid is None and existing_element:
@@ -382,6 +429,13 @@ class LibvirtSecretModule(VirtModule):
             self.mod_status.after = asdict(defined_element)
             if not self.check:
                 self.conn.secretDefineXML(defined_element.to_xmlstr())
+                created_secret = self.get_virsecret()
+                if created_secret is None:
+                    self.mod_status.failed = True
+                    self.mod_status.msg = "Failed to create a secret."
+                    self.exit()
+                if password is not None:
+                    created_secret.setValue(password)
         self.exit()
 
     @libvirt_error_to_none
