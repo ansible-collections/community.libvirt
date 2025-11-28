@@ -53,7 +53,7 @@
     - name: Assert that we were able to retrive created secret xml
       ansible.builtin.assert:
         that:
-          - result.secretXML | length > 0
+          - result.secret_xml | length > 0
           - result.msg == 'Found secret'
           - not result.failed
           - not result.changed
@@ -70,7 +70,7 @@
     - name: Assert that we were able to retrive created secret xml
       ansible.builtin.assert:
         that:
-          - result.secretXML | length > 0
+          - result.secret_xml | length > 0
           - result.msg == 'Found secret'
           - not result.failed
           - not result.changed
@@ -86,7 +86,7 @@
     - name: Assert that there are no secret found
       ansible.builtin.assert:
         that:
-          - result.secretXML == None
+          - result.secret_xml == None
           - result.msg == 'Secret not found'
           - not result.failed
           - not result.changed

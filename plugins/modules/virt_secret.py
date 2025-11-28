@@ -107,7 +107,7 @@ options:
         existing secrets in XML format.
       - |
         If defined V(get_xml) module will try to get secret definition from
-        libvirt. If existing secret found, returns RV(secretXML). Otherwise it
+        libvirt. If existing secret found, returns RV(secret_xml). Otherwise it
         will return None.
       - |
         If defined V(set_value) module will define a secret value. This command
@@ -154,7 +154,7 @@ attributes:
 
 
 RETURN = r'''
-secretXML:
+secret_xml:
   type: str
   description: When I(command=get_xml) return xml definition of the secret
   returned: success
@@ -222,7 +222,7 @@ EXAMPLES = r'''
 
 - name: Print found XML
   ansible.builtin.debug:
-    var: result.secretXML
+    var: result.secret_xml
 
 - name: Define secret using options secret and uuid
   community.libvirt.virt_secret:
@@ -664,7 +664,7 @@ class LibvirtSecretModule(VirtModule):
         else:
             self.mod_status.msg = "Secret not found"
             result = None
-        self.mod_status.data = {'secretXML': result}
+        self.mod_status.data = {'secret_xml': result}
         self.exit()
 
     def secret_undefine(self):
