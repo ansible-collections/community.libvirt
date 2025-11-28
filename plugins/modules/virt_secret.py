@@ -156,7 +156,7 @@ attributes:
 RETURN = r'''
 secret_xml:
   type: str
-  description: When I(command=get_xml) return xml definition of the secret
+  description: When I(command=get_xml) returns XML definition of the secret.
   returned: success
   sample: |
     <secret ephemeral="no" private="yes">
@@ -170,7 +170,7 @@ list_secrets:
   type: list
   elements: str
   returned: success
-  description: When (command=list_secrets) returns secrets_list of secrets in xml format
+  description: When (command=list_secrets) returns a list of secrets in XML format.
   sample:
     - |
       <secret ephemeral='no' private='yes'>
@@ -194,7 +194,7 @@ list_secrets:
 
 EXAMPLES = r'''
 ---
-- name: Create new secret using xml definition and command
+- name: Create new secret using xml option and command
   community.libvirt.virt_secret:
     command: create
     xml: |
@@ -483,7 +483,7 @@ class LibvirtSecretModule(VirtModule):
         """ Forms defined XML
 
         It looks like this function has chicken and the egg problem, but if
-        xml property is defined, defined_element will be calculated first based
+        xml option is defined, defined_element will be calculated first based
         on its values. If it is not, we expect secret to be defined and will
         use it instead.
         """
@@ -559,7 +559,7 @@ class LibvirtSecretModule(VirtModule):
     def _parse_xml_secret(self, xml: str) -> Union[SecretElement, None]:
         """ Parse xml string and return it as SecretElement object
 
-        :param xml: string containing xml of the secret. Param left for future
+        :param xml: string containing XML of the secret. Param left for future
                     reuse of the function.
         """
         an_xml = etree.fromstring(xml)
@@ -621,7 +621,7 @@ class LibvirtSecretModule(VirtModule):
         self.exit()
 
     def list_secrets(self):
-        """ Get list of defined secrets and return them as list of xmls """
+        """ Get list of defined secrets and return them as list of XMLs """
 
         current_secrets = [
             secret.XMLDesc()
