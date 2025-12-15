@@ -890,6 +890,33 @@ class TestBuildCommand(unittest.TestCase):
         self.assertIn('hugepages.page0.size=2048', memorybacking_cmdline)
         self.assertIn('hugepages.page0.nodeset=0-1', memorybacking_cmdline)
 
+    def test_memorybacking_with_memfd_source(self):
+        """Test memorybacking parameter with memfd source"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 4096,
+            'memorybacking': {
+                'source': {
+                    'type': 'memfd'
+                },
+                'access': {
+                    'mode': 'shared'
+                }
+            }
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        try:
+            idx = self.virt_install.command_argv.index('--memorybacking')
+            memorybacking_cmdline = self.virt_install.command_argv[idx + 1]
+        except (ValueError, IndexError):
+            memorybacking_cmdline = None
+
+        self.assertIsNotNone(memorybacking_cmdline)
+        self.assertIn('source.type=memfd', memorybacking_cmdline)
+        self.assertIn('access.mode=shared', memorybacking_cmdline)
+
     def test_vcpus_configuration(self):
         """Test vcpus parameter with options"""
         self.mock_module.params = {

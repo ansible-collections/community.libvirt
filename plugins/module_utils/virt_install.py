@@ -273,6 +273,7 @@ class VirtInstallTool(object):
                 'hugepage_specs': ('hugepages.page', {
                     'page_size': ('size', None),
                 }),
+                'source': ('source', None),
             }
             self._add_parameter('--memorybacking',
                                 dict_value=self.params['memorybacking'],
@@ -893,6 +894,14 @@ def get_memorybacking_args():
                 ),
                 nosharepages=dict(type='bool'),
                 locked=dict(type='bool'),
+                source=dict(
+                    type='dict',
+                    options=dict(
+                        type=dict(
+                            type='str',
+                            choices=['anonymous', 'file', 'memfd']),
+                    ),
+                ),
                 access=dict(
                     type='dict',
                     options=dict(

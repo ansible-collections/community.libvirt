@@ -70,6 +70,17 @@ options:
         type: bool
         description:
           - Memory pages will be locked in host's memory and will not be swapped out.
+      source:
+        type: dict
+        description:
+          - Configure the source of memory backing.
+        version_added: '2.1.0'
+        suboptions:
+          type:
+            type: str
+            choices: [ anonymous, file, memfd ]
+            description:
+              - The type of memory backing source.
       access:
         type: dict
         description:

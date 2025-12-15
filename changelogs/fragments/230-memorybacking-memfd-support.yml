@@ -1,0 +1,2 @@
+minor_changes:
+  - virt_install - added support for memoryBacking source type configuration, including memfd for shared memory (https://github.com/ansible-collections/community.libvirt/issues/228).
