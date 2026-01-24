@@ -135,6 +135,7 @@ extends_documentation_fragment:
     - community.libvirt.virt_install.options_clock
     - community.libvirt.virt_install.options_pm
     - community.libvirt.virt_install.options_launch_security
+    - community.libvirt.virt_install.options_boot
     - community.libvirt.virt_install.options_osinfo
     - community.libvirt.virt_install.options_disks
     - community.libvirt.virt_install.options_filesystems
@@ -742,6 +743,8 @@ def main():
     argument_spec.update(virtinst_util.get_clock_args())
     argument_spec.update(virtinst_util.get_pm_args())
     argument_spec.update(virtinst_util.get_launch_security_args())
+    # Boot options
+    argument_spec.update(virtinst_util.get_boot_args())
     # Guest OS options
     argument_spec.update(virtinst_util.get_osinfo_args())
     # Storage options
