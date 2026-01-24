@@ -280,6 +280,19 @@ base_image_path:
     type: str
     returned: success
     sample: "/srv/cloud-images/ubuntu-20.04-server-cloudimg-amd64.img"
+commands:
+    description:
+        - List of commands executed by this module during VM provisioning.
+        - Includes qemu-img commands for disk preparation and the virt-install command to create the VM.
+        - Only populated when a VM is created or recreated (V(state=present) and VM did not already exist, or V(recreate=true)).
+        - In check mode, the virt-install command includes the C(--dry-run) flag.
+    type: list
+    elements: str
+    returned: when a VM was created or recreated
+    version_added: "2.2.0"
+    sample:
+      - "qemu-img resize /var/lib/libvirt/images/test.qcow2 20G"
+      - "virt-install --name test-vm --memory 2048 --vcpus 2 --import --disk path=/var/lib/libvirt/images/test.qcow2"
 """
 
 
@@ -306,6 +319,11 @@ class BaseImageOperator(object):
         self.image_checksum = image_checksum
         self.base_image_path = None
         self.system_disk_path = None
+        self._executed_commands = []
+
+    def get_commands(self):
+        """Return list of commands that have been executed."""
+        return self._executed_commands
 
     def fetch_image(self, force_pull, timeout=None):
         """
@@ -466,6 +484,9 @@ class BaseImageOperator(object):
         Args:
             disk_param: Disk configuration dictionary
             force_disk: If True, remove existing disk file before creating new one
+
+        Returns:
+            dict: The system disk configuration
         """
         system_disk = self._resolve_system_disk(disk_param)
         disk_path = self.system_disk_path
@@ -530,6 +551,9 @@ class BaseImageOperator(object):
         if rc != 0:
             self.module.fail_json(
                 msg="Failed to resize system disk: %s" % stderr)
+
+        # Collect executed commands from qemuImgTool
+        self._executed_commands.extend(qemuImgTool.get_commands())
 
         for key in ['format', 'size']:
             if key in system_disk:
@@ -610,9 +634,10 @@ def core(module):
 
     result = dict(
         changed=False,
-        original_message="",
+        original_message="",  # TODO: Remove this unused return field in v3.0.0
         message="",
         base_image_path="",
+        commands=[],
     )
 
     virtConn = LibvirtWrapper(module)
@@ -654,6 +679,7 @@ def core(module):
 
         # Add base_image_path to result
         result['base_image_path'] = image_operator.base_image_path
+        result['commands'].extend(image_operator.get_commands())
 
         extra_user_data = None
         if wait_for_cloud_init_reboot and cloud_init_auto_reboot:
@@ -666,7 +692,7 @@ def core(module):
         # run virt-install to create new vm
         update_virtinst_params(module, virtInstall, system_disk, extra_user_data)
         changed, rc, extra_res = virtInstall.execute(dryrun=module.check_mode, wait_timeout=wait_timeout)
-        # result['virt_install_command'] = ' '.join(virtInstall.command_argv)
+        result['commands'].extend(virtInstall.get_commands())
         result['changed'] = changed
         result.update(extra_res)
 

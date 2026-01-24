@@ -24,6 +24,8 @@ class TestCoreFunction(unittest.TestCase):
             'recreate': False
         }
         self.mock_module.check_mode = False
+        # Mock run_command to return proper tuple for LibvirtConnection initialization
+        self.mock_module.run_command.return_value = (0, 'linux-kernel', '')
         self.mock_module.fail_json = mock.Mock(
             side_effect=Exception("fail_json called"))
 
@@ -59,6 +61,7 @@ class TestCoreFunction(unittest.TestCase):
         # VirtInstallTool.execute returns success
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {"msg": "VM created successfully"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -86,6 +89,7 @@ class TestCoreFunction(unittest.TestCase):
         # VirtInstallTool.execute returns failure
         mock_virt_install.execute.return_value = (
             False, VIRT_FAILED, {"msg": "VM creation failed"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -142,6 +146,7 @@ class TestCoreFunction(unittest.TestCase):
         # VirtInstallTool.execute returns success
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {"msg": "VM recreated successfully"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -176,6 +181,7 @@ class TestCoreFunction(unittest.TestCase):
         # VirtInstallTool.execute returns success
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {"msg": "VM recreated successfully"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -320,6 +326,7 @@ class TestCoreFunction(unittest.TestCase):
         # VirtInstallTool.execute returns success
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {"msg": "VM created successfully"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -351,7 +358,7 @@ class TestCoreFunction(unittest.TestCase):
         # Assertions - check result structure
         self.assertIsInstance(result, dict)
         self.assertIn('changed', result)
-        self.assertIn('orignal_message', result)  # Note: typo in original code
+        self.assertIn('original_message', result)
         self.assertIn('message', result)
         self.assertIsInstance(result['changed'], bool)
 
@@ -370,6 +377,7 @@ class TestCoreFunction(unittest.TestCase):
         mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {"msg": "VM created"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -392,6 +400,7 @@ class TestCoreFunction(unittest.TestCase):
         mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {"msg": "VM created"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -414,6 +423,7 @@ class TestCoreFunction(unittest.TestCase):
         mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {"msg": "VM created"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -441,6 +451,7 @@ class TestCoreFunction(unittest.TestCase):
         mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {"msg": "VM created"})
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
@@ -492,6 +503,7 @@ class TestCoreFunction(unittest.TestCase):
         }
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, extra_data)
+        mock_virt_install.get_commands.return_value = []
 
         # Call core function
         rc, result = core(self.mock_module)
