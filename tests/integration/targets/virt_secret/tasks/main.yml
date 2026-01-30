@@ -1,0 +1,387 @@
+---
+- name: Include OS-specifi variables
+  ansible.builtin.include_vars: '{{ item }}'
+  with_first_found:
+    - "{{ ansible_distribution }}-{{ ansible_distribution_version }}.yml"
+    - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+    - "{{ ansible_distribution }}.yml"
+    - "default.yml"
+
+- name: Initialisation tasks
+  block:
+    - name: Install libvirt packages
+      ansible.builtin.package:
+        name: "{{ virt_volume_packages }}"
+
+    - name: Install pip packages
+      ansible.builtin.pip:
+        name: "{{ virt_volume_pip_packages }}"
+        state: present
+
+    - name: Start libvirt
+      ansible.builtin.service:
+        name: libvirtd
+        state: started
+
+- name: Tests manipulate secrets
+  block:
+    - name: Create new secret using xml definition and command
+      community.libvirt.virt_secret:
+        command: create
+        xml: |
+          <secret ephemeral='no' private='yes'>
+            <uuid>{{ 'test_secret' | to_uuid }}</uuid>
+            <description>test_secret pool secret</description>
+            <usage type='ceph'>
+              <name>test_secret</name>
+            </usage>
+          </secret>
+      register: result
+
+    - name: Assert that creality command was successfull
+      ansible.builtin.assert:
+        that:
+          - result.changed
+          - not result.failed
+
+    - name: Test get_xml by uuid
+      community.libvirt.virt_secret:
+        uuid: "{{ 'test_secret' | to_uuid }}"
+        command: get_xml
+      register: result
+
+    - name: Assert that we were able to retrive created secret xml
+      ansible.builtin.assert:
+        that:
+          - result.secret_xml | length > 0
+          - result.msg == 'Found secret'
+          - not result.failed
+          - not result.changed
+
+    - name: Test get_xml by secret usage
+      community.libvirt.virt_secret:
+        secret:
+          usage: ceph
+          usage_id: test_secret
+          description: changed_test pool secret
+        command: get_xml
+      register: result
+
+    - name: Assert that we were able to retrive created secret xml
+      ansible.builtin.assert:
+        that:
+          - result.secret_xml | length > 0
+          - result.msg == 'Found secret'
+          - not result.failed
+          - not result.changed
+
+    - name: Test get_xml by non-existing id
+      community.libvirt.virt_secret:
+        secret:
+          usage: ceph
+          usage_id: incorrect_one
+        command: get_xml
+      register: result
+
+    - name: Assert that there are no secret found
+      ansible.builtin.assert:
+        that:
+          - result.secret_xml == None
+          - result.msg == 'Secret not found'
+          - not result.failed
+          - not result.changed
+
+    - name: Update secret using xml definition and command
+      community.libvirt.virt_secret:
+        command: create
+        xml: |
+          <secret ephemeral='no' private='yes'>
+            <uuid>{{ 'test_secret' | to_uuid }}</uuid>
+            <description>test_ALT pool secret</description>
+            <usage type='ceph'>
+              <name>test_secret</name>
+            </usage>
+          </secret>
+      register: result
+
+    - name: Assert that module detected changes and applied them
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+
+    - name: Again, but specify UUID in a property. No Change expected
+      community.libvirt.virt_secret:
+        uuid: "{{ 'test_secret' | to_uuid }}"
+        command: create
+        xml: |
+          <secret ephemeral='no' private='yes'>
+            <description>test_ALT pool secret</description>
+            <usage type='ceph'>
+              <name>test_secret</name>
+            </usage>
+          </secret>
+      register: result
+
+    - name: Assert no change if data isn't changed
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - not result.changed
+          - result.warnings is not defined
+
+    - name: Try to duplicate uuid param with incorrect UUID. No change
+      community.libvirt.virt_secret:
+        uuid: "{{ 'another_name' | to_uuid }}"
+        command: create
+        xml: |
+          <secret ephemeral='no' private='yes'>
+            <uuid>{{ 'test_secret' | to_uuid }}</uuid>
+            <description>test_ALT pool secret</description>
+            <usage type='ceph'>
+              <name>test_secret</name>
+            </usage>
+          </secret>
+      register: result
+
+    - name: Assert warrning present if UUID is defiend multiple times
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - not result.changed
+          - result.warnings | length > 0
+
+    - name: Try to change secret, but without UUID supplied.
+      community.libvirt.virt_secret:
+        command: create
+        xml: |
+          <secret ephemeral='no' private='yes'>
+            <description>test_second pool secret</description>
+            <usage type='ceph'>
+              <name>test_secret</name>
+            </usage>
+          </secret>
+      register: result
+
+    - name: Assert changed and check that the change is present in the diff
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+          - result.diff.before is defined
+          - result.diff.before | length > 0
+          - "'test_second pool secret' in result.diff.after"
+
+    - name: Repeat of the same request should not show changes
+      community.libvirt.virt_secret:
+        command: create
+        xml: |
+          <secret ephemeral='no' private='yes'>
+            <description>test_second pool secret</description>
+            <usage type='ceph'>
+              <name>test_secret</name>
+            </usage>
+          </secret>
+      register: result
+
+    - name: Assert idempotency using xml definition without UUID defined
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - not result.changed
+
+    - name: Change using params. Change expected
+      community.libvirt.virt_secret:
+        uuid: "{{ 'test_secret' | to_uuid }}"
+        secret:
+          ephemeral: false
+          private: true
+          usage: ceph
+          usage_id: test_secret
+          description: changed_test pool secret
+        command: create
+      register: result
+
+    - name: Assert changed state when using params
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+          - result.diff.after is defined
+          - "'changed_test pool secret' in result.diff.after"
+
+    - name: Test param defaults and seach using secret uage
+      community.libvirt.virt_secret:
+        secret:
+          usage: ceph
+          usage_id: test_secret
+          description: changed_test pool secret
+        command: create
+      register: result
+
+    - name: Assert not changed state when using expected default params
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - not result.changed
+
+    - name: Test using state. No change expected
+      community.libvirt.virt_secret:
+        state: present
+        uuid: "{{ 'test_secret' | to_uuid }}"
+        secret:
+          ephemeral: false
+          private: true
+          usage: ceph
+          usage_id: test_secret
+          description: changed_test pool secret
+      register: result
+
+    - name: Assert not changed when we try to define state instead of command
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - not result.changed
+
+    - name: Test volume secret creation using state
+      community.libvirt.virt_secret:
+        state: present
+        # uuid: "{{ 'second_secret' | to_uuid }}"
+        secret:
+          ephemeral: false
+          private: true
+          usage: volume
+          usage_id: /var/lib/libvirt/images/puppyname.img
+          description: Secret puppy name
+      register: result
+
+    - name: Assert volume secret was created
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+
+    - name: Test iscsi secret creation using state
+      community.libvirt.virt_secret:
+        state: present
+        uuid: "{{ 'iscsi_secret' | to_uuid }}"
+        secret:
+          ephemeral: false
+          private: true
+          usage: iscsi
+          usage_id: libvirtiscsi
+          description: Passphrase for the iSCSI server
+      register: result
+
+    - name: Assert iscsi secret was created
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+
+    - name: Test TLS secret creation using state
+      community.libvirt.virt_secret:
+        state: present
+        uuid: "{{ 'tls_secret' | to_uuid }}"
+        secret:
+          ephemeral: false
+          private: true
+          usage: tls
+          usage_id: TLS_example
+          description: Sample tls secret
+      register: result
+
+    - name: Assert TLS secret was created
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+
+    - name: Test vTPM secret creation using state
+      community.libvirt.virt_secret:
+        state: present
+        uuid: "{{ 'vtpm_secret' | to_uuid }}"
+        secret:
+          ephemeral: false
+          private: true
+          usage: vtpm
+          usage_id: VTPM_example
+          description: sample vTPM secret
+      register: result
+
+    - name: Assert vTPM secret was created
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+
+    - name: Test list all secrets
+      community.libvirt.virt_secret:
+        command: list_secrets
+      register: result
+
+    - name: Assert that list was successfull
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.secrets_list | length == 5
+
+    - name: Test define secret. Always produce changed
+      community.libvirt.virt_secret:
+        uuid: "{{ 'test_secret' | to_uuid }}"
+        command: set_value
+        password: somesecureandrandomsecret1234
+      register: result
+
+    - name: Assert that definintion of secret produce changes
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+          - "'The value for the secret was successfully set' in result.msg"
+
+    - name: Test delete using state=absent
+      community.libvirt.virt_secret:
+        uuid: "{{ 'test_secret' | to_uuid }}"
+        state: absent
+
+    - name: Cleanup volume secret
+      community.libvirt.virt_secret:
+        state: absent
+        secret:
+          usage: volume
+          usage_id: /var/lib/libvirt/images/puppyname.img
+      register: result
+
+    - name: Assert that volume removal without UUID was successfull
+      ansible.builtin.assert:
+        that:
+          - not result.failed
+          - result.changed
+  always:
+    - name: Cleanup ceph secret
+      community.libvirt.virt_secret:
+        uuid: "{{ 'test_secret' | to_uuid }}"
+        state: absent
+
+    - name: Cleanup volume secret
+      community.libvirt.virt_secret:
+        state: absent
+        secret:
+          usage: volume
+          usage_id: /var/lib/libvirt/images/puppyname.img
+
+    - name: Cleanup iscsi secret
+      community.libvirt.virt_secret:
+        uuid: "{{ 'iscsi_secret' | to_uuid }}"
+        state: absent
+
+    - name: Cleanup TLS secret
+      community.libvirt.virt_secret:
+        uuid: "{{ 'tls_secret' | to_uuid }}"
+        state: absent
+
+    - name: Cleanup vTPM secret
+      community.libvirt.virt_secret:
+        uuid: "{{ 'vtpm_secret' | to_uuid }}"
+        state: absent
