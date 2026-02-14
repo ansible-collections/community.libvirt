@@ -1,2 +1,0 @@
-minor_changes:
-  - virt_install - added support for primary value attribute (_value or value) in dynamic dict options that require a primary value alongside additional attributes.
