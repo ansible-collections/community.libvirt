@@ -200,3 +200,41 @@ releases:
       name: virt_install
       namespace: ''
     release_date: '2025-07-21'
+  2.1.0:
+    changes:
+      bugfixes:
+      - virt_install - fixed cloud_init configuration handling for meta-data, user-data,
+        and network-config.
+      - virt_install - fixed the dict-based options handling for events, resource,
+        and sysinfo options.
+      minor_changes:
+      - virt_install - added support for memoryBacking source type configuration,
+        including memfd for shared memory (https://github.com/ansible-collections/community.libvirt/issues/228).
+      - virt_install - added support for primary value attribute (_value or value)
+        in dynamic dict options that require a primary value alongside additional
+        attributes.
+      - virt_install - enhanced cloud_init configuration handling for sub-options
+        (meta-data, user-data, and network-config) to support both string and dictionary
+        inputs.
+      - virt_install - refactored common virt-install functionality into module_utils
+        and doc_fragments to enable code reuse between modules.
+      - virt_volume - New return key/value pairs 'Type', 'Capacity' and 'Allocation'
+        were added to command 'list_volumes' (https://github.com/ansible-collections/community.libvirt/issues/187)
+      - virt_volume - added ability to resize volumes if defined capacity is different.
+        If volume already exists and defined capacity in XML differs a resize is attempted.
+      release_summary: 'This is the minor release of the ``community.libvirt`` collection.
+
+        This changelog contains all changes to the modules and plugins in this collection
+
+        that have been made after the previous release.'
+    fragments:
+    - 212_fix_list_volumes.yml
+    - 214-virt-install-improvement.yml
+    - 225-primary-value-support.yml
+    - 226-virt_volume-resize.yaml
+    - 230-memorybacking-memfd-support.yml
+    modules:
+    - description: Provision new virtual machines from cloud images via libvirt
+      name: virt_cloud_instance
+      namespace: ''
+    release_date: '2026-02-16'

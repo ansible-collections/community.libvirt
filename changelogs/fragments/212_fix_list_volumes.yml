@@ -1,2 +1,0 @@
-minor_changes:
-  - virt_volume - New return key/value pairs 'Type', 'Capacity' and 'Allocation' were added to command 'list_volumes' (https://github.com/ansible-collections/community.libvirt/issues/187)
