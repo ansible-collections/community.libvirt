@@ -38,6 +38,10 @@ For more information about communication, see the [Ansible communication guide](
 - [libvirt python bindings](https://pypi.org/project/libvirt-python/)
 - lxml
 
+Some modules require additional system tools:
+- `virt-install`: required by the `virt_install` and `virt_cloud_instance` modules.
+- `qemu-img`: required by the `virt_cloud_instance` module.
+
 ## Included content
 <!-- Galaxy will eventually list the module docs within the UI, but until that is ready, you may need to either describe your plugins etc here, or point to an external docsite to cover that information. -->
 
@@ -46,6 +50,9 @@ Modules:
 - [virt](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_module.html)
 - [virt_net](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_net_module.html)
 - [virt_pool](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_pool_module.html)
+- [virt_volume](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_volume_module.html)
+- [virt_install](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_install_module.html)
+- [virt_cloud_instance](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_cloud_instance_module.html)
 
 Inventory:
 
