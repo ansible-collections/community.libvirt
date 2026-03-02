@@ -1,0 +1,2 @@
+bugfixes:
+  - libvirt_qemu - Vendor ``_parse_clixml`` locally to fix ``ImportError`` on ansible-core devel (2.21+).
