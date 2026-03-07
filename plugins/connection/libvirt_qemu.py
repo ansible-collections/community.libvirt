@@ -62,8 +62,8 @@ from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNo
 from ansible.module_utils._text import to_bytes, to_native, to_text
 from ansible.module_utils.six import raise_from
 from ansible.plugins.connection import ConnectionBase, BUFSIZE
-from ansible.plugins.shell.powershell import _parse_clixml
 from ansible.utils.display import Display
+from ansible_collections.community.libvirt.plugins.module_utils.powershell import _parse_clixml
 from functools import partial
 from os.path import exists
 
