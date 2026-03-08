@@ -171,8 +171,13 @@ class VirtInstallTool(object):
         self.warnings = []
         self._base_command = virtinst_path if virtinst_path is not None else 'virt-install'
         self.command_argv = [self._base_command]
+        self._executed_commands = []
 
         self._vm_name = self.params.get('name')
+
+    def get_commands(self):
+        """Return list of commands that have been executed."""
+        return self._executed_commands
 
     def _reset_command(self):
         """Reset command_argv to base command for new operation"""
@@ -842,6 +847,9 @@ class VirtInstallTool(object):
             wait_minutes = math.ceil(wait_timeout / 60.0)
             self.command_argv.append('--wait')
             self.command_argv.append(str(wait_minutes))
+
+        # Store the command for later retrieval
+        self._executed_commands.append(' '.join(self.command_argv))
 
         # Execute the command
         rc, stdout, stderr = self.module.run_command(

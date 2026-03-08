@@ -18,6 +18,11 @@ class QemuImgTool(object):
         self.warnings = []
         self._base_command = qemu_img_path if qemu_img_path is not None else 'qemu-img'
         self.command_argv = [self._base_command]
+        self._executed_commands = []
+
+    def get_commands(self):
+        """Return list of commands that have been executed."""
+        return self._executed_commands
 
     def _reset_command(self):
         """Reset command_argv to base command for new operation"""
@@ -73,6 +78,9 @@ class QemuImgTool(object):
 
         # Add output filename (must be last)
         self.command_argv.append(str(output_filename))
+
+        # Store the command for later retrieval
+        self._executed_commands.append(' '.join(self.command_argv))
 
         # Check if we're in check mode
         if self.module.check_mode:
@@ -158,6 +166,9 @@ class QemuImgTool(object):
 
         # Add size (must be last)
         self.command_argv.append(str(size))
+
+        # Store the command for later retrieval
+        self._executed_commands.append(' '.join(self.command_argv))
 
         # Check if we're in check mode
         if self.module.check_mode:

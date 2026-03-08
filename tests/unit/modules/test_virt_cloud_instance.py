@@ -545,6 +545,7 @@ class TestBaseImageOperatorBuildSystemDisk(unittest.TestCase):
             'virtual-size': 1073741824  # 1GB
         }, '')
         mock_qemu_instance.resize.return_value = (0, '', '')
+        mock_qemu_instance.get_commands.return_value = []
 
         disk_param = {
             'path': '/var/lib/libvirt/images/vm.qcow2',
@@ -714,6 +715,7 @@ class TestBaseImageOperatorBuildSystemDisk(unittest.TestCase):
             'virtual-size': 1073741824  # 1GB
         }, '')
         mock_qemu_instance.resize.return_value = (0, '', '')
+        mock_qemu_instance.get_commands.return_value = []
 
         disk_param = {
             'path': '/var/lib/libvirt/images/vm.qcow2',
@@ -917,6 +919,7 @@ class TestBaseImageOperatorCheckMode(unittest.TestCase):
             'virtual-size': 5 * 1024 * 1024 * 1024  # 5GB
         }, '')
         mock_qemu_tool.resize.return_value = (0, '', '')
+        mock_qemu_tool.get_commands.return_value = []
         mock_qemu_tool_class.return_value = mock_qemu_tool
 
         operator = BaseImageOperator(self.mock_module, '/path/to/image.qcow2')
@@ -1002,6 +1005,8 @@ class TestCore(unittest.TestCase):
         """Set up test fixtures"""
         self.mock_module = mock.Mock()
         self.mock_module.check_mode = False
+        # Mock run_command to return proper tuple for LibvirtConnection initialization
+        self.mock_module.run_command.return_value = (0, 'linux-kernel', '')
 
         # Default successful params
         self.mock_module.params = {
@@ -1041,6 +1046,7 @@ class TestCore(unittest.TestCase):
         mock_virt_install = mock.Mock()
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {'some': 'data'})
+        mock_virt_install.get_commands.return_value = []
         mock_virt_install_class.return_value = mock_virt_install
 
         # Mock BaseImageOperator
@@ -1048,6 +1054,7 @@ class TestCore(unittest.TestCase):
         mock_operator.validate_checksum.return_value = True
         mock_operator.build_system_disk.return_value = {
             'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_operator.get_commands.return_value = []
         mock_base_image_operator_class.return_value = mock_operator
 
         # Execute core function
@@ -1134,6 +1141,7 @@ class TestCore(unittest.TestCase):
         # Mock VirtInstallTool
         mock_virt_install = mock.Mock()
         mock_virt_install.execute.return_value = (True, VIRT_SUCCESS, {})
+        mock_virt_install.get_commands.return_value = []
         mock_virt_install_class.return_value = mock_virt_install
 
         # Mock BaseImageOperator
@@ -1141,6 +1149,7 @@ class TestCore(unittest.TestCase):
         mock_operator.validate_checksum.return_value = True
         mock_operator.build_system_disk.return_value = {
             'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_operator.get_commands.return_value = []
         mock_base_image_operator_class.return_value = mock_operator
 
         # Execute core function
@@ -1185,6 +1194,7 @@ class TestCore(unittest.TestCase):
         # Mock VirtInstallTool
         mock_virt_install = mock.Mock()
         mock_virt_install.execute.return_value = (True, VIRT_SUCCESS, {})
+        mock_virt_install.get_commands.return_value = []
         mock_virt_install_class.return_value = mock_virt_install
 
         # Mock BaseImageOperator
@@ -1192,6 +1202,7 @@ class TestCore(unittest.TestCase):
         mock_operator.validate_checksum.return_value = True
         mock_operator.build_system_disk.return_value = {
             'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_operator.get_commands.return_value = []
         mock_base_image_operator_class.return_value = mock_operator
 
         # Execute core function
@@ -1270,6 +1281,7 @@ class TestCore(unittest.TestCase):
         # Mock BaseImageOperator - checksum validation fails
         mock_operator = mock.Mock()
         mock_operator.validate_checksum.return_value = False
+        mock_operator.get_commands.return_value = []
         mock_base_image_operator_class.return_value = mock_operator
 
         # Configure fail_json to raise exception (as it should in real code)
@@ -1328,6 +1340,7 @@ class TestCore(unittest.TestCase):
         # Mock VirtInstallTool
         mock_virt_install = mock.Mock()
         mock_virt_install.execute.return_value = (True, VIRT_SUCCESS, {})
+        mock_virt_install.get_commands.return_value = []
         mock_virt_install_class.return_value = mock_virt_install
 
         # Mock BaseImageOperator
@@ -1335,6 +1348,7 @@ class TestCore(unittest.TestCase):
         mock_operator.validate_checksum.return_value = True
         mock_operator.build_system_disk.return_value = {
             'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_operator.get_commands.return_value = []
         mock_base_image_operator_class.return_value = mock_operator
 
         # Execute core function
@@ -1375,6 +1389,7 @@ class TestCore(unittest.TestCase):
         mock_virt_install = mock.Mock()
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {'some': 'data'})
+        mock_virt_install.get_commands.return_value = []
         mock_virt_install_class.return_value = mock_virt_install
 
         # Mock BaseImageOperator
@@ -1382,6 +1397,7 @@ class TestCore(unittest.TestCase):
         mock_operator.validate_checksum.return_value = True
         mock_operator.build_system_disk.return_value = {
             'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_operator.get_commands.return_value = []
         mock_base_image_operator_class.return_value = mock_operator
 
         # Execute core function
@@ -1421,6 +1437,7 @@ class TestCore(unittest.TestCase):
         mock_virt_install = mock.Mock()
         mock_virt_install.execute.return_value = (
             True, VIRT_SUCCESS, {'some': 'data'})
+        mock_virt_install.get_commands.return_value = []
         mock_virt_install_class.return_value = mock_virt_install
 
         # Mock BaseImageOperator
@@ -1428,6 +1445,7 @@ class TestCore(unittest.TestCase):
         mock_operator.validate_checksum.return_value = True
         mock_operator.build_system_disk.return_value = {
             'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_operator.get_commands.return_value = []
         mock_base_image_operator_class.return_value = mock_operator
 
         # Execute core function
