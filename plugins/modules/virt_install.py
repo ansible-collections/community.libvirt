@@ -320,7 +320,18 @@ EXAMPLES = """
     state: absent
 """
 
-RETURN = r""" # """
+RETURN = r"""
+commands:
+    description:
+        - List of virt-install commands executed by this module.
+        - Only populated when a VM is created or recreated (V(state=present) and VM did not already exist, or V(recreate=true)).
+        - In check mode, the command includes the C(--dry-run) flag.
+    type: list
+    elements: str
+    returned: when a virt-install command was executed
+    version_added: "2.2.0"
+    sample: ["virt-install --name test-vm --memory 2048 --vcpus 2 --import --disk path=/var/lib/libvirt/images/test.qcow2"]
+"""
 
 from ansible_collections.community.libvirt.plugins.module_utils import virt_install as virtinst_util
 from ansible_collections.community.libvirt.plugins.module_utils.virt_install import (
@@ -340,8 +351,9 @@ def core(module):
 
     result = dict(
         changed=False,
-        orignal_message="",
+        original_message="",  # TODO: Remove this unused return field in v3.0.0
         message="",
+        commands=[],
     )
 
     virtConn = LibvirtWrapper(module)
@@ -369,6 +381,7 @@ def core(module):
         # run virt-install to create new vm
         changed, rc, extra_res = virtInstall.execute(dryrun=module.check_mode)
         result['changed'] = changed
+        result['commands'].extend(virtInstall.get_commands())
         result.update(extra_res)
 
         return rc, result

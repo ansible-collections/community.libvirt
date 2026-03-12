@@ -171,12 +171,19 @@ class VirtInstallTool(object):
         self.warnings = []
         self._base_command = virtinst_path if virtinst_path is not None else 'virt-install'
         self.command_argv = [self._base_command]
+        self._display_argv = [self._base_command]
+        self._executed_commands = []
 
         self._vm_name = self.params.get('name')
+
+    def get_commands(self):
+        """Return list of commands that have been executed."""
+        return self._executed_commands
 
     def _reset_command(self):
         """Reset command_argv to base command for new operation"""
         self.command_argv = [self._base_command]
+        self._display_argv = [self._base_command]
 
     def _save_string_to_tempfile(self, content, suffix='.tmp'):
         fd, path = tempfile.mkstemp(dir=self.module.tmpdir,
@@ -192,36 +199,55 @@ class VirtInstallTool(object):
             flag,
             primary_value=None,
             dict_value=None,
-            dict_mapping=None):
-        """Add a command line option to virt-install command"""
+            dict_mapping=None,
+            no_log=False,
+            sanitized_dict_value=None):
+        """Add a command line option to virt-install command.
+
+        no_log=True redacts the entire argument value in the display command.
+        sanitized_dict_value replaces dict_value only in the display command,
+        allowing per-key redaction of no_log sub-fields.
+        """
+        display_dict_value = sanitized_dict_value if sanitized_dict_value is not None else dict_value
+
         if primary_value:
             if dict_value:
+                real_value = "{},{}".format(str(primary_value), _dict2options(dict_value, dict_mapping))
                 self.command_argv.append("{}".format(flag))
-                self.command_argv.append(
-                    "{},{}".format(
-                        str(primary_value),
-                        _dict2options(
-                            dict_value,
-                            dict_mapping)))
+                self.command_argv.append(real_value)
+                self._display_argv.append("{}".format(flag))
+                if no_log:
+                    self._display_argv.append("***")
+                else:
+                    self._display_argv.append(
+                        "{},{}".format(str(primary_value), _dict2options(display_dict_value, dict_mapping)))
                 return
             else:
                 self.command_argv.append("{}".format(flag))
                 self.command_argv.append("{}".format(str(primary_value)))
+                self._display_argv.append("{}".format(flag))
+                self._display_argv.append("***" if no_log else "{}".format(str(primary_value)))
                 return
         else:
             if dict_value:
                 self.command_argv.append("{}".format(flag))
-                self.command_argv.append("{}".format(
-                    _dict2options(dict_value, dict_mapping)))
+                self.command_argv.append("{}".format(_dict2options(dict_value, dict_mapping)))
+                self._display_argv.append("{}".format(flag))
+                if no_log:
+                    self._display_argv.append("***")
+                else:
+                    self._display_argv.append("{}".format(_dict2options(display_dict_value, dict_mapping)))
                 return
             else:
                 self.command_argv.append("{}".format(flag))
+                self._display_argv.append("{}".format(flag))
                 return
 
     def _add_flag_parameter(self, flag, value):
         """Add a flag command line option to virt-install command"""
         if value:
             self.command_argv.append("{}".format(flag))
+            self._display_argv.append("{}".format(flag))
             return
 
     def _get_param_combined_items(self, singular_key, plural_key):
@@ -402,7 +428,8 @@ class VirtInstallTool(object):
             }
             self._add_parameter('--keywrap',
                                 dict_value=self.params['keywrap'],
-                                dict_mapping=keywrap_mapping)
+                                dict_mapping=keywrap_mapping,
+                                no_log=True)
 
         if self.params.get('iothreads') is not None:
             iothreads_mapping = {
@@ -471,9 +498,13 @@ class VirtInstallTool(object):
                 'user_password_file': ('user-password-file', None),
                 'product_key': ('product-key', None),
             }
+            unattended_sanitized = self.params['unattended'].copy()
+            if unattended_sanitized.get('product_key') is not None:
+                unattended_sanitized['product_key'] = '***'
             self._add_parameter('--unattended',
                                 dict_value=self.params['unattended'],
-                                dict_mapping=unattended_mapping)
+                                dict_mapping=unattended_mapping,
+                                sanitized_dict_value=unattended_sanitized)
 
         if self.params.get('cloud_init') is not None:
             cloud_init_params = self.params['cloud_init'].copy()
@@ -508,9 +539,14 @@ class VirtInstallTool(object):
                     'clouduser-ssh-key',
                     None),
             }
+            cloud_init_sanitized = cloud_init_params.copy()
+            for _sensitive_key in ('root_ssh_key', 'clouduser_ssh_key'):
+                if cloud_init_sanitized.get(_sensitive_key) is not None:
+                    cloud_init_sanitized[_sensitive_key] = '***'
             self._add_parameter('--cloud-init',
                                 dict_value=cloud_init_params,
-                                dict_mapping=cloud_init_mapping)
+                                dict_mapping=cloud_init_mapping,
+                                sanitized_dict_value=cloud_init_sanitized)
 
         if self.params.get('boot') is not None:
             self._add_parameter('--boot', self.params['boot'],
@@ -827,6 +863,7 @@ class VirtInstallTool(object):
 
         # Always add --noautoconsole for non-interactive execution
         self.command_argv.append('--noautoconsole')
+        self._display_argv.append('--noautoconsole')
 
     def execute(self, dryrun=False, wait_timeout=None):
         changed = False
@@ -837,11 +874,17 @@ class VirtInstallTool(object):
 
         if dryrun:
             self.command_argv.append('--dry-run')
+            self._display_argv.append('--dry-run')
 
         if wait_timeout:
             wait_minutes = math.ceil(wait_timeout / 60.0)
             self.command_argv.append('--wait')
             self.command_argv.append(str(wait_minutes))
+            self._display_argv.append('--wait')
+            self._display_argv.append(str(wait_minutes))
+
+        # Store the sanitized command for later retrieval
+        self._executed_commands.append(' '.join(self._display_argv))
 
         # Execute the command
         rc, stdout, stderr = self.module.run_command(

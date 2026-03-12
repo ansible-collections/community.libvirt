@@ -684,6 +684,37 @@ class TestAddParameter(unittest.TestCase):
         self.assertIn("vcpus.vcpu1.id=1", test_arg)
         self.assertIn("vcpus.vcpu1.enabled=off", test_arg)
 
+    def test_add_parameter_with_no_log_masks_display_only(self):
+        """Test no_log masks only the display command value"""
+        self.virt_install._add_parameter('--secret', 'super-secret', no_log=True)
+        self.assertEqual(self.virt_install.command_argv[-2:], ["--secret", "super-secret"])
+        self.assertEqual(self.virt_install._display_argv[-2:], ["--secret", "***"])
+
+    def test_add_parameter_uses_sanitized_dict_value_for_display(self):
+        """Test sanitized_dict_value is used only for display output"""
+        dict_value = {
+            "product_key": "AAAAA-BBBBB-CCCCC-DDDDD-EEEEE",
+            "profile": "desktop"
+        }
+        sanitized_dict_value = {
+            "product_key": "***",
+            "profile": "desktop"
+        }
+        mapping = {
+            "product_key": ("product-key", None),
+            "profile": ("profile", None)
+        }
+
+        self.virt_install._add_parameter(
+            '--unattended',
+            dict_value=dict_value,
+            dict_mapping=mapping,
+            sanitized_dict_value=sanitized_dict_value)
+
+        self.assertIn('product-key=AAAAA-BBBBB-CCCCC-DDDDD-EEEEE', self.virt_install.command_argv[-1])
+        self.assertIn('product-key=***', self.virt_install._display_argv[-1])
+        self.assertIn('profile=desktop', self.virt_install._display_argv[-1])
+
     def test_add_flag_parameter_true(self):
         """Test adding a flag parameter"""
         self.virt_install._add_flag_parameter('--test', True)
@@ -1662,6 +1693,71 @@ class TestBuildCommand(unittest.TestCase):
             'product-key=XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
             unattended_arg)
 
+    def test_unattended_masks_product_key_in_display_command(self):
+        """Test unattended product key is masked in display argv"""
+        product_key = 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX'
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'unattended': {
+                'profile': 'desktop',
+                'product_key': product_key
+            }
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        real_arg = None
+        display_arg = None
+        for i, arg in enumerate(self.virt_install.command_argv):
+            if arg == '--unattended' and i + 1 < len(self.virt_install.command_argv):
+                real_arg = self.virt_install.command_argv[i + 1]
+                break
+        for i, arg in enumerate(self.virt_install._display_argv):
+            if arg == '--unattended' and i + 1 < len(self.virt_install._display_argv):
+                display_arg = self.virt_install._display_argv[i + 1]
+                break
+
+        self.assertIsNotNone(real_arg)
+        self.assertIsNotNone(display_arg)
+        self.assertIn('product-key={}'.format(product_key), real_arg)
+        self.assertIn('product-key=***', display_arg)
+        self.assertNotIn('product-key={}'.format(product_key), display_arg)
+
+    def test_cloud_init_masks_sensitive_keys_in_display_command(self):
+        """Test cloud-init SSH keys are masked in display argv"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'cloud_init': {
+                'root_password_generate': True,
+                'root_ssh_key': '/path/to/root.pub',
+                'clouduser_ssh_key': '/path/to/clouduser.pub'
+            }
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        real_arg = None
+        display_arg = None
+        for i, arg in enumerate(self.virt_install.command_argv):
+            if arg == '--cloud-init' and i + 1 < len(self.virt_install.command_argv):
+                real_arg = self.virt_install.command_argv[i + 1]
+                break
+        for i, arg in enumerate(self.virt_install._display_argv):
+            if arg == '--cloud-init' and i + 1 < len(self.virt_install._display_argv):
+                display_arg = self.virt_install._display_argv[i + 1]
+                break
+
+        self.assertIsNotNone(real_arg)
+        self.assertIsNotNone(display_arg)
+        self.assertIn('root-ssh-key=/path/to/root.pub', real_arg)
+        self.assertIn('clouduser-ssh-key=/path/to/clouduser.pub', real_arg)
+        self.assertIn('root-ssh-key=***', display_arg)
+        self.assertIn('clouduser-ssh-key=***', display_arg)
+        self.assertNotIn('/path/to/root.pub', display_arg)
+        self.assertNotIn('/path/to/clouduser.pub', display_arg)
+
     def test_virtualization_options(self):
         """Test virtualization-specific options"""
         self.mock_module.params = {
@@ -2540,6 +2636,25 @@ class TestVirtInstallToolExecute(unittest.TestCase):
         # Verify return types
         self.assertIsInstance(changed, bool)
         self.assertIsInstance(rc, int)
+
+    def test_execute_records_sanitized_command(self):
+        """Test get_commands() returns sanitized command string"""
+        product_key = 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE'
+        self.mock_module.params.update({
+            'unattended': {
+                'profile': 'desktop',
+                'product_key': product_key
+            }
+        })
+        self.mock_module.run_command.return_value = (0, "Success", "")
+        self.virt_install = VirtInstallTool(self.mock_module)
+
+        self.virt_install.execute()
+
+        executed_commands = self.virt_install.get_commands()
+        self.assertEqual(len(executed_commands), 1)
+        self.assertIn('product-key=***', executed_commands[0])
+        self.assertNotIn(product_key, executed_commands[0])
 
 
 if __name__ == '__main__':
