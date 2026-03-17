@@ -1,0 +1,2 @@
+minor_changes:
+  - virt_cloud_instance - Add support for compressed base images (gzip, bzip2, xz).

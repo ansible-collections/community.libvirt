@@ -42,7 +42,23 @@ options:
       - Path or URL to the cloud image.
       - Can be a local file path or a remote URL (http, https, ftp).
       - The image will be automatically downloaded if a URL is provided.
+      - Supports compressed images (gzip, bzip2, xz) which will be automatically decompressed.
     required: true
+  image_compression:
+    type: str
+    choices: [ auto, gzip, bzip2, xz, none ]
+    default: auto
+    version_added: "2.3.0"
+    description:
+      - The compression format of the base image.
+      - V(auto) automatically detects compression based on file extension (C(.gz), C(.bz2), C(.xz)).
+      - V(none) explicitly indicates the image is not compressed.
+      - Compressed images are decompressed to a temporary directory on each run for integrity.
+      - The decompressed image is written to the module temporary directory (C(module.tmpdir), the Ansible remote temporary directory).
+      - The decompressed image is not cached; if O(image_cache_dir) is used, it caches the downloaded compressed file, not the decompressed image.
+      - The decompressed file is normally removed automatically when the module finishes (unless the remote temporary directory is preserved,
+        e.g. with C(--keep-remote-files) / C(ANSIBLE_KEEP_REMOTE_FILES)).
+      - Only applies when O(base_image) is a compressed file.
   image_cache_dir:
     type: path
     description:
@@ -181,6 +197,10 @@ notes:
     - The O(cloud_init_auto_reboot) parameter automatically injects I(power_state.mode=reboot) at the end of user-data when enabled.
     - The module waits through the complete cloud-init process including any reboots specified in the user-data.
     - Use O(cloud_init_reboot_timeout) to control the maximum wait time for complex cloud-init configurations.
+    - Compressed images (O(image_compression)) are decompressed on every run for integrity after checksum validation.
+    - The decompressed image is written under the Ansible remote temporary directory (C(module.tmpdir)) and is normally cleaned up
+      automatically when the module completes (unless remote tmp is preserved, e.g. with C(--keep-remote-files) / C(ANSIBLE_KEEP_REMOTE_FILES)).
+    - For better performance with compressed images, manually decompress once and use the local file path.
 seealso:
   - module: community.libvirt.virt_install
     description: More general VM installation module.
@@ -265,6 +285,23 @@ EXAMPLES = """
     disks:
       - path: /var/lib/libvirt/images/test-vm.qcow2
         size: 20
+        format: qcow2
+    memory: 2048
+    vcpus: 2
+    networks:
+      - network: default
+
+# Use compressed FreeBSD cloud image
+- name: Create VM from compressed FreeBSD image
+  community.libvirt.virt_cloud_instance:
+    name: freebsd-vm-01
+    base_image: https://download.freebsd.org/releases/VM-IMAGES/15.0-RELEASE/amd64/Latest/FreeBSD-15.0-RELEASE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz
+    image_cache_dir: /srv/cloud-images
+    image_checksum: sha256:https://download.freebsd.org/releases/VM-IMAGES/15.0-RELEASE/amd64/Latest/CHECKSUM.SHA256
+    image_compression: auto
+    disks:
+      - path: /var/lib/libvirt/images/freebsd-vm-01.qcow2
+        size: 30
         format: qcow2
     memory: 2048
     vcpus: 2
@@ -366,6 +403,124 @@ class BaseImageOperator(object):
 
         self.base_image_path = image_path
         return self.base_image_path
+
+    def _detect_compression(self, filename):
+        """
+        Detect compression format based on file extension.
+
+        Args:
+            filename: Filename to check
+
+        Returns:
+            str: Detected compression format ('gzip', 'bzip2', 'xz', or 'none')
+        """
+        if filename.endswith('.gz'):
+            return 'gzip'
+        elif filename.endswith('.xz'):
+            return 'xz'
+        elif filename.endswith('.bz2'):
+            return 'bzip2'
+        return 'none'
+
+    def _strip_compression_extension(self, filename, compression_format):
+        """
+        Remove compression extension from filename.
+
+        Args:
+            filename: Original filename with compression extension
+            compression_format: Compression format ('gzip', 'bzip2', 'xz')
+
+        Returns:
+            str: Filename without compression extension
+        """
+        extensions = {
+            'gzip': '.gz',
+            'bzip2': '.bz2',
+            'xz': '.xz'
+        }
+        ext = extensions.get(compression_format)
+        if ext and filename.endswith(ext):
+            return filename[:-len(ext)]
+        return filename
+
+    def _decompress_file(self, source_path, dest_path, compression_format):
+        """
+        Decompress file using Python standard library.
+
+        Args:
+            source_path: Path to compressed file
+            dest_path: Path where decompressed file will be written
+            compression_format: Compression format ('gzip', 'bzip2', 'xz')
+
+        Raises:
+            Fails the module if decompression fails
+        """
+        import gzip
+        import bz2
+        try:
+            import lzma
+        except ImportError:
+            lzma = None
+
+        openers = {
+            'gzip': gzip.open,
+            'bzip2': bz2.open,
+        }
+
+        if lzma:
+            openers['xz'] = lzma.open
+        elif compression_format == 'xz':
+            self.module.fail_json(
+                msg="xz decompression requires Python 3.3+")
+
+        opener = openers.get(compression_format)
+        if not opener:
+            self.module.fail_json(
+                msg="Unsupported compression format: %s" % compression_format)
+
+        try:
+            with opener(source_path, 'rb') as src:
+                with open(dest_path, 'wb') as dst:
+                    while True:
+                        chunk = src.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        dst.write(chunk)
+        except Exception as e:
+            self.module.fail_json(
+                msg="Failed to decompress %s: %s" % (source_path, str(e)))
+
+    def decompress_image(self, compression_format):
+        """
+        Decompress the base image to temporary directory if needed.
+
+        Compressed images are always decompressed to module.tmpdir on each run
+        to ensure integrity after checksum validation. The decompressed file
+        is automatically cleaned up when the module execution completes.
+
+        Args:
+            compression_format: One of 'auto', 'gzip', 'bzip2', 'xz', 'none'
+
+        Returns:
+            str: Path to the decompressed image (or original if not compressed)
+        """
+        if compression_format == 'auto':
+            compression_format = self._detect_compression(self.base_image_path)
+
+        if compression_format == 'none':
+            return self.base_image_path
+
+        decompressed_filename = self._strip_compression_extension(
+            os.path.basename(self.base_image_path), compression_format)
+
+        decompressed_path = os.path.join(self.module.tmpdir, decompressed_filename)
+
+        if self.module.check_mode:
+            return decompressed_path
+
+        self._decompress_file(self.base_image_path, decompressed_path, compression_format)
+
+        return decompressed_path
 
     def _resolve_system_disk(self, disk_param):
         # TODO: Support specifying the system disk as a pool volume
@@ -625,6 +780,7 @@ def core(module):
     force_disk = module.params.get('force_disk', False)
     disks = module.params.get('disks', [])
     image_checksum = module.params.get('image_checksum')
+    image_compression = module.params.get('image_compression', 'auto')
     url_timeout = module.params.get('url_timeout')
     wait_for_cloud_init_reboot = module.params.get('wait_for_cloud_init_reboot', True)
     cloud_init_auto_reboot = module.params.get('cloud_init_auto_reboot', True)
@@ -675,6 +831,10 @@ def core(module):
         if not image_operator.validate_checksum():
             module.fail_json(
                 msg="The checksum of the base image does not match the expected value")
+
+        decompressed_path = image_operator.decompress_image(image_compression)
+        image_operator.base_image_path = decompressed_path
+
         system_disk = image_operator.build_system_disk(disks[0], force_disk=force_disk)
 
         # Add base_image_path to result
@@ -736,6 +896,11 @@ def main():
         force_pull=dict(type='bool', default=False),
         force_disk=dict(type='bool', default=False),
         image_checksum=dict(type='str'),
+        image_compression=dict(
+            type='str',
+            choices=['auto', 'gzip', 'bzip2', 'xz', 'none'],
+            default='auto'
+        ),
         url_timeout=dict(type='int', default=60),
         url_username=dict(type='str'),
         url_password=dict(type='str', no_log=True),
