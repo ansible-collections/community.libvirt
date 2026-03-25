@@ -50,7 +50,6 @@ uri: 'qemu:///system'
 
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.errors import AnsibleError
-from ansible.module_utils.six import raise_from
 
 try:
     import libvirt
@@ -67,9 +66,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
     def parse(self, inventory, loader, path, cache=True):
         if LIBVIRT_IMPORT_ERROR:
-            raise_from(
-                AnsibleError('libvirt python bindings must be installed to use this plugin'),
-                LIBVIRT_IMPORT_ERROR)
+            raise AnsibleError('libvirt python bindings must be installed to use this plugin') \
+                from LIBVIRT_IMPORT_ERROR
 
         super(InventoryModule, self).parse(
             inventory,
@@ -162,8 +160,11 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                 # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
                 domain_guestInfo = ''
                 try:
-                    # type==0 returns all types (users, os, timezone, hostname, filesystem, disks, interfaces)
-                    domain_guestInfo = domain.guestInfo(types=0)
+                    if _domain_state != libvirt.VIR_DOMAIN_SHUTOFF:
+                        # type==0 returns all types (users, os, timezone, hostname, filesystem, disks, interfaces)
+                        domain_guestInfo = domain.guestInfo(types=0)
+                    else:
+                        domain_guestInfo = {"error": "Skipped guest agent query: Domain is not running"}
                 except libvirt.libvirtError as e:
                     domain_guestInfo = {"error": str(e)}
                 finally:
@@ -176,7 +177,10 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                 # This needs the guest powered on, 'qemu-guest-agent' installed and the org.qemu.guest_agent.0 channel configured.
                 domain_interfaceAddresses = ''
                 try:
-                    domain_interfaceAddresses = domain.interfaceAddresses(source=libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT)
+                    if _domain_state != libvirt.VIR_DOMAIN_SHUTOFF:
+                        domain_interfaceAddresses = domain.interfaceAddresses(source=libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT)
+                    else:
+                        domain_interfaceAddresses = {"error": "Skipped guest agent query: Domain is not running"}
                 except libvirt.libvirtError as e:
                     domain_interfaceAddresses = {"error": str(e)}
                 finally:

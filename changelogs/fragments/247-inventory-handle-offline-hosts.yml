@@ -1,0 +1,2 @@
+bugfixes:
+  - inventory - Added checks to prevent powered-off hosts from being issued guest agent calls
