@@ -1,3 +1,0 @@
-minor_changes:
-  - virt_install - added commands return field to provide visibility into executed commands during VM provisioning.
-  - virt_cloud_instance - added commands return field to provide visibility into executed commands during VM provisioning.
