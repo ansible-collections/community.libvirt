@@ -238,3 +238,22 @@ releases:
       name: virt_cloud_instance
       namespace: ''
     release_date: '2026-02-16'
+  2.2.0:
+    changes:
+      bugfixes:
+      - libvirt_qemu - Vendor ``_parse_clixml`` locally to fix ``ImportError`` on
+        ansible-core devel (2.21+).
+      minor_changes:
+      - virt_cloud_instance - added commands return field to provide visibility into
+        executed commands during VM provisioning.
+      - virt_install - added commands return field to provide visibility into executed
+        commands during VM provisioning.
+      release_summary: 'This is the minor release of the ``community.libvirt`` collection.
+
+        This changelog contains all changes to the modules and plugins in this collection
+
+        that have been made after the previous release.'
+    fragments:
+    - 241-virt-install-commands.yml
+    - 243-fix-libvirt_qemu-parse_clixml-import.yml
+    release_date: '2026-03-29'

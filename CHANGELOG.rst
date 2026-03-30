@@ -4,6 +4,27 @@ Community.Libvirt Release Notes
 
 .. contents:: Topics
 
+v2.2.0
+======
+
+Release Summary
+---------------
+
+This is the minor release of the ``community.libvirt`` collection.
+This changelog contains all changes to the modules and plugins in this collection
+that have been made after the previous release.
+
+Minor Changes
+-------------
+
+- virt_cloud_instance - added commands return field to provide visibility into executed commands during VM provisioning.
+- virt_install - added commands return field to provide visibility into executed commands during VM provisioning.
+
+Bugfixes
+--------
+
+- libvirt_qemu - Vendor ``_parse_clixml`` locally to fix ``ImportError`` on ansible-core devel (2.21+).
+
 v2.1.0
 ======
 
