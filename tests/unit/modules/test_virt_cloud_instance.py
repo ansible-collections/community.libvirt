@@ -998,6 +998,205 @@ class TestBaseImageOperatorCheckMode(unittest.TestCase):
         self.mock_module.fail_json.assert_called()
 
 
+class TestBaseImageOperatorDecompression(unittest.TestCase):
+    """Test BaseImageOperator decompression methods"""
+
+    def setUp(self):
+        """Set up test fixtures"""
+        self.mock_module = mock.Mock()
+        self.mock_module.check_mode = False
+        self.mock_module.tmpdir = '/tmp/ansible_test'
+        self.operator = BaseImageOperator(self.mock_module, '/path/to/image.qcow2.xz')
+        self.operator.base_image_path = '/path/to/image.qcow2.xz'
+
+    def test_detect_compression_xz(self):
+        """Test detecting xz compression"""
+        result = self.operator._detect_compression('image.qcow2.xz')
+        self.assertEqual(result, 'xz')
+
+    def test_detect_compression_gzip(self):
+        """Test detecting gzip compression"""
+        result = self.operator._detect_compression('image.img.gz')
+        self.assertEqual(result, 'gzip')
+
+    def test_detect_compression_bzip2(self):
+        """Test detecting bzip2 compression"""
+        result = self.operator._detect_compression('image.raw.bz2')
+        self.assertEqual(result, 'bzip2')
+
+    def test_detect_compression_none(self):
+        """Test detecting uncompressed file"""
+        result = self.operator._detect_compression('image.qcow2')
+        self.assertEqual(result, 'none')
+
+    def test_detect_compression_case_sensitive(self):
+        """Test that detection is case sensitive"""
+        result = self.operator._detect_compression('image.qcow2.XZ')
+        self.assertEqual(result, 'none')
+
+    def test_strip_compression_extension_xz(self):
+        """Test stripping xz extension"""
+        result = self.operator._strip_compression_extension('image.qcow2.xz', 'xz')
+        self.assertEqual(result, 'image.qcow2')
+
+    def test_strip_compression_extension_gzip(self):
+        """Test stripping gzip extension"""
+        result = self.operator._strip_compression_extension('image.img.gz', 'gzip')
+        self.assertEqual(result, 'image.img')
+
+    def test_strip_compression_extension_bzip2(self):
+        """Test stripping bzip2 extension"""
+        result = self.operator._strip_compression_extension('image.raw.bz2', 'bzip2')
+        self.assertEqual(result, 'image.raw')
+
+    def test_strip_compression_extension_no_extension(self):
+        """Test stripping when file doesn't have compression extension"""
+        result = self.operator._strip_compression_extension('image.qcow2', 'xz')
+        self.assertEqual(result, 'image.qcow2')
+
+    def test_strip_compression_extension_none(self):
+        """Test stripping with none format"""
+        result = self.operator._strip_compression_extension('image.qcow2.xz', 'none')
+        self.assertEqual(result, 'image.qcow2.xz')
+
+    @mock.patch('gzip.open')
+    @mock.patch('builtins.open')
+    def test_decompress_file_gzip(self, mock_open, mock_gzip_open):
+        """Test decompressing gzip file"""
+        mock_src = mock.Mock()
+        mock_src.read.side_effect = [b'data chunk', b'']
+        mock_gzip_open.return_value.__enter__.return_value = mock_src
+
+        mock_dst = mock.Mock()
+        mock_open.return_value.__enter__.return_value = mock_dst
+
+        self.operator._decompress_file('/src.gz', '/dst', 'gzip')
+
+        mock_gzip_open.assert_called_once_with('/src.gz', 'rb')
+        mock_open.assert_called_once_with('/dst', 'wb')
+        mock_dst.write.assert_called_once_with(b'data chunk')
+
+    @mock.patch('bz2.open')
+    @mock.patch('builtins.open')
+    def test_decompress_file_bzip2(self, mock_open, mock_bz2_open):
+        """Test decompressing bzip2 file"""
+        mock_src = mock.Mock()
+        mock_src.read.side_effect = [b'compressed data', b'']
+        mock_bz2_open.return_value.__enter__.return_value = mock_src
+
+        mock_dst = mock.Mock()
+        mock_open.return_value.__enter__.return_value = mock_dst
+
+        self.operator._decompress_file('/src.bz2', '/dst', 'bzip2')
+
+        mock_bz2_open.assert_called_once_with('/src.bz2', 'rb')
+        mock_dst.write.assert_called_once_with(b'compressed data')
+
+    @mock.patch('lzma.open')
+    @mock.patch('builtins.open')
+    def test_decompress_file_xz(self, mock_open, mock_lzma_open):
+        """Test decompressing xz file"""
+        mock_src = mock.Mock()
+        mock_src.read.side_effect = [b'xz data', b'']
+        mock_lzma_open.return_value.__enter__.return_value = mock_src
+
+        mock_dst = mock.Mock()
+        mock_open.return_value.__enter__.return_value = mock_dst
+
+        self.operator._decompress_file('/src.xz', '/dst', 'xz')
+
+        mock_lzma_open.assert_called_once_with('/src.xz', 'rb')
+        mock_dst.write.assert_called_once_with(b'xz data')
+
+    def test_decompress_file_unsupported_format(self):
+        """Test decompressing with unsupported format"""
+        self.mock_module.fail_json.side_effect = Exception("Module failed")
+
+        with self.assertRaises(Exception):
+            self.operator._decompress_file('/src', '/dst', 'invalid')
+
+        self.mock_module.fail_json.assert_called_once_with(
+            msg="Unsupported compression format: invalid"
+        )
+
+    @mock.patch('gzip.open')
+    @mock.patch('builtins.open')
+    def test_decompress_file_error_handling(self, mock_open, mock_gzip_open):
+        """Test error handling during decompression"""
+        mock_gzip_open.side_effect = IOError("Cannot read file")
+        self.mock_module.fail_json.side_effect = Exception("Module failed")
+
+        with self.assertRaises(Exception):
+            self.operator._decompress_file('/src.gz', '/dst', 'gzip')
+
+        self.mock_module.fail_json.assert_called_once()
+        call_args = self.mock_module.fail_json.call_args[1]
+        self.assertIn("Failed to decompress", call_args['msg'])
+
+    def test_decompress_image_none_returns_original(self):
+        """Test decompress_image with none format returns original path"""
+        result = self.operator.decompress_image('none')
+        self.assertEqual(result, '/path/to/image.qcow2.xz')
+
+    def test_decompress_image_auto_detect_xz(self):
+        """Test decompress_image with auto detection for xz"""
+        with mock.patch.object(self.operator, '_decompress_file') as mock_decompress:
+            result = self.operator.decompress_image('auto')
+
+            expected_path = '/tmp/ansible_test/image.qcow2'
+            self.assertEqual(result, expected_path)
+            mock_decompress.assert_called_once_with(
+                '/path/to/image.qcow2.xz',
+                expected_path,
+                'xz'
+            )
+
+    def test_decompress_image_auto_detect_none(self):
+        """Test decompress_image with auto detection for uncompressed file"""
+        self.operator.base_image_path = '/path/to/image.qcow2'
+
+        result = self.operator.decompress_image('auto')
+
+        self.assertEqual(result, '/path/to/image.qcow2')
+
+    def test_decompress_image_explicit_format(self):
+        """Test decompress_image with explicit format"""
+        self.operator.base_image_path = '/path/to/image.qcow2.xz'
+
+        with mock.patch.object(self.operator, '_decompress_file') as mock_decompress:
+            result = self.operator.decompress_image('xz')
+
+            expected_path = '/tmp/ansible_test/image.qcow2'
+            self.assertEqual(result, expected_path)
+            mock_decompress.assert_called_once_with(
+                '/path/to/image.qcow2.xz',
+                expected_path,
+                'xz'
+            )
+
+    def test_decompress_image_check_mode(self):
+        """Test decompress_image in check_mode doesn't actually decompress"""
+        self.mock_module.check_mode = True
+
+        with mock.patch.object(self.operator, '_decompress_file') as mock_decompress:
+            result = self.operator.decompress_image('xz')
+
+            expected_path = '/tmp/ansible_test/image.qcow2'
+            self.assertEqual(result, expected_path)
+            mock_decompress.assert_not_called()
+
+    def test_decompress_image_to_tmpdir(self):
+        """Test that decompression always goes to tmpdir"""
+        self.operator.image_cache_dir = '/var/cache'
+        self.operator.base_image_path = '/var/cache/image.qcow2.xz'
+
+        with mock.patch.object(self.operator, '_decompress_file') as mock_decompress:
+            result = self.operator.decompress_image('xz')
+
+            self.assertIn('/tmp/ansible_test/', result)
+            self.assertNotIn('/var/cache/', result)
+
+
 class TestCore(unittest.TestCase):
     """Test core() function"""
 
@@ -1458,6 +1657,89 @@ class TestCore(unittest.TestCase):
         )
 
         # Should return success
+        self.assertEqual(rc, VIRT_SUCCESS)
+        self.assertTrue(result['changed'])
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.BaseImageOperator')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.LibvirtWrapper')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.validate_disks')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.update_virtinst_params')
+    def test_core_compressed_image_xz(self, mock_update_params, mock_validate_disks,
+                                      mock_libvirt_wrapper_class, mock_virt_install_class,
+                                      mock_base_image_operator_class):
+        """Test core() with xz compressed image"""
+        from ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance import core, VIRT_SUCCESS
+        from ansible_collections.community.libvirt.plugins.module_utils.libvirt import VMNotFound
+
+        self.mock_module.params['base_image'] = '/path/to/image.qcow2.xz'
+        self.mock_module.params['image_compression'] = 'auto'
+
+        mock_virt_conn = mock.Mock()
+        mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
+        mock_libvirt_wrapper_class.return_value = mock_virt_conn
+
+        mock_virt_install = mock.Mock()
+        mock_virt_install.execute.return_value = (True, VIRT_SUCCESS, {})
+        mock_virt_install.get_commands.return_value = []
+        mock_virt_install_class.return_value = mock_virt_install
+
+        mock_operator = mock.Mock()
+        mock_operator.validate_checksum.return_value = True
+        mock_operator.decompress_image.return_value = '/tmp/ansible_test/image.qcow2'
+        mock_operator.base_image_path = '/tmp/ansible_test/image.qcow2'
+        mock_operator.build_system_disk.return_value = {
+            'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_operator.get_commands.return_value = []
+        mock_base_image_operator_class.return_value = mock_operator
+
+        rc, result = core(self.mock_module)
+
+        mock_operator.fetch_image.assert_called_once()
+        mock_operator.validate_checksum.assert_called_once()
+        mock_operator.decompress_image.assert_called_once_with('auto')
+        mock_operator.build_system_disk.assert_called_once()
+
+        self.assertEqual(rc, VIRT_SUCCESS)
+        self.assertTrue(result['changed'])
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.BaseImageOperator')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.LibvirtWrapper')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.validate_disks')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.update_virtinst_params')
+    def test_core_compressed_image_none(self, mock_update_params, mock_validate_disks,
+                                        mock_libvirt_wrapper_class, mock_virt_install_class,
+                                        mock_base_image_operator_class):
+        """Test core() with compression_format='none' uses original file"""
+        from ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance import core, VIRT_SUCCESS
+        from ansible_collections.community.libvirt.plugins.module_utils.libvirt import VMNotFound
+
+        self.mock_module.params['base_image'] = '/path/to/image.qcow2'
+        self.mock_module.params['image_compression'] = 'none'
+
+        mock_virt_conn = mock.Mock()
+        mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
+        mock_libvirt_wrapper_class.return_value = mock_virt_conn
+
+        mock_virt_install = mock.Mock()
+        mock_virt_install.execute.return_value = (True, VIRT_SUCCESS, {})
+        mock_virt_install.get_commands.return_value = []
+        mock_virt_install_class.return_value = mock_virt_install
+
+        mock_operator = mock.Mock()
+        mock_operator.validate_checksum.return_value = True
+        mock_operator.decompress_image.return_value = '/path/to/image.qcow2'
+        mock_operator.base_image_path = '/path/to/image.qcow2'
+        mock_operator.build_system_disk.return_value = {
+            'path': '/var/lib/libvirt/images/test.qcow2'}
+        mock_operator.get_commands.return_value = []
+        mock_base_image_operator_class.return_value = mock_operator
+
+        rc, result = core(self.mock_module)
+
+        mock_operator.decompress_image.assert_called_once_with('none')
+
         self.assertEqual(rc, VIRT_SUCCESS)
         self.assertTrue(result['changed'])
 
