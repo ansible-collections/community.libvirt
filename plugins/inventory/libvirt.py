@@ -25,8 +25,7 @@ options:
     inventory_hostname:
         description: |
             What to register as the inventory hostname.
-            If set to 'uuid' the uuid of the server will be used and a
-            group will be created for the server name.
+            If set to 'uuid' the uuid of the server will be used.
             If set to 'name' the name of the server will be used unless
             there are more than one server with the same name in which
             case the 'uuid' logic will be used.
@@ -36,6 +35,12 @@ options:
             - name
             - uuid
         default: "name"
+    alternate_id_groups:
+        description: |
+            Determines whether groups will be created using the alternate id
+            (hostname or UUID)
+        type: bool
+        default: true
 '''
 
 EXAMPLES = r'''
@@ -114,8 +119,10 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
             # TODO(daveol): Fix "Invalid characters were found in group names"
             # This warning is generated because of uuid's
             self.inventory.add_host(inventory_hostname)
-            self.inventory.add_group(inventory_hostname_alias)
-            self.inventory.add_child(inventory_hostname_alias, inventory_hostname)
+
+            if self.get_option('alternate_id_groups'):
+                self.inventory.add_group(inventory_hostname_alias)
+                self.inventory.add_child(inventory_hostname_alias, inventory_hostname)
 
             if connection_plugin is not None:
                 self.inventory.set_variable(
