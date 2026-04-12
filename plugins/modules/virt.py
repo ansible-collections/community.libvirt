@@ -176,7 +176,7 @@ else:
     HAS_XML = True
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils.common.text.converters import to_native
 
 ALL_COMMANDS = []
 VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'get_interfaces', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause', 'uuid']

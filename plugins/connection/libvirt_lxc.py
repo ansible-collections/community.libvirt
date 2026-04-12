@@ -49,7 +49,7 @@ from ansible import constants as C
 from ansible.errors import AnsibleError
 from ansible.module_utils.six.moves import shlex_quote
 from ansible.module_utils.common.process import get_bin_path
-from ansible.module_utils._text import to_bytes
+from ansible.module_utils.common.text.converters import to_bytes
 from ansible.plugins.connection import ConnectionBase, BUFSIZE
 from ansible.utils.display import Display
 
