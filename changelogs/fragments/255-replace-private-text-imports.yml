@@ -1,0 +1,2 @@
+bugfixes:
+  - plugins - replaced deprecated imports from 'ansible.module_utils._text' with 'ansible.module_utils.common.text.converters' to avoid ansible-core deprecation warnings and prepare for removal of the private import path in ansible-core 2.24.
