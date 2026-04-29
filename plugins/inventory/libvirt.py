@@ -49,6 +49,7 @@ options:
             anchor with ``^`` / ``$`` for an exact match.
         type: str
         default: ".*"
+        version_added: '2.3.0'
 '''
 
 EXAMPLES = r'''
