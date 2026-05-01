@@ -1,2 +1,0 @@
-minor_changes:
-  - inventory - added option ``filter`` (default ``.*``) to include domains by name or uuid which match regex.
