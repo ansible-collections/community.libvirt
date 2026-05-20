@@ -1,0 +1,149 @@
+---
+# Copyright (c) Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Bug report
+description: Create a report to help us improve
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Verify first that your issue is not [already reported on GitHub][issue search].
+        Also test whether the latest release and the main branch are affected.
+        Complete all sections as described. This form is processed automatically.
+
+        [issue search]: https://github.com/ansible-collections/community.libvirt/search?q=is%3Aissue&type=issues
+
+  - type: textarea
+    attributes:
+      label: Summary
+      description: Explain the problem briefly below.
+      placeholder: >-
+        When I try to do X with the collection from the main branch on GitHub, Y
+        breaks in a way Z under environment E. Here are the details I know about
+        this problem...
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Issue Type
+      options:
+        - Bug Report
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Component Name
+      description: >-
+        Write the short name of the module, inventory plugin, connection plugin,
+        task, or feature below. Use your best guess if unsure. Do not include
+        `community.libvirt.`.
+      placeholder: virt, virt_net, libvirt_qemu
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Ansible Version
+      description: >-
+        Paste verbatim output from `ansible --version` between triple backticks.
+      value: |
+        ```console (paste below)
+        $ ansible --version
+
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Community.libvirt Version
+      description: >-
+        Paste verbatim output from
+        `ansible-galaxy collection list community.libvirt` between triple
+        backticks.
+      value: |
+        ```console (paste below)
+        $ ansible-galaxy collection list community.libvirt
+
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Configuration
+      description: >-
+        If this issue has YAML that helps reproduce the problem, provide it.
+        Paste verbatim output from `ansible-config dump --only-changed` between
+        triple backticks.
+      value: |
+        ```console (paste below)
+        $ ansible-config dump --only-changed
+
+        ```
+
+  - type: textarea
+    attributes:
+      label: OS / Environment
+      description: >-
+        Provide all relevant information below, for example target OS versions,
+        libvirt versions, hypervisor details, container images, or VM
+        configuration.
+      placeholder: Fedora 40, libvirt 10.x, qemu:///system
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Steps to Reproduce
+      description: |
+        Describe exactly how to reproduce the problem using a minimal test case.
+        It helps if you include the playbooks, variables, inventory, libvirt
+        domain/network/pool definitions, and commands you used.
+
+        You can paste https://gist.github.com links for larger files.
+      value: |
+        <!-- Paste example playbooks or commands between quotes below -->
+        ```yaml (paste below)
+
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected Results
+      description: >-
+        Describe what you expected to happen when running the steps above.
+      placeholder: >-
+        I expected X to happen because I assumed Y.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Actual Results
+      description: |
+        Describe what actually happened. If possible, run with extra verbosity
+        (`-vvvv`).
+
+        Paste verbatim command output between triple backticks.
+      value: |
+        ```console (paste below)
+
+        ```
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      description: |
+        Read the [Ansible Code of Conduct](https://docs.ansible.com/projects/ansible/latest/community/code_of_conduct.html?utm_medium=github&utm_source=issue_form--ansible-collections) first.
+      options:
+        - label: I agree to follow the Ansible Code of Conduct
+          required: true
+...

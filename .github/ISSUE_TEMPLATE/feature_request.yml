@@ -1,0 +1,72 @@
+---
+# Copyright (c) Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Feature request
+description: Suggest an idea for this project
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Verify first that your issue is not [already reported on GitHub][issue search].
+        Also test whether the latest release and the main branch are affected.
+        Complete all sections as described. This form is processed automatically.
+
+        [issue search]: https://github.com/ansible-collections/community.libvirt/search?q=is%3Aissue&type=issues
+
+  - type: textarea
+    attributes:
+      label: Summary
+      description: Describe the new feature or improvement briefly below.
+      placeholder: >-
+        I am trying to do X with the collection from the main branch on GitHub,
+        and implementing Y would be helpful for me and other users because of Z.
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Issue Type
+      options:
+        - Feature Idea
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Component Name
+      description: >-
+        Write the short name of the module, inventory plugin, connection plugin,
+        or other part of the collection this feature affects. Use your best
+        guess if unsure. Do not include `community.libvirt.`.
+      placeholder: virt, virt_pool, libvirt inventory
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional Information
+      description: |
+        Describe how the feature would be used, why it is needed, and what it
+        would solve.
+
+        You can paste https://gist.github.com links for larger files.
+      value: |
+        <!-- Paste example playbooks or commands between quotes below -->
+        ```yaml (paste below)
+
+        ```
+    validations:
+      required: false
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      description: |
+        Read the [Ansible Code of Conduct](https://docs.ansible.com/projects/ansible/latest/community/code_of_conduct.html?utm_medium=github&utm_source=issue_form--ansible-collections) first.
+      options:
+        - label: I agree to follow the Ansible Code of Conduct
+          required: true
+...
