@@ -857,8 +857,8 @@ def core(module):
         result.update(extra_res)
 
         if wait_for_cloud_init_reboot and rc == 0:
-            virtConn.create(name)
-
+            if vm_exists and not vm.isActive():
+                virtConn.create(name)
         return rc, result
     elif state == 'absent':
         if not vm_exists:
