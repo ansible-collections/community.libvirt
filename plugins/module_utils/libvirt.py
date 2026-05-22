@@ -35,11 +35,17 @@ VIRT_STATE_NAME_MAP = {
     5: 'shutdown',
     6: 'crashed',
 }
-
+INTERFACE_ADDRESS_SOURCE_MAP = {
+    'lease': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE,
+    'agent': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT,
+    'arp': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_ARP
+}
 
 class VMNotFound(Exception):
     pass
 
+class InvalidAddressSourceType(Exception):
+    pass
 
 class LibvirtConnection(object):
 
@@ -53,8 +59,7 @@ class LibvirtConnection(object):
         if "xen" in stdout:
             conn = libvirt.open(None)
         elif "esx" in uri:
-            auth = [[libvirt.VIR_CRED_AUTHNAME,
-                     libvirt.VIR_CRED_NOECHOPROMPT], [], None]
+            auth = [[libvirt.VIR_CRED_AUTHNAME,libvirt.VIR_CRED_NOECHOPROMPT], [], None]
             conn = libvirt.openAuth(uri, auth)
         else:
             conn = libvirt.open(uri)
@@ -150,6 +155,14 @@ class LibvirtConnection(object):
     def get_uuid(self, vmid):
         vm = self.conn.lookupByName(vmid)
         return vm.UUIDString()
+
+    def get_ifaddresses(self, vmid, flag):
+        try:
+            interface_address_source = INTERFACE_ADDRESS_SOURCE_MAP[flag]
+        except KeyError:
+            raise InvalidAddressSourceType
+        vm = self.conn.lookupByName(vmid)
+        return vm.interfaceAddresses(interface_address_source)
 
     def get_interfaces(self, vmid):
         dom_xml = self.get_xml(vmid)
