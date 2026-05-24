@@ -1,0 +1,127 @@
+---
+# Copyright (c) Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Documentation report
+description: Ask us about documentation
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Verify first that your issue is not [already reported on GitHub][issue search].
+        Also test whether the latest release and the main branch are affected.
+        Complete all sections as described. This form is processed automatically.
+
+        [issue search]: https://github.com/ansible-collections/community.libvirt/search?q=is%3Aissue&type=issues
+
+  - type: textarea
+    attributes:
+      label: Summary
+      description: |
+        Explain the documentation problem briefly below and add suggestions to
+        wording or structure.
+
+        The documentation has an "Edit on GitHub" link on every page, which can
+        be useful for small fixes.
+      placeholder: >-
+        I was reading the collection documentation for version X and had trouble
+        understanding Y. It would be helpful if that were rephrased as Z.
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Issue Type
+      options:
+        - Documentation Report
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Component Name
+      description: >-
+        Write the short name of the file, module, inventory plugin, connection
+        plugin, task, or feature below. Use your best guess if unsure. Do not
+        include `community.libvirt.`.
+      placeholder: virt
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Ansible Version
+      description: >-
+        Paste verbatim output from `ansible --version` between triple backticks.
+      value: |
+        ```console (paste below)
+        $ ansible --version
+
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Community.libvirt Version
+      description: >-
+        Paste verbatim output from
+        `ansible-galaxy collection list community.libvirt` between triple
+        backticks.
+      value: |
+        ```console (paste below)
+        $ ansible-galaxy collection list community.libvirt
+
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Configuration
+      description: >-
+        Paste verbatim output from `ansible-config dump --only-changed` between
+        triple backticks.
+      value: |
+        ```console (paste below)
+        $ ansible-config dump --only-changed
+
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: OS / Environment
+      description: >-
+        Provide all relevant information below, for example OS version, browser,
+        or documentation page.
+      placeholder: Fedora 40, Firefox, virt module docs page
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional Information
+      description: |
+        Describe how this improves the documentation, such as before/after
+        wording or screenshots.
+
+        You can paste https://gist.github.com links for larger files.
+      placeholder: >-
+        When the improvement is applied, it makes X more straightforward to
+        understand.
+    validations:
+      required: false
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      description: |
+        Read the [Ansible Code of Conduct](https://docs.ansible.com/projects/ansible/latest/community/code_of_conduct.html?utm_medium=github&utm_source=issue_form--ansible-collections) first.
+      options:
+        - label: I agree to follow the Ansible Code of Conduct
+          required: true
+...
