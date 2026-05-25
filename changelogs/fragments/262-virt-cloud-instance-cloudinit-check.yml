@@ -1,0 +1,2 @@
+bugfixes:
+  - virt_cloud_instance - check if instance exists and not running before calling `create()`

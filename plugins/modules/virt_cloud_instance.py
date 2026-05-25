@@ -805,7 +805,6 @@ def core(module):
     if not base_image:
         module.fail_json(msg="base_image parameter is required")
 
-    vm_exists = False
     try:
         vm = virtConn.find_vm(name)
         vm_exists = True
@@ -857,7 +856,13 @@ def core(module):
         result.update(extra_res)
 
         if wait_for_cloud_init_reboot and rc == 0:
-            if vm_exists and not vm.isActive():
+            # check if vm exists again after creation
+            try:
+                vm = virtConn.find_vm(name)
+                vm_exists = True
+            except VMNotFound:
+                vm_exists = False
+            if vm_exists and not vm.isActive() and not module.check_mode:
                 virtConn.create(name)
         return rc, result
     elif state == 'absent':
