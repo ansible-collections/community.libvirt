@@ -1131,6 +1131,157 @@ class TestBuildCommand(unittest.TestCase):
         self.assertEqual(len(network_args), 1)
         self.assertEqual(network_args[0], 'none')
 
+    def test_network_passt_shorthand(self):
+        """Test passt network shorthand via value primary key"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'networks': [
+                {
+                    'value': 'passt',
+                    'port_forward': ['8080:80', '3478/udp', '2222:22']
+                }
+            ]
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        network_args = []
+        for i, arg in enumerate(self.virt_install.command_argv):
+            if arg == '--network' and i + 1 < len(self.virt_install.command_argv):
+                network_args.append(self.virt_install.command_argv[i + 1])
+
+        self.assertEqual(len(network_args), 1)
+        self.assertTrue(network_args[0].startswith('passt'))
+        self.assertIn('portForward0=8080:80', network_args[0])
+        self.assertIn('portForward1=3478/udp', network_args[0])
+        self.assertIn('portForward2=2222:22', network_args[0])
+
+    def test_network_passt_shorthand_no_port_forward(self):
+        """Test passt shorthand without port forwarding"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'networks': [
+                {'value': 'passt'}
+            ]
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        network_args = []
+        for i, arg in enumerate(self.virt_install.command_argv):
+            if arg == '--network' and i + 1 < len(self.virt_install.command_argv):
+                network_args.append(self.virt_install.command_argv[i + 1])
+
+        self.assertEqual(len(network_args), 1)
+        self.assertEqual(network_args[0], 'passt')
+
+    def test_network_user_type_with_backend(self):
+        """Test structured user/passt network with backend options"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'networks': [
+                {
+                    'type': 'user',
+                    'backend': {
+                        'type': 'passt',
+                        'log_file': '/tmp/passt.log'
+                    },
+                    'port_forward': ['8080:80']
+                }
+            ]
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        network_args = []
+        for i, arg in enumerate(self.virt_install.command_argv):
+            if arg == '--network' and i + 1 < len(self.virt_install.command_argv):
+                network_args.append(self.virt_install.command_argv[i + 1])
+
+        self.assertEqual(len(network_args), 1)
+        self.assertIn('type=user', network_args[0])
+        self.assertIn('backend.type=passt', network_args[0])
+        self.assertIn('backend.logFile=/tmp/passt.log', network_args[0])
+        self.assertIn('portForward0=8080:80', network_args[0])
+
+    def test_network_existing_forms_unchanged(self):
+        """Test backward compatibility — existing network forms still work"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'networks': [
+                {
+                    'network': 'default',
+                    'model': {'type': 'virtio'},
+                    'mac': {'address': '52:54:00:12:34:56'}
+                },
+                {
+                    'bridge': 'br0',
+                    'model': {'type': 'e1000'},
+                    'trust_guest_rx_filters': True
+                }
+            ]
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        network_args = []
+        for i, arg in enumerate(self.virt_install.command_argv):
+            if arg == '--network' and i + 1 < len(self.virt_install.command_argv):
+                network_args.append(self.virt_install.command_argv[i + 1])
+
+        self.assertEqual(len(network_args), 2)
+        self.assertIn('network=default', network_args[0])
+        self.assertIn('model.type=virtio', network_args[0])
+        self.assertIn('mac.address=52:54:00:12:34:56', network_args[0])
+        self.assertIn('bridge=br0', network_args[1])
+        self.assertIn('model.type=e1000', network_args[1])
+        self.assertIn('trustGuestRxFilters=yes', network_args[1])
+
+    def test_network_conflicting_selectors_rejected(self):
+        """Test that conflicting network selectors are rejected"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'networks': [
+                {
+                    'value': 'passt',
+                    'network': 'default',
+                    'port_forward': ['8080:80']
+                }
+            ]
+        }
+        self.mock_module.fail_json = mock.Mock()
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        self.mock_module.fail_json.assert_called_once()
+        args, kwargs = self.mock_module.fail_json.call_args
+        self.assertIn('conflicting', kwargs['msg'])
+
+    def test_network_passt_with_bridge_rejected(self):
+        """Test that value:passt combined with bridge is rejected"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'networks': [
+                {
+                    'value': 'passt',
+                    'bridge': 'br0'
+                }
+            ]
+        }
+        self.mock_module.fail_json = mock.Mock()
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        self.mock_module.fail_json.assert_called_once()
+        args, kwargs = self.mock_module.fail_json.call_args
+        self.assertIn('conflicting', kwargs['msg'])
+
     def test_graphics_configuration(self):
         """Test graphics configuration"""
         self.mock_module.params = {

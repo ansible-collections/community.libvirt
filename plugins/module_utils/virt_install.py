@@ -595,6 +595,10 @@ class VirtInstallTool(object):
             network_mapping = {
                 'trust_guest_rx_filters': ('trustGuestRxFilters', None),
                 'state': ('link.state', None),
+                'port_forward': ('portForward', None),
+                'backend': ('backend', {
+                    'log_file': ('logFile', None),
+                }),
             }
             for network in network_param:
                 self._add_parameter('--network',
@@ -845,6 +849,21 @@ class VirtInstallTool(object):
                         self.module.fail_json(
                             msg="cloud_init.{} must be a string or dictionary, got {}".format(
                                 param_name, type(param_value).__name__))
+
+        self._validate_network_params()
+
+    def _validate_network_params(self):
+        networks = self.params.get('networks')
+        if not networks:
+            return
+
+        selectors = ['value', 'network', 'bridge', 'hostdev']
+        for net in networks:
+            present = [s for s in selectors if net.get(s)]
+            if len(present) > 1:
+                self.module.fail_json(
+                    msg="network entry specifies conflicting selectors: {}".format(
+                        ', '.join(present)))
 
     def _build_command(self):
         """Build the complete virt-install command"""
@@ -1573,7 +1592,8 @@ def get_networks_args():
             type='list',
             elements="dict",
             options=dict(
-                type=dict(type='str', choices=['direct']),
+                value=dict(type='str'),
+                type=dict(type='str', choices=['direct', 'user']),
                 network=dict(type='str'),
                 bridge=dict(type='str'),
                 hostdev=dict(type='str'),
@@ -1590,6 +1610,8 @@ def get_networks_args():
                 address=dict(type='dict'),
                 virtualport=dict(type='dict'),
                 trust_guest_rx_filters=dict(type='bool'),
+                backend=dict(type='dict'),
+                port_forward=dict(type='list', elements='str'),
             ),
         ),
     )

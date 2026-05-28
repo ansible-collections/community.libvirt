@@ -354,7 +354,7 @@ options:
             type: str
             description:
               - Set the vendor id seen by the guest. It must be exactly 12 characters long.
-              - Typical possible values are I(AuthenticAMD) and I(GenuineIntel).
+              - Typical possible values are V(AuthenticAMD) and V(GenuineIntel).
       match:
         type: str
         choices: [ exact, minimum, strict ]
@@ -368,7 +368,7 @@ options:
         type: str
         description:
           - Specify CPU vendor requested by the guest
-          - The list of supported vendors can be found in I(cpu_map/*_vendors.xml).
+          - The list of supported vendors can be found in C(cpu_map/*_vendors.xml).
       features:
         type: dict
         description:
@@ -1240,12 +1240,20 @@ options:
       - Connect the guest to the host network.
       - Empty list V([]) means no default network interface.
     suboptions:
+      value:
+        type: str
+        description:
+          - Shorthand network type selector.
+          - Use V(passt) for passt user-mode networking.
+          - Mutually exclusive with O(networks[].network), O(networks[].bridge), and O(networks[].hostdev).
+        version_added: 2.3.0
       type:
         type: str
-        choices: [ direct ]
+        choices: [ direct, user ]
         description:
           - The type of network interface.
           - V(direct) provides direct attachment to host network interface using macvtap.
+          - V(user) provides user-mode networking (SLIRP) with optional passt backend.
           - If omitted, the type of network interface is determined by other options.
       network:
         type: str
@@ -1316,8 +1324,8 @@ options:
         description:
           - Specify the details of the direct attached macvtap interface.
           - The dictionary contains key/value pairs that define individual properties.
-          - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
-          - "Example: I(source={value: bond0, mode: bridge})"
+          - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
+          - "Example: C(source={value: bond0, mode: bridge})"
       target:
         type: dict
         description:
@@ -1333,7 +1341,22 @@ options:
         description:
           - Configure virtual port settings for the network interface.
           - The dictionary contains key/value pairs that define individual properties.
-          - Common properties include I(type) (e.g. V(802.1Qbg), V(802.1Qbh), V(openvswitch), V(midonet)) and C(parameters) containing type-specific settings.
+          - Common properties include C(type) (e.g. V(802.1Qbg), V(802.1Qbh), V(openvswitch), V(midonet)) and C(parameters) containing type-specific settings.
+      backend:
+        type: dict
+        description:
+          - Configure the backend for user-mode networking.
+          - The dictionary contains key/value pairs that define individual properties.
+          - Common properties include C(type) (e.g. V(passt)) and C(log_file).
+        version_added: 2.3.0
+      port_forward:
+        type: list
+        elements: str
+        description:
+          - Configure port forwarding rules for user-mode networking.
+          - Each entry is a string in the format C(proto:hostport:guestport) or C(hostport:guestport).
+          - Protocol suffixes like C(/udp) are supported.
+        version_added: 2.3.0
       trust_guest_rx_filters:
         type: bool
         description:
@@ -1347,7 +1370,7 @@ options:
     description:
       - Configure the graphical display for the guest virtual machine.
       - The dictionary contains key/value pairs that define individual properties.
-      - Common properties include I(type) (e.g. V(vnc), V(spice)) and I(listen).
+      - Common properties include C(type) (e.g. V(vnc), V(spice)) and C(listen).
   graphics_devices:
     type: list
     elements: dict
@@ -1394,8 +1417,8 @@ options:
     description:
       - Attach a controller device to the guest.
       - The dictionary contains key/value pairs that define individual controller properties.
-      - Examples include I(type=usb,model=none) to disable USB, or I(type=scsi,model=virtio-scsi) for VirtIO SCSI.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - Examples include C(type=usb,model=none) to disable USB, or C(type=scsi,model=virtio-scsi) for VirtIO SCSI.
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   controller_devices:
     type: list
     elements: dict
@@ -1411,7 +1434,7 @@ options:
       - Attach an input device to the guest.
       - Input device types include mouse, tablet, or keyboard.
       - The dictionary contains key/value pairs that define individual input device properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   input_devices:
     type: list
     elements: dict
@@ -1426,7 +1449,7 @@ options:
     description:
       - Attach a physical host device to the guest.
       - The dictionary contains key/value pairs that define individual host device properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   host_devices:
     type: list
     elements: dict
@@ -1441,8 +1464,8 @@ options:
     description:
       - Attach a virtual audio device to the guest.
       - The dictionary contains key/value pairs that define individual sound device properties.
-      - Common properties include I(model) (e.g. V(ich6), V(ich9), V(ac97)).
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - Common properties include C(model) (e.g. V(ich6), V(ich9), V(ac97)).
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   sound_devices:
     type: list
     elements: dict
@@ -1457,7 +1480,7 @@ options:
     description:
       - Configure host audio output for the guest's sound hardware.
       - The dictionary contains key/value pairs that define individual audio backend properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   audio_devices:
     type: list
     elements: dict
@@ -1472,7 +1495,7 @@ options:
     description:
       - Attach a virtual hardware watchdog device to the guest.
       - The dictionary contains key/value pairs that define individual watchdog properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   watchdog_devices:
     type: list
     elements: dict
@@ -1487,7 +1510,7 @@ options:
     description:
       - Attach a serial device to the guest with various redirection options.
       - The dictionary contains key/value pairs that define individual serial device properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   serial_devices:
     type: list
     elements: dict
@@ -1502,7 +1525,7 @@ options:
     description:
       - Attach a parallel device to the guest.
       - The dictionary contains key/value pairs that define individual parallel device properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   parallel_devices:
     type: list
     elements: dict
@@ -1517,7 +1540,7 @@ options:
     description:
       - Attach a communication channel device to connect the guest and host machine.
       - The dictionary contains key/value pairs that define individual channel properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   channel_devices:
     type: list
     elements: dict
@@ -1532,8 +1555,8 @@ options:
     description:
       - Connect a text console between the guest and host.
       - The dictionary contains key/value pairs that define individual console properties.
-      - Common properties include I(type) and I(target) for different console types.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - Common properties include C(type) and C(target) for different console types.
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   console_devices:
     type: list
     elements: dict
@@ -1548,7 +1571,7 @@ options:
     description:
       - Specify what video device model will be attached to the guest.
       - The dictionary contains key/value pairs that define individual video device properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   video_devices:
     type: list
     elements: dict
@@ -1563,7 +1586,7 @@ options:
     description:
       - Configure a virtual smartcard device.
       - The dictionary contains key/value pairs that define individual smartcard properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   smartcard_devices:
     type: list
     elements: dict
@@ -1578,8 +1601,8 @@ options:
     description:
       - Add a redirected device for USB or other device redirection.
       - The dictionary contains key/value pairs that define individual redirection properties.
-      - Common properties include I(bus=usb), I(type=tcp) or I(type=spicevmc).
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - Common properties include C(bus=usb), C(type=tcp) or C(type=spicevmc).
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   redirected_devices:
     type: list
     elements: dict
@@ -1594,8 +1617,8 @@ options:
     description:
       - Attach a virtual memory balloon device to the guest.
       - The dictionary contains key/value pairs that define individual memory balloon properties.
-      - Common properties include I(model) (e.g. V(virtio), V(xen)).
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - Common properties include C(model) (e.g. V(virtio), V(xen)).
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   memballoon_devices:
     type: list
     elements: dict
@@ -1610,7 +1633,7 @@ options:
     description:
       - Configure a virtual TPM (Trusted Platform Module) device.
       - The dictionary contains key/value pairs that define individual TPM properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   tpm_devices:
     type: list
     elements: dict
@@ -1625,7 +1648,7 @@ options:
     description:
       - Configure a virtual random number generator (RNG) device.
       - The dictionary contains key/value pairs that define individual RNG properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   rng_devices:
     type: list
     elements: dict
@@ -1640,7 +1663,7 @@ options:
     description:
       - Attach a panic notifier device to the guest.
       - The dictionary contains key/value pairs that define individual panic device properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   panic_devices:
     type: list
     elements: dict
@@ -1655,7 +1678,7 @@ options:
     description:
       - Attach a shared memory device to the guest.
       - The dictionary contains key/value pairs that define individual shared memory properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   shmem_devices:
     type: list
     elements: dict
@@ -1670,7 +1693,7 @@ options:
     description:
       - Configure a vsock host/guest interface.
       - The dictionary contains key/value pairs that define individual vsock properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   vsock_devices:
     type: list
     elements: dict
@@ -1685,7 +1708,7 @@ options:
     description:
       - Add an IOMMU device to the guest.
       - The dictionary contains key/value pairs that define individual IOMMU properties.
-      - "You can use the special attribute I(value) to specify a primary value that appears before other properties in the command line."
+      - "You can use the special attribute C(value) to specify a primary value that appears before other properties in the command line."
   iommu_devices:
     type: list
     elements: dict
