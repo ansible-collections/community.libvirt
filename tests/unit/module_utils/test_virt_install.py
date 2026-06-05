@@ -9,7 +9,8 @@ import shutil
 
 from ansible_collections.community.libvirt.tests.unit.compat import mock
 from ansible_collections.community.libvirt.plugins.module_utils.virt_install import (
-    _dict2options, _get_option_mapping, OPTION_BOOL_ONOFF, VirtInstallTool)
+    _dict2options, _get_option_mapping, OPTION_BOOL_ONOFF, VirtInstallTool,
+    get_install_args)
 
 
 class TestDict2Options(unittest.TestCase):
@@ -286,6 +287,21 @@ class TestDict2Options(unittest.TestCase):
 
         for part in expected_parts:
             self.assertIn(part, result)
+
+
+class TestGetInstallArgs(unittest.TestCase):
+
+    def test_install_os_not_required(self):
+        args = get_install_args()
+        install_options = args['install']['options']
+        self.assertTrue(
+            install_options['os'].get('required', False) is not True,
+            "install.os should not be marked as required")
+
+    def test_no_install_option_exists(self):
+        args = get_install_args()
+        install_options = args['install']['options']
+        self.assertIn('no_install', install_options)
 
 
 class TestPrimaryValueFeature(unittest.TestCase):

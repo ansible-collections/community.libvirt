@@ -1406,7 +1406,7 @@ def get_install_args():
         install=dict(
             type='dict',
             options=dict(
-                os=dict(type='str', required=True),
+                os=dict(type='str'),
                 kernel=dict(type='str'),
                 initrd=dict(type='str'),
                 kernel_args=dict(type='str'),
