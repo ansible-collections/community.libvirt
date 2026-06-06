@@ -1,0 +1,2 @@
+bugfixes:
+  - "virt_install - remove incorrect ``required=True`` from ``install.os`` parameter to allow ``install.no_install=true`` without specifying an OS."

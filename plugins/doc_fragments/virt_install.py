@@ -842,7 +842,7 @@ options:
         type: str
         description:
           - The OS name from I(libosinfo), e.g. V(fedora29).
-        required: true
+          - This is not required when O(install.no_install=true) is set.
       kernel:
         type: str
         description:
