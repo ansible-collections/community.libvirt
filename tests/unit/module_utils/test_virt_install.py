@@ -2249,7 +2249,7 @@ class TestBuildCommand(unittest.TestCase):
             yaml_content = f.read()
 
         # Verify the YAML contains expected content
-        self.assertTrue(yaml_content.startswith('#cloud-config'))
+        self.assertTrue(yaml_content.startswith('#cloud-config\n'))
         self.assertIn('users:', yaml_content)
         self.assertIn('name: admin', yaml_content)
         self.assertIn('sudo: ALL=(ALL) NOPASSWD:ALL', yaml_content)
@@ -2261,6 +2261,41 @@ class TestBuildCommand(unittest.TestCase):
         self.assertIn('runcmd:', yaml_content)
         self.assertIn('- systemctl enable nginx', yaml_content)
         self.assertIn('- systemctl start nginx', yaml_content)
+
+    def test_cloud_init_string_user_data_kept_unchanged(self):
+        """Test cloud-init configuration with string user_data."""
+        user_data_content = "users:\n  - name: admin\n"
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'cloud_init': {
+                'user_data': user_data_content
+            }
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        # Verify that the command was built successfully
+        self.assertIn('--cloud-init', self.virt_install.command_argv)
+
+        # Find the cloud-init argument value
+        cloud_init_idx = self.virt_install.command_argv.index('--cloud-init')
+        self.assertLess(cloud_init_idx + 1, len(self.virt_install.command_argv))
+
+        # The user-data should be a file path, not the raw content
+        cloud_init_value = self.virt_install.command_argv[cloud_init_idx + 1]
+        self.assertIn('user-data=', cloud_init_value)
+
+        # Extract the file path and verify its contents
+        user_data_path = cloud_init_value.split('user-data=')[1].split(',')[0]
+        self.assertTrue(user_data_path.startswith(self.mock_module.tmpdir))
+
+        # Read and verify string content is kept as-is
+        with open(user_data_path, 'r') as f:
+            rendered_user_data = f.read()
+
+        self.assertEqual(rendered_user_data, user_data_content)
+        self.assertFalse(rendered_user_data.startswith('#cloud-config\n'))
 
     def test_cloud_init_mixed_dict_and_string(self):
         """Test cloud-init configuration with mixed dictionary and string inputs"""
@@ -2321,6 +2356,7 @@ class TestBuildCommand(unittest.TestCase):
 
         with open(user_data_path, 'r') as f:
             user_data_yaml = f.read()
+        self.assertTrue(user_data_yaml.startswith('#cloud-config\n'))
         self.assertIn('users:', user_data_yaml)
         self.assertIn('name: admin', user_data_yaml)
         self.assertIn('sudo: ALL=(ALL) NOPASSWD:ALL', user_data_yaml)
@@ -2401,6 +2437,7 @@ class TestBuildCommand(unittest.TestCase):
             user_data_yaml = f.read()
 
         # Check user data structure
+        self.assertTrue(user_data_yaml.startswith('#cloud-config\n'))
         self.assertIn('ssh_pwauth: false', user_data_yaml)
         self.assertIn('disable_root: true', user_data_yaml)
         self.assertIn('users:', user_data_yaml)

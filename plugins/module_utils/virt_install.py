@@ -259,16 +259,14 @@ class VirtInstallTool(object):
 
         return combined_items
 
-    def _convert_raw_to_string(self, value, is_userdata=False):
-        """Convert raw type parameter (str or dict) to string content.
-        """
+    def _convert_raw_to_string(self, value):
+        """Convert raw type parameter (str or dict) to string content."""
         if isinstance(value, str):
             return value
         elif isinstance(value, dict):
             try:
                 import yaml
-                userdata_prefix = "#cloud-config\n" if is_userdata else ""
-                return userdata_prefix + yaml.safe_dump(value, default_flow_style=False, allow_unicode=True)
+                return yaml.safe_dump(value, default_flow_style=False, allow_unicode=True)
             except ImportError:
                 self.module.fail_json(
                     msg="PyYAML is required to process dictionary cloud-init parameters")
@@ -519,8 +517,10 @@ class VirtInstallTool(object):
                 cloud_init_params['meta-data'] = self._save_string_to_tempfile(meta_data_content)
                 del cloud_init_params['meta_data']
             if cloud_init_params.get('user_data'):
-                user_data_content = self._convert_raw_to_string(
-                    cloud_init_params['user_data'], is_userdata=True)
+                raw_user_data = cloud_init_params['user_data']
+                user_data_content = self._convert_raw_to_string(raw_user_data)
+                if isinstance(raw_user_data, dict):
+                    user_data_content = "#cloud-config\n" + user_data_content
                 cloud_init_params['user-data'] = self._save_string_to_tempfile(user_data_content)
                 del cloud_init_params['user_data']
 
