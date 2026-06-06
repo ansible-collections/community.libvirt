@@ -746,17 +746,18 @@ def update_virtinst_params(module, virtInstall, system_disk, extra_user_data=Non
         if virtInstall.params.get('cloud_init') is None:
             virtInstall.params['cloud_init'] = {}
 
-        orignal_user_data = virtInstall.params['cloud_init'].get('user_data', "")
+        original_user_data = virtInstall.params['cloud_init'].get('user_data', "")
 
-        if isinstance(orignal_user_data, dict):
+        if isinstance(original_user_data, dict):
             try:
                 import yaml
-                orignal_user_data = yaml.safe_dump(orignal_user_data, default_flow_style=False, allow_unicode=True)
+                original_user_data = "#cloud-config\n" + yaml.safe_dump(
+                    original_user_data, default_flow_style=False, allow_unicode=True)
             except ImportError:
                 module.fail_json(
                     msg="PyYAML is required to process dictionary cloud-init parameters")
 
-        modified_user_data = orignal_user_data + extra_user_data
+        modified_user_data = original_user_data + extra_user_data
         virtInstall.params['cloud_init']['user_data'] = modified_user_data
 
 

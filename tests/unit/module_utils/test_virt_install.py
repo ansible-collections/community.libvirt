@@ -2233,6 +2233,7 @@ class TestBuildCommand(unittest.TestCase):
             yaml_content = f.read()
 
         # Verify the YAML contains expected content
+        self.assertTrue(yaml_content.startswith('#cloud-config'))
         self.assertIn('users:', yaml_content)
         self.assertIn('name: admin', yaml_content)
         self.assertIn('sudo: ALL=(ALL) NOPASSWD:ALL', yaml_content)
