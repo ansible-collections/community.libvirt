@@ -1261,7 +1261,10 @@ class TestCore(unittest.TestCase):
 
         # Verify behavior
         mock_validate_disks.assert_called_once()
-        mock_virt_conn.find_vm.assert_called_once_with('test-vm')
+        # find_vm is called twice: pre-create lookup and post-create reverify
+        # for wait_for_cloud_init_reboot (see plugins/modules/virt_cloud_instance.py)
+        self.assertEqual(mock_virt_conn.find_vm.call_count, 2)
+        mock_virt_conn.find_vm.assert_called_with('test-vm')
         mock_operator.fetch_image.assert_called_once_with(False, timeout=None)
         mock_operator.validate_checksum.assert_called_once()
         mock_operator.build_system_disk.assert_called_once()
@@ -1355,7 +1358,10 @@ class TestCore(unittest.TestCase):
         rc, result = core(self.mock_module)
 
         # Verify VM destruction and recreation
-        mock_virt_conn.find_vm.assert_called_once_with('test-vm')
+        # find_vm is called twice: pre-create lookup and post-create reverify
+        # for wait_for_cloud_init_reboot (see plugins/modules/virt_cloud_instance.py)
+        self.assertEqual(mock_virt_conn.find_vm.call_count, 2)
+        mock_virt_conn.find_vm.assert_called_with('test-vm')
         mock_virt_conn.destroy.assert_called_once_with('test-vm')
         mock_virt_conn.undefine.assert_called_once_with('test-vm')
 
