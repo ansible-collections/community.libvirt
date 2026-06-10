@@ -40,9 +40,15 @@ parameters:
     type: string
     default: "{0}/{{1}}"
 
+  # Optional container resource alias used by generated test jobs.
+  - name: container
+    type: string
+    default: default
+
 jobs:
   - template: test.yml
     parameters:
+      container: ${{ parameters.container }}
       jobs:
         - ${{ if eq(length(parameters.groups), 0) }}:
           - ${{ each target in parameters.targets }}:

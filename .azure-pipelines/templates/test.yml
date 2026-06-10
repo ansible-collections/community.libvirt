@@ -6,12 +6,16 @@ parameters:
   # Each item in the list must contain a "job" and "name" key.
   - name: jobs
     type: object
+  # Optional container resource alias used to execute test jobs.
+  - name: container
+    type: string
+    default: default
 
 jobs:
   - ${{ each job in parameters.jobs }}:
     - job: test_${{ replace(replace(replace(job.test, '/', '_'), '.', '_'), '-', '_') }}
       displayName: ${{ job.name }}
-      container: default
+      container: ${{ parameters.container }}
       workspace:
         clean: all
       steps:
