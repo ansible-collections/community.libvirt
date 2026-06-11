@@ -36,11 +36,14 @@ VIRT_STATE_NAME_MAP = {
     6: 'crashed',
 }
 
+
 class VMNotFound(Exception):
     pass
 
+
 class InvalidAddressSourceType(Exception):
     pass
+
 
 class LibvirtConnection(object):
 
@@ -54,7 +57,7 @@ class LibvirtConnection(object):
         if "xen" in stdout:
             conn = libvirt.open(None)
         elif "esx" in uri:
-            auth = [[libvirt.VIR_CRED_AUTHNAME,libvirt.VIR_CRED_NOECHOPROMPT], [], None]
+            auth = [[libvirt.VIR_CRED_AUTHNAME, libvirt.VIR_CRED_NOECHOPROMPT], [], None]
             conn = libvirt.openAuth(uri, auth)
         else:
             conn = libvirt.open(uri)

@@ -26,7 +26,7 @@ options:
               Useful option to be able to C(undefine) guests with UEFI nvram.
               C(nvram) and C(keep_nvram) are conflicting and mutually exclusive.
               Consider option C(force) if all related metadata should be removed.
-              Specify which method to use when getting guest interface addresses using C(get_ifaddresses) 
+              Specify which method to use when getting guest interface addresses using C(get_ifaddresses)
               from either "lease", "agent" or "arp" (if list provided only first value is used).
         type: list
         elements: str
@@ -181,7 +181,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.common.text.converters import to_native
 
 ALL_COMMANDS = []
-VM_COMMANDS = ['create', 'define', 'destroy', 'get_xml', 'get_interfaces', 'get_ifaddresses', 'pause', 'shutdown', 'status', 'start', 'stop', 'undefine', 'unpause', 'uuid']
+VM_COMMANDS = [
+    'create', 'define', 'destroy', 'get_xml', 'get_interfaces', 'get_ifaddresses', 'pause', 'shutdown', 'status',
+    'start', 'stop', 'undefine', 'unpause', 'uuid'
+]
 HOST_COMMANDS = ['freemem', 'info', 'list_vms', 'nodeinfo', 'virttype']
 ALL_COMMANDS.extend(VM_COMMANDS)
 ALL_COMMANDS.extend(HOST_COMMANDS)
