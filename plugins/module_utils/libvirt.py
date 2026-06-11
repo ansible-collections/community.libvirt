@@ -35,11 +35,6 @@ VIRT_STATE_NAME_MAP = {
     5: 'shutdown',
     6: 'crashed',
 }
-INTERFACE_ADDRESS_SOURCE_MAP = {
-    'lease': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE,
-    'agent': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT,
-    'arp': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_ARP
-}
 
 class VMNotFound(Exception):
     pass
@@ -157,8 +152,15 @@ class LibvirtConnection(object):
         return vm.UUIDString()
 
     def get_ifaddresses(self, vmid, flag):
+        if not HAS_VIRT:
+            raise Exception('python-libvirt is required for get_ifaddresses')
+        interface_address_source_map = {
+            'lease': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE,
+            'agent': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT,
+            'arp': libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_ARP
+        }
         try:
-            interface_address_source = INTERFACE_ADDRESS_SOURCE_MAP[flag]
+            interface_address_source = interface_address_source_map[flag]
         except KeyError:
             raise InvalidAddressSourceType
         vm = self.conn.lookupByName(vmid)
