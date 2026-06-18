@@ -1,0 +1,2 @@
+minor_changes:
+  - "virt_install - add ``wait_timeout`` parameter to wait for multi-phase unattended installs to complete."

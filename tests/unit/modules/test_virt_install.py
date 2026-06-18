@@ -70,7 +70,55 @@ class TestCoreFunction(unittest.TestCase):
         self.assertEqual(rc, VIRT_SUCCESS)
         self.assertTrue(result['changed'])
         self.assertEqual(result['msg'], "VM created successfully")
-        mock_virt_install.execute.assert_called_once_with(dryrun=False)
+        mock_virt_install.execute.assert_called_once_with(dryrun=False, wait_timeout=None)
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.LibvirtWrapper')
+    def test_core_wait_timeout_forwarded(
+            self, mock_libvirt_wrapper, mock_virt_install_tool):
+        """Test core() forwards wait_timeout to execute()"""
+        mock_virt_conn = mock.Mock()
+        mock_virt_install = mock.Mock()
+        mock_libvirt_wrapper.return_value = mock_virt_conn
+        mock_virt_install_tool.return_value = mock_virt_install
+
+        mock_virt_conn.find_vm.side_effect = VMNotFound("VM not found")
+        mock_virt_install.execute.return_value = (
+            True, VIRT_SUCCESS, {"msg": "VM created successfully"})
+        mock_virt_install.get_commands.return_value = []
+
+        self.mock_module.params['wait_timeout'] = 120
+
+        rc, result = core(self.mock_module)
+
+        mock_virt_install.execute.assert_called_once_with(
+            dryrun=False, wait_timeout=120)
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.LibvirtWrapper')
+    def test_core_wait_timeout_zero_rejected(
+            self, mock_libvirt_wrapper, mock_virt_install_tool):
+        """Test core() rejects wait_timeout=0"""
+        self.mock_module.params['wait_timeout'] = 0
+
+        with self.assertRaises(Exception) as context:
+            core(self.mock_module)
+
+        self.mock_module.fail_json.assert_called_once_with(
+            msg="wait_timeout must be a positive integer (seconds)")
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.LibvirtWrapper')
+    def test_core_wait_timeout_negative_rejected(
+            self, mock_libvirt_wrapper, mock_virt_install_tool):
+        """Test core() rejects negative wait_timeout"""
+        self.mock_module.params['wait_timeout'] = -5
+
+        with self.assertRaises(Exception) as context:
+            core(self.mock_module)
+
+        self.mock_module.fail_json.assert_called_once_with(
+            msg="wait_timeout must be a positive integer (seconds)")
 
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.VirtInstallTool')
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.LibvirtWrapper')
@@ -158,7 +206,7 @@ class TestCoreFunction(unittest.TestCase):
         # Should not be called if VM is inactive
         mock_virt_conn.destroy.assert_not_called()
         mock_virt_conn.undefine.assert_called_once_with('test-vm')
-        mock_virt_install.execute.assert_called_once_with(dryrun=False)
+        mock_virt_install.execute.assert_called_once_with(dryrun=False, wait_timeout=None)
 
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.VirtInstallTool')
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.LibvirtWrapper')
@@ -192,7 +240,7 @@ class TestCoreFunction(unittest.TestCase):
         self.assertEqual(result['msg'], "VM recreated successfully")
         mock_virt_conn.destroy.assert_called_once_with('test-vm')
         mock_virt_conn.undefine.assert_called_once_with('test-vm')
-        mock_virt_install.execute.assert_called_once_with(dryrun=False)
+        mock_virt_install.execute.assert_called_once_with(dryrun=False, wait_timeout=None)
 
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.VirtInstallTool')
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.LibvirtWrapper')
@@ -333,7 +381,7 @@ class TestCoreFunction(unittest.TestCase):
 
         # Assertions
         self.assertEqual(rc, VIRT_SUCCESS)
-        mock_virt_install.execute.assert_called_once_with(dryrun=True)
+        mock_virt_install.execute.assert_called_once_with(dryrun=True, wait_timeout=None)
 
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.VirtInstallTool')
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.LibvirtWrapper')

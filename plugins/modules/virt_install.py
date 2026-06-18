@@ -34,6 +34,13 @@ options:
     description:
       - Use with present to force the re-creation of an existing VM.
     default: false
+  wait_timeout:
+    type: int
+    version_added: '2.3.0'
+    description:
+      - Maximum time in seconds to wait for the install to complete (rounded up to the nearest whole minute when passed to C(virt-install --wait)).
+      - When unset, the module will not pass C(--wait) to C(virt-install) and will start the install then exit (the module always uses C(--noautoconsole)).
+      - Use this for multi-phase unattended installs that reboot into a final post-install phase.
 extends_documentation_fragment:
     - community.libvirt.virt.options_uri
     - community.libvirt.virt_install.options_memory
@@ -348,6 +355,10 @@ def core(module):
     name = module.params.get('name')
     uri = module.params.get('uri')
     recreate = module.params.get('recreate', False)
+    wait_timeout = module.params.get('wait_timeout')
+    if wait_timeout is not None and wait_timeout <= 0:
+        module.fail_json(
+            msg="wait_timeout must be a positive integer (seconds)")
 
     result = dict(
         changed=False,
@@ -379,7 +390,8 @@ def core(module):
             virtConn.undefine(name)
 
         # run virt-install to create new vm
-        changed, rc, extra_res = virtInstall.execute(dryrun=module.check_mode)
+        changed, rc, extra_res = virtInstall.execute(
+            dryrun=module.check_mode, wait_timeout=wait_timeout)
         result['changed'] = changed
         result['commands'].extend(virtInstall.get_commands())
         result.update(extra_res)
@@ -414,6 +426,7 @@ def main():
             choices=['present', 'absent'],
             default='present'),
         recreate=dict(type='bool', default=False),
+        wait_timeout=dict(type='int'),
     )
 
     # General options

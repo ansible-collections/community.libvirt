@@ -2501,6 +2501,43 @@ class TestVirtInstallToolExecute(unittest.TestCase):
         self.assertIn('virt-install', called_args)
         self.assertIn('--noautoconsole', called_args)
 
+    def test_execute_wait_timeout_rounds_up_to_minutes(self):
+        """Test wait_timeout (seconds) is rounded up to whole minutes"""
+        self.mock_module.run_command.return_value = (
+            0, "Domain installation proceeding...", "")
+
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install.execute(wait_timeout=90)
+
+        called_args = self.mock_module.run_command.call_args[0][0]
+        self.assertIn('--wait', called_args)
+        # 90 seconds -> ceil(90/60) = 2 minutes
+        wait_index = called_args.index('--wait')
+        self.assertEqual(called_args[wait_index + 1], '2')
+
+    def test_execute_wait_timeout_whole_minutes(self):
+        """Test wait_timeout that is an exact multiple of 60"""
+        self.mock_module.run_command.return_value = (
+            0, "Domain installation proceeding...", "")
+
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install.execute(wait_timeout=120)
+
+        called_args = self.mock_module.run_command.call_args[0][0]
+        wait_index = called_args.index('--wait')
+        self.assertEqual(called_args[wait_index + 1], '2')
+
+    def test_execute_no_wait_timeout_omits_wait_flag(self):
+        """Test that omitting wait_timeout does not add --wait"""
+        self.mock_module.run_command.return_value = (
+            0, "Domain installation proceeding...", "")
+
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install.execute()
+
+        called_args = self.mock_module.run_command.call_args[0][0]
+        self.assertNotIn('--wait', called_args)
+
     def test_execute_failure(self):
         """Test failed execution"""
         error_message = "ERROR: Unable to connect to libvirt"
