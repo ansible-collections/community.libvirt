@@ -1509,6 +1509,7 @@ def get_disks_args():
                 path=dict(type='str'),
                 pool=dict(type='str'),
                 vol=dict(type='str'),
+                wwn=dict(type='str'),
                 size=dict(type='int'),
                 sparse=dict(type='bool'),
                 format=dict(type='str'),

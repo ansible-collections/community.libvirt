@@ -1087,6 +1087,30 @@ class TestBuildCommand(unittest.TestCase):
         self.assertIn('readonly=no', disk_args[1])
         self.assertIn('shareable=yes', disk_args[1])
 
+    def test_disk_wwn_parameter(self):
+        """Test that wwn parameter is passed through to --disk argument"""
+        self.mock_module.params = {
+            'name': 'test-vm',
+            'memory': 2048,
+            'disks': [
+                {
+                    'size': 20,
+                    'bus': 'scsi',
+                    'wwn': '0x5000c50015ea71ad'
+                }
+            ]
+        }
+        self.virt_install = VirtInstallTool(self.mock_module)
+        self.virt_install._build_command()
+
+        disk_args = []
+        for i, arg in enumerate(self.virt_install.command_argv):
+            if arg == '--disk' and i + 1 < len(self.virt_install.command_argv):
+                disk_args.append(self.virt_install.command_argv[i + 1])
+
+        self.assertEqual(len(disk_args), 1)
+        self.assertIn('wwn=0x5000c50015ea71ad', disk_args[0])
+
     def test_network_configuration(self):
         """Test network configuration"""
         self.mock_module.params = {

@@ -1049,6 +1049,12 @@ options:
         type: str
         description:
           - An existing libvirt storage volume to use.
+      wwn:
+        type: str
+        description:
+          - World Wide Name for the disk device.
+          - Maps to the V(wwn) element in libvirt domain XML.
+        version_added: 2.3.0
       size:
         type: int
         description:

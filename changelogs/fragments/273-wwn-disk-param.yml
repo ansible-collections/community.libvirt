@@ -1,0 +1,2 @@
+minor_changes:
+  - virt_install - add ``wwn`` parameter to disk specifications for setting the World Wide Name of a disk device (https://github.com/ansible-collections/community.libvirt/issues/271).
