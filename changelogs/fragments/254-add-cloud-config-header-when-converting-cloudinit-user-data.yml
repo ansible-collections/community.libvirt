@@ -1,3 +1,0 @@
-bugfixes:
-  - virt_install - added cloud-config header when converting cloud-init user-data from dictionary form.
-  - virt_cloud_instance - added cloud-config header when converting cloud-init user-data from dictionary form.

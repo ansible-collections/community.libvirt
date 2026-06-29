@@ -257,3 +257,54 @@ releases:
     - 241-virt-install-commands.yml
     - 243-fix-libvirt_qemu-parse_clixml-import.yml
     release_date: '2026-03-29'
+  2.3.0:
+    changes:
+      bugfixes:
+      - inventory - Added checks to prevent powered-off hosts from being issued guest
+        agent calls.
+      - plugins - replaced deprecated imports from ``ansible.module_utils._text``
+        with ``ansible.module_utils.common.text.converters`` to avoid ansible-core
+        deprecation warnings and prepare for removal of the private import path in
+        ansible-core 2.24.
+      - virt_cloud_instance - added cloud-config header when converting cloud-init
+        user-data from dictionary form.
+      - virt_cloud_instance - check if instance exists and not running before calling
+        ``create()``.
+      - virt_install - added cloud-config header when converting cloud-init user-data
+        from dictionary form.
+      - virt_install - remove incorrect ``required=True`` from ``install.os`` parameter
+        to allow ``install.no_install=true`` without specifying an OS.
+      minor_changes:
+      - inventory - added option ``alternate_id_groups`` (default ``true``).
+      - inventory - added option ``filter`` (default ``.*``) to include domains by
+        name or uuid which match regex.
+      - virt - Add ``get_ifaddresses`` function to retrieve domain interface addresses.
+      - virt_cloud_instance - Add support for compressed base images (gzip, bzip2,
+        xz).
+      - virt_cloud_instance - add passt network support via shared network schema
+        (https://github.com/ansible-collections/community.libvirt/issues/231).
+      - virt_install - add ``wait_timeout`` parameter to wait for multi-phase unattended
+        installs to complete.
+      - virt_install - add ``wwn`` parameter to disk specifications for setting the
+        World Wide Name of a disk device (https://github.com/ansible-collections/community.libvirt/issues/271).
+      - 'virt_install - add passt network support with ``value`` shorthand and structured
+        ``type: user`` form (https://github.com/ansible-collections/community.libvirt/issues/231).'
+      release_summary: 'This is the minor release of the ``community.libvirt`` collection.
+
+        This changelog contains all changes to the modules and plugins in this collection
+
+        that have been made after the previous release.'        
+    fragments:
+    - 127-add-get-ifaddresses.yml
+    - 245-virt-cloud-instance-image-compression.yml
+    - 246-add-alias-groups-option.yml
+    - 247-inventory-handle-offline-hosts.yml
+    - 254-add-cloud-config-header-when-converting-cloudinit-user-data.yml
+    - 255-replace-private-text-imports.yml
+    - 257-inventory-add-filter.yml
+    - 262-virt-cloud-instance-cloudinit-check.yml
+    - 265-passt-network-support.yml
+    - 268-fix-no-install-os-required.yaml
+    - 272-virt-install-wait-timeout.yaml
+    - 273-wwn-disk-param.yml
+    release_date: '2026-06-29'

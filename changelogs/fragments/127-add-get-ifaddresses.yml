@@ -1,2 +1,0 @@
-minor_changes:
-  - virt - Add get_ifaddresses function to retrive domain interface addresses

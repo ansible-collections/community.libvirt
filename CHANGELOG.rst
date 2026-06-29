@@ -4,6 +4,38 @@ Community.Libvirt Release Notes
 
 .. contents:: Topics
 
+v2.3.0
+======
+
+Release Summary
+---------------
+
+This is the minor release of the ``community.libvirt`` collection.
+This changelog contains all changes to the modules and plugins in this collection
+that have been made after the previous release.
+
+Minor Changes
+-------------
+
+- inventory - added option ``alternate_id_groups`` (default ``true``).
+- inventory - added option ``filter`` (default ``.*``) to include domains by name or uuid which match regex.
+- virt - Add ``get_ifaddresses`` function to retrieve domain interface addresses.
+- virt_cloud_instance - Add support for compressed base images (gzip, bzip2, xz).
+- virt_cloud_instance - add passt network support via shared network schema (https://github.com/ansible-collections/community.libvirt/issues/231).
+- virt_install - add ``wait_timeout`` parameter to wait for multi-phase unattended installs to complete.
+- virt_install - add ``wwn`` parameter to disk specifications for setting the World Wide Name of a disk device (https://github.com/ansible-collections/community.libvirt/issues/271).
+- virt_install - add passt network support with ``value`` shorthand and structured ``type: user`` form (https://github.com/ansible-collections/community.libvirt/issues/231).
+
+Bugfixes
+--------
+
+- inventory - Added checks to prevent powered-off hosts from being issued guest agent calls.
+- plugins - replaced deprecated imports from ``ansible.module_utils._text`` with ``ansible.module_utils.common.text.converters`` to avoid ansible-core deprecation warnings and prepare for removal of the private import path in ansible-core 2.24.
+- virt_cloud_instance - added cloud-config header when converting cloud-init user-data from dictionary form.
+- virt_cloud_instance - check if instance exists and not running before calling ``create()``.
+- virt_install - added cloud-config header when converting cloud-init user-data from dictionary form.
+- virt_install - remove incorrect ``required=True`` from ``install.os`` parameter to allow ``install.no_install=true`` without specifying an OS.
+
 v2.2.0
 ======
 
