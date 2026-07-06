@@ -37,6 +37,7 @@ For more information about communication, see the [Ansible communication guide](
 - 2.18
 - 2.19
 - 2.20
+- 2.21
 - devel
 
 ## External requirements
@@ -54,12 +55,13 @@ Some modules require additional system tools:
 
 Modules:
 
-- [virt](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_module.html)
-- [virt_net](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_net_module.html)
-- [virt_pool](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_pool_module.html)
-- [virt_volume](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_volume_module.html)
-- [virt_install](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_install_module.html)
-- [virt_cloud_instance](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_cloud_instance_module.html)
+- [virt](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_module.html) - Manage virtual machines supported by libvirt.
+- [virt_net](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_net_module.html) - Manage libvirt network configuration.
+- [virt_pool](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_pool_module.html) - Manage libvirt storage pools.
+- [virt_volume](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_volume_module.html) - Manage libvirt volumes inside a storage pool.
+- [virt_install](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_install_module.html) - Provision new virtual machines using `virt-install`.
+- [virt_cloud_instance](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_cloud_instance_module.html) - Provision new virtual machines from cloud images via libvirt.
+- [virt_secret](https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_secret_module.html) - Manage libvirt secrets and their values.
 
 Inventory:
 
