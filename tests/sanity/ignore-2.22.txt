@@ -1,0 +1,2 @@
+tests/unit/compat/builtins.py pylint:unused-import
+tests/utils/shippable/timing.py shebang
