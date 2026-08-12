@@ -1,5 +1,6 @@
 ---
 virt_net_packages:
   - libvirt-daemon
-  - python-libvirt
+  - libvirt-daemon-system
+  - python3-libvirt
   - python-lxml
