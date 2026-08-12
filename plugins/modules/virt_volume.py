@@ -201,17 +201,34 @@ def _get_volume_size(capacity_elem):
     """
     unit = capacity_elem.get("unit", "bytes").lower()
 
-    # Conversion factors to bytes
+    # Mirrors libvirt's own <capacity>/<allocation> unit vocabulary
+    # (https://libvirt.org/formatstorage.html). The real units are the
+    # IEC-spelled ones ('kib', 'mib', ...), binary (base-1024); the bare
+    # single-letter forms ('k', 'm', ...) are just aliases for them. The
+    # plain long forms ('kb', 'mb', ...) are decimal (base-1000), matching
+    # libvirt's own distinction between e.g. 'G'/'GiB' and 'GB'.
+    kib, mib, gib, tib, pib, eib = 1024, 1024**2, 1024**3, 1024**4, 1024**5, 1024**6
+    kb, mb, gb, tb, pb, eb = 1000, 1000**2, 1000**3, 1000**4, 1000**5, 1000**6
     unit_factors = {
-        "bytes": 1, "b": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
+        "bytes": 1, "b": 1,
+        "kib": kib, "k": kib, "kb": kb,
+        "mib": mib, "m": mib, "mb": mb,
+        "gib": gib, "g": gib, "gb": gb,
+        "tib": tib, "t": tib, "tb": tb,
+        "pib": pib, "p": pib, "pb": pb,
+        "eib": eib, "e": eib, "eb": eb,
+    }
 
-    # Convert size to bytes
+    if unit not in unit_factors:
+        raise ValueError(f"Unknown or invalid unit for capacity: {unit}")
+
     try:
-        size_bytes = int(float(capacity_elem.text) * unit_factors.get(unit, 1))
-    except (ValueError, KeyError) as exc:
+        size = float(capacity_elem.text)
+    except (TypeError, ValueError) as exc:
         raise ValueError(
-            f"Unknown or invalid unit for capacity: {unit}") from exc
-    return size_bytes
+            f"Unknown or invalid capacity value: {capacity_elem.text}") from exc
+
+    return int(size * unit_factors[unit])
 
 
 class LibvirtConnection(object):
