@@ -293,7 +293,7 @@ releases:
 
         This changelog contains all changes to the modules and plugins in this collection
 
-        that have been made after the previous release.'        
+        that have been made after the previous release.'
     fragments:
     - 127-add-get-ifaddresses.yml
     - 245-virt-cloud-instance-image-compression.yml
@@ -308,3 +308,24 @@ releases:
     - 272-virt-install-wait-timeout.yaml
     - 273-wwn-disk-param.yml
     release_date: '2026-06-29'
+  2.4.0:
+    changes:
+      bugfixes:
+      - virt_volume - fixed capacity/allocation unit parsing to recognize all unit
+        strings documented by libvirt's storage volume XML format (e.g. GiB, MiB,
+        KB, TB), instead of silently treating unrecognized units as a multiplier of
+        1 and attempting a bogus resize (https://github.com/ansible-collections/community.libvirt/issues/281).
+      minor_changes:
+      - Replace the deprecated ``ansible.module_utils.six`` compatibility shims with
+        their Python standard library equivalents. ``ansible.module_utils.six`` is
+        deprecated in ansible-core 2.20 and is scheduled for removal in 2.24.
+      release_summary: 'This is the minor release of the ``community.libvirt`` collection.
+
+        This changelog contains all changes to the modules and plugins in this collection
+
+        that have been made after the previous release.'
+    fragments:
+    - 2.4.0.yaml
+    - remove-module-utils-six.yml
+    - virt_volume-fix-capacity-unit-parsing.yml
+    release_date: '2026-10-09'

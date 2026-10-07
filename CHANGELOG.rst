@@ -4,6 +4,26 @@ Community.Libvirt Release Notes
 
 .. contents:: Topics
 
+v2.4.0
+======
+
+Release Summary
+---------------
+
+This is the minor release of the ``community.libvirt`` collection.
+This changelog contains all changes to the modules and plugins in this collection
+that have been made after the previous release.
+
+Minor Changes
+-------------
+
+- Replace the deprecated ``ansible.module_utils.six`` compatibility shims with their Python standard library equivalents. ``ansible.module_utils.six`` is deprecated in ansible-core 2.20 and is scheduled for removal in 2.24.
+
+Bugfixes
+--------
+
+- virt_volume - fixed capacity/allocation unit parsing to recognize all unit strings documented by libvirt's storage volume XML format (e.g. GiB, MiB, KB, TB), instead of silently treating unrecognized units as a multiplier of 1 and attempting a bogus resize (https://github.com/ansible-collections/community.libvirt/issues/281).
+
 v2.3.0
 ======
 
