@@ -1,0 +1,25 @@
+---
+- name: Reject a nonpositive install wait timeout
+  community.libvirt.virt_install:
+    wait_timeout: 0
+    import: true
+    install: '{{ omit }}'
+  register: result
+  ignore_errors: true
+
+- name: Assert the timeout validation failure
+  ansible.builtin.assert:
+    that:
+      - result is failed
+      - "'wait_timeout must be a positive integer' in result.msg"
+
+- name: Inspect failed input validation
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert validation created no resources
+  ansible.builtin.assert:
+    that:
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists

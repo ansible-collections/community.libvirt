@@ -1,0 +1,82 @@
+---
+- name: Test cloud image provisioning with locally generated images
+  block:
+    - name: Prepare isolated storage
+      ansible.builtin.include_role:
+        name: setup_virt_install
+        tasks_from: pool
+      vars:
+        virt_install_test_prefix: ansible-test-cloud-instance
+
+    - name: Generate deterministic image fixtures
+      ansible.builtin.include_role:
+        name: setup_virt_install
+        tasks_from: fixtures
+
+    - name: Exercise the cloud instance lifecycle
+      ansible.builtin.include_tasks: lifecycle.yml
+
+    - name: Exercise local copy, conversion, expansion and compression
+      ansible.builtin.include_tasks: image.yml
+      loop:
+        - {file: base.qcow2}
+        - {file: base.raw, compression: none}
+        - {file: base.raw.gz}
+        - {file: base.raw.bz2}
+        - {file: base.raw.xz, compression: xz}
+      loop_control:
+        loop_var: virt_install_test_image
+
+    - name: Exercise explicit disk replacement
+      ansible.builtin.include_tasks: force_disk.yml
+
+    - name: Exercise HTTP download, cache and checksum behavior
+      ansible.builtin.include_tasks: http.yml
+
+    - name: Exercise invalid image inputs
+      ansible.builtin.include_tasks: errors.yml
+
+    - name: Check the original base image survived all disk operations
+      ansible.builtin.stat:
+        path: '{{ virt_install_test_dir }}/base.qcow2'
+        checksum_algorithm: sha256
+      register: virt_install_test_base_after
+
+    - name: Check the raw base image survived conversion and compression
+      ansible.builtin.stat:
+        path: '{{ virt_install_test_dir }}/base.raw'
+        checksum_algorithm: sha256
+      register: virt_install_test_raw_after
+
+    - name: Assert base image contents were never modified or deleted
+      ansible.builtin.assert:
+        that:
+          - virt_install_test_base_after.stat.checksum == virt_install_test_base.stat.checksum
+          - virt_install_test_raw_after.stat.checksum == virt_install_test_raw.stat.checksum
+  rescue:
+    - name: Report service diagnostics before cleaning up a failed test
+      ansible.builtin.include_role:
+        name: setup_virt_install
+        tasks_from: diagnostics
+  always:
+    - name: Clean up test resources even after a failed assertion
+      ansible.builtin.include_role:
+        name: setup_virt_install
+        tasks_from: cleanup
+      when: virt_install_test_directory.path is defined
+  module_defaults:
+    community.libvirt.virt_cloud_instance:
+      uri: qemu:///system
+      name: '{{ virt_install_test_name }}'
+      memory: 128
+      vcpus: 1
+      virt_type: qemu
+      osinfo:
+        name: generic
+      networks: []
+      base_image: '{{ virt_install_test_dir }}/base.qcow2'
+      wait_for_cloud_init_reboot: false
+      disks:
+        - path: '{{ virt_install_test_dir }}/system.qcow2'
+          size: 1
+          format: qcow2

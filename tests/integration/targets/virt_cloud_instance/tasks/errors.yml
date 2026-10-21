@@ -1,0 +1,20 @@
+---
+- name: Create an image too large for the requested system disk
+  ansible.builtin.command:
+    argv: [qemu-img, create, -f, qcow2, '{{ virt_install_test_dir }}/large.qcow2', 2G]
+
+- name: Create a corrupt compressed fixture
+  ansible.builtin.copy:
+    content: This is not a gzip stream.
+    dest: '{{ virt_install_test_dir }}/corrupt.gz'
+    mode: '0644'
+
+- name: Exercise invalid image inputs
+  ansible.builtin.include_tasks: invalid_image.yml
+  loop:
+    - {file: missing.qcow2, message: 'Base image file does not exist'}
+    - {file: large.qcow2, message: 'system disk size is too small'}
+    - {file: corrupt.gz, message: 'Failed to decompress'}
+    - {file: base.qcow2, disks: [], message: 'At least one disk is required'}
+  loop_control:
+    loop_var: virt_install_test_invalid

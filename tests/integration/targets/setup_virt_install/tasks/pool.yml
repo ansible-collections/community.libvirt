@@ -1,0 +1,41 @@
+---
+- name: Ensure the libvirt image directory exists
+  ansible.builtin.file:
+    path: /var/lib/libvirt/images
+    state: directory
+    mode: '0755'
+
+- name: Allocate an isolated test directory
+  ansible.builtin.tempfile:
+    state: directory
+    path: /var/lib/libvirt/images
+    prefix: '{{ virt_install_test_prefix }}-'
+  register: virt_install_test_directory
+
+- name: Set isolated resource names
+  ansible.builtin.set_fact:
+    virt_install_test_dir: '{{ virt_install_test_directory.path }}'
+    virt_install_test_pool: '{{ virt_install_test_directory.path | basename }}'
+    virt_install_test_name: '{{ virt_install_test_directory.path | basename }}'
+
+- name: Allow the QEMU service account to traverse the allocated directory
+  ansible.builtin.file:
+    path: '{{ virt_install_test_dir }}'
+    state: directory
+    mode: '0755'
+
+- name: Define an isolated directory pool
+  ansible.builtin.command:
+    argv:
+      - virsh
+      - --connect
+      - qemu:///system
+      - pool-define-as
+      - '{{ virt_install_test_pool }}'
+      - dir
+      - --target
+      - '{{ virt_install_test_dir }}'
+
+- name: Start the test pool
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', pool-start, '{{ virt_install_test_pool }}']

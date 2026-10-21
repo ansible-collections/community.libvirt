@@ -1,0 +1,26 @@
+---
+# Read disks only after stopping QEMU, so the verification does not bypass
+# image locks or race a running guest's metadata writes.
+- name: Query the stopped system disk metadata
+  ansible.builtin.command:
+    argv: [qemu-img, info, --output=json, '{{ virt_install_test_dir }}/system.qcow2']
+  register: virt_install_test_image_info
+  changed_when: false
+
+- name: Assert the requested format and expanded capacity
+  ansible.builtin.assert:
+    that:
+      - (virt_install_test_image_info.stdout | from_json).format == 'qcow2'
+      - (virt_install_test_image_info.stdout | from_json)['virtual-size'] == 1073741824
+
+- name: Verify the imported data block survived image processing
+  ansible.builtin.command:
+    argv:
+      - qemu-io
+      - -r
+      - -f
+      - qcow2
+      - -c
+      - 'read -P {{ virt_install_test_pattern | default(90) }} 1048576 4096'
+      - '{{ virt_install_test_dir }}/system.qcow2'
+  changed_when: false

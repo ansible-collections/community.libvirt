@@ -1,0 +1,12 @@
+---
+virt_install_test_packages:
+  - libvirt-daemon
+  - libvirt-daemon-driver-qemu
+  - libvirt-daemon-driver-storage-core
+  - libvirt-client
+  - qemu-system-x86-core
+  - qemu-img
+  - virt-install
+  - python3-libvirt
+  - python3-lxml
+  - python3-pyyaml

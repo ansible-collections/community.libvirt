@@ -1,0 +1,20 @@
+---
+- name: Query domain state independently
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', domstate, '{{ virt_install_test_name }}']
+  register: virt_install_test_state
+  changed_when: false
+  failed_when: false
+
+- name: Query the system disk independently
+  ansible.builtin.stat:
+    path: '{{ virt_install_test_dir }}/system.qcow2'
+    get_checksum: false
+  register: virt_install_test_disk
+
+- name: Query domain XML independently
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', dumpxml, --inactive, '{{ virt_install_test_name }}']
+  register: virt_install_test_xml
+  changed_when: false
+  when: virt_install_test_state.rc == 0

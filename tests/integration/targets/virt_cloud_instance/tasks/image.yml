@@ -1,0 +1,97 @@
+---
+- name: Predict importing {{ virt_install_test_image.file }}
+  community.libvirt.virt_cloud_instance:
+    base_image: '{{ virt_install_test_dir }}/{{ virt_install_test_image.file }}'
+    image_compression: '{{ virt_install_test_image.compression | default("auto") }}'
+  check_mode: true
+  register: result
+
+- name: Inspect predicted image import
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert image check mode created no persistent resources
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists
+
+- name: Import {{ virt_install_test_image.file }} into an expanded qcow2 disk
+  community.libvirt.virt_cloud_instance:
+    base_image: '{{ virt_install_test_dir }}/{{ virt_install_test_image.file }}'
+    image_compression: '{{ virt_install_test_image.compression | default("auto") }}'
+  register: result
+
+- name: Inspect the imported guest
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert the imported guest is running
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.stdout == 'running'
+      - virt_install_test_disk.stat.exists
+
+- name: Stop QEMU before inspecting disk content
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', destroy, '{{ virt_install_test_name }}']
+
+- name: Verify the format, expansion and copied content
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: disk
+
+- name: Repeat provisioning of the stopped guest
+  community.libvirt.virt_cloud_instance:
+    base_image: '{{ virt_install_test_dir }}/{{ virt_install_test_image.file }}'
+  register: result
+
+- name: Inspect stopped idempotency
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert present does not restart an existing guest
+  ansible.builtin.assert:
+    that:
+      - result is not changed
+      - virt_install_test_state.stdout == 'shut off'
+
+- name: Predict deletion of the stopped guest
+  community.libvirt.virt_cloud_instance:
+    state: absent
+  check_mode: true
+  register: result
+
+- name: Inspect predicted stopped deletion
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert deletion check mode preserves stopped resources
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.stdout == 'shut off'
+      - virt_install_test_disk.stat.exists
+
+- name: Delete the stopped guest and its imported disk
+  community.libvirt.virt_cloud_instance:
+    state: absent
+  register: result
+
+- name: Inspect deletion after image import
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert no imported resources remain
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists

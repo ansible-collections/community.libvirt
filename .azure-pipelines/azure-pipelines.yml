@@ -132,6 +132,14 @@ stages:
               test: fedora44
             - name: Ubuntu 24.04
               test: ubuntu2404
+      - template: templates/matrix.yml
+        parameters:
+          testFormat: devel/linux/{0}/2
+          targets:
+            - name: Virt install Fedora 44
+              test: fedora44
+            - name: Virt install Ubuntu 24.04
+              test: ubuntu2404
 
   - stage: Docker_2_21
     displayName: Docker 2.21
@@ -144,6 +152,15 @@ stages:
             - name: Fedora 43
               test: fedora43
             - name: Ubuntu 22.04
+              test: ubuntu2204
+
+      - template: templates/matrix.yml
+        parameters:
+          testFormat: 2.21/linux/{0}/2
+          targets:
+            - name: Virt install Fedora 43
+              test: fedora43
+            - name: Virt install Ubuntu 22.04
               test: ubuntu2204
 
   - stage: Docker_2_20

@@ -1,0 +1,69 @@
+---
+- name: Predict provisioning from the loopback HTTP server
+  community.libvirt.virt_cloud_instance:
+    base_image: '{{ virt_install_test_url }}/download.qcow2'
+    image_cache_dir: '{{ virt_install_test_remote.cache | default(omit) }}'
+    force_pull: '{{ virt_install_test_remote.force_pull | default(false) }}'
+    image_checksum: '{{ virt_install_test_remote.checksum | default(omit) }}'
+  check_mode: true
+  register: result
+
+- name: Inspect predicted remote provisioning
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert remote check mode created no guest or system disk
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists
+
+- name: Provision from the loopback HTTP server
+  community.libvirt.virt_cloud_instance:
+    base_image: '{{ virt_install_test_url }}/download.qcow2'
+    image_cache_dir: '{{ virt_install_test_remote.cache | default(omit) }}'
+    force_pull: '{{ virt_install_test_remote.force_pull | default(false) }}'
+    image_checksum: '{{ virt_install_test_remote.checksum | default(omit) }}'
+  register: result
+
+- name: Inspect remote provisioning
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert the remote image provisioned a running guest
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.stdout == 'running'
+      - virt_install_test_disk.stat.exists
+
+- name: Stop the guest before checking downloaded contents
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', destroy, '{{ virt_install_test_name }}']
+
+- name: Verify the downloaded disk format, size and data
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: disk
+  vars:
+    virt_install_test_pattern: '{{ virt_install_test_remote.pattern | default(90) }}'
+
+- name: Delete the remotely provisioned guest
+  community.libvirt.virt_cloud_instance:
+    state: absent
+  register: result
+
+- name: Inspect remote guest deletion
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert the remote guest and its disk were removed
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists

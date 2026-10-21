@@ -117,6 +117,8 @@ attributes:
 requirements:
     - "virt-install"
 notes:
+    - In check mode, recreating an existing VM reports a change after basic parameter validation, without running C(virt-install).
+    - This recreation preview leaves the VM and its disks unchanged and does not perform full creation or resource conflict validation.
     - The C(virt-install) command is provided by different packages on different distributions.
     - On Debian/Ubuntu, install the C(virtinst) package.
     - On RHEL/CentOS/Fedora and openSUSE, install the C(virt-install) package.
@@ -332,7 +334,8 @@ commands:
     description:
         - List of virt-install commands executed by this module.
         - Only populated when a VM is created or recreated (V(state=present) and VM did not already exist, or V(recreate=true)).
-        - In check mode, the command includes the C(--dry-run) flag.
+        - When executed in check mode, the command includes the C(--dry-run) flag.
+        - Empty when predicting recreation of an existing VM in check mode, because no command is executed.
     type: list
     elements: str
     returned: when a virt-install command was executed
@@ -385,6 +388,13 @@ def core(module):
             result['message'] = "virtual machine '%s' already exists" % name
             return VIRT_SUCCESS, result
         elif vm_exists and recreate:
+            if module.check_mode:
+                # The existing guest still owns its disks, so virt-install's
+                # dry-run cannot validate creation after the planned removal.
+                virtInstall.validate()
+                result['changed'] = True
+                result['message'] = "virtual machine '%s' would be recreated" % name
+                return VIRT_SUCCESS, result
             if vm.isActive():
                 virtConn.destroy(name)
             virtConn.undefine(name)

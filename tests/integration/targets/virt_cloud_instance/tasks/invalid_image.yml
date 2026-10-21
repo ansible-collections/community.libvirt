@@ -1,0 +1,21 @@
+---
+- name: Reject {{ virt_install_test_invalid.file }} with invalid input
+  community.libvirt.virt_cloud_instance:
+    base_image: '{{ virt_install_test_dir }}/{{ virt_install_test_invalid.file }}'
+    disks: >-
+      {{ virt_install_test_invalid.disks | default([{'path': virt_install_test_dir ~ '/system.qcow2', 'size': 1, 'format': 'qcow2'}]) }}
+  register: result
+  ignore_errors: true
+
+- name: Inspect rejected image input
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert image validation failed without creating resources
+  ansible.builtin.assert:
+    that:
+      - result is failed
+      - virt_install_test_invalid.message in result.msg
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists

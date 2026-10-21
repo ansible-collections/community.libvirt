@@ -1520,55 +1520,113 @@ class TestCore(unittest.TestCase):
         self.mock_module.fail_json.assert_called_once_with(
             msg="unsupported state 'destroy'")
 
-    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.BaseImageOperator')
-    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.VirtInstallTool')
-    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.LibvirtWrapper')
-    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.validate_disks')
-    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.update_virtinst_params')
-    def test_core_check_mode_vm_recreation(self, mock_update_params, mock_validate_disks,
-                                           mock_libvirt_wrapper_class, mock_virt_install_class,
-                                           mock_base_image_operator_class):
-        """Test core() in check_mode when recreating VM"""
+    @mock.patch('os.path.exists', return_value=True)
+    @mock.patch('ansible_collections.community.libvirt.plugins.module_utils.libvirt.libvirt', create=True)
+    def test_core_check_mode_vm_recreation(self, mock_libvirt, mock_exists):
+        """Predict recreation without rejecting or modifying the existing disk."""
         from ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance import core, VIRT_SUCCESS
 
-        # Enable check_mode and recreate
         self.mock_module.check_mode = True
         self.mock_module.params['recreate'] = True
+        self.mock_module.params['uri'] = 'qemu:///system'
+        self.mock_module.params['base_image'] = '/images/base.qcow2'
+        self.mock_module.fail_json.side_effect = Exception('fail_json called')
+        guest = mock.Mock()
+        guest.name.return_value = 'test-vm'
+        mock_libvirt.open.return_value.listAllDomains.return_value = [guest]
 
-        # Mock LibvirtWrapper - VM exists and is active
-        mock_virt_conn = mock.Mock()
-        mock_vm = mock.Mock()
-        mock_vm.isActive.return_value = True
-        mock_virt_conn.find_vm.return_value = mock_vm
-        mock_libvirt_wrapper_class.return_value = mock_virt_conn
+        for active in (False, True):
+            with self.subTest(active=active):
+                guest.isActive.return_value = active
+                self.mock_module.run_command.reset_mock()
 
-        # Mock VirtInstallTool
-        mock_virt_install = mock.Mock()
-        mock_virt_install.execute.return_value = (True, VIRT_SUCCESS, {})
-        mock_virt_install.get_commands.return_value = []
-        mock_virt_install_class.return_value = mock_virt_install
+                rc, result = core(self.mock_module)
 
-        # Mock BaseImageOperator
-        mock_operator = mock.Mock()
-        mock_operator.validate_checksum.return_value = True
-        mock_operator.build_system_disk.return_value = {
-            'path': '/var/lib/libvirt/images/test.qcow2'}
-        mock_operator.get_commands.return_value = []
-        mock_base_image_operator_class.return_value = mock_operator
+                self.assertEqual(rc, VIRT_SUCCESS)
+                self.assertTrue(result['changed'])
+                self.assertEqual(result['commands'], [])
+                self.mock_module.run_command.assert_called_once_with('uname -r')
+                self.mock_module.preserved_copy.assert_not_called()
+                self.mock_module.atomic_move.assert_not_called()
+                guest.destroy.assert_not_called()
+                guest.undefine.assert_not_called()
 
-        # Execute core function
-        rc, result = core(self.mock_module)
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.LibvirtWrapper')
+    @mock.patch('os.path.exists', return_value=False)
+    def test_recreation_missing_local_image_preserves_guest(self, mock_exists, mock_wrapper_class, mock_install_class):
+        """A missing local image must fail before deleting an existing guest."""
+        from ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance import core
 
-        # In check_mode, VM should NOT be destroyed or undefined
-        mock_virt_conn.destroy.assert_not_called()
-        mock_virt_conn.undefine.assert_not_called()
+        self.mock_module.params.update(recreate=True, base_image='/images/missing.qcow2')
+        self.mock_module.fail_json.side_effect = RuntimeError('module failed')
+        mock_wrapper = mock_wrapper_class.return_value
+        mock_wrapper.find_vm.return_value.isActive.return_value = True
 
-        # But virt-install should be called with dryrun=True
-        mock_virt_install.execute.assert_called_once_with(dryrun=True, wait_timeout=600)
+        for check_mode in (False, True):
+            with self.subTest(check_mode=check_mode):
+                self.mock_module.check_mode = check_mode
+                self.mock_module.fail_json.reset_mock()
 
-        # Should still return success
-        self.assertEqual(rc, VIRT_SUCCESS)
-        self.assertTrue(result['changed'])
+                with self.assertRaisesRegex(RuntimeError, 'module failed'):
+                    core(self.mock_module)
+
+                self.mock_module.fail_json.assert_called_once_with(
+                    msg='Base image file does not exist: /images/missing.qcow2')
+                mock_wrapper.destroy.assert_not_called()
+                mock_wrapper.undefine.assert_not_called()
+                mock_install_class.return_value.execute.assert_not_called()
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.VirtInstallTool')
+    @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.LibvirtWrapper')
+    @mock.patch('os.path.exists', return_value=True)
+    def test_recreation_invalid_checksum_preserves_guest(self, mock_exists, mock_wrapper_class, mock_install_class):
+        """A bad checksum must fail before deleting an existing guest."""
+        from ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance import core
+
+        self.mock_module.params.update(
+            recreate=True, base_image='/images/base.qcow2', image_checksum='sha256:abc123')
+        self.mock_module.digest_from_file.return_value = 'def456'
+        self.mock_module.fail_json.side_effect = RuntimeError('module failed')
+        mock_wrapper = mock_wrapper_class.return_value
+        mock_wrapper.find_vm.return_value.isActive.return_value = True
+
+        for check_mode in (False, True):
+            with self.subTest(check_mode=check_mode):
+                self.mock_module.check_mode = check_mode
+                self.mock_module.fail_json.reset_mock()
+
+                with self.assertRaisesRegex(RuntimeError, 'module failed'):
+                    core(self.mock_module)
+
+                self.mock_module.digest_from_file.assert_called_with('/images/base.qcow2', 'sha256')
+                self.mock_module.fail_json.assert_called_once_with(
+                    msg='The checksum of the base image does not match the expected value')
+                mock_wrapper.destroy.assert_not_called()
+                mock_wrapper.undefine.assert_not_called()
+                mock_install_class.return_value.execute.assert_not_called()
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.module_utils.libvirt.libvirt', create=True)
+    def test_check_mode_recreation_validates_parameter_combinations(self, mock_libvirt):
+        from ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance import core
+
+        self.mock_module.check_mode = True
+        self.mock_module.params.update(
+            uri='qemu:///system', recreate=True,
+            networks=[{'network': 'default', 'bridge': 'br0'}])
+        self.mock_module.fail_json.side_effect = Exception('fail_json called')
+        guest = mock.Mock()
+        guest.name.return_value = 'test-vm'
+        mock_libvirt.open.return_value.listAllDomains.return_value = [guest]
+
+        with self.assertRaises(Exception):
+            core(self.mock_module)
+
+        self.mock_module.fail_json.assert_called_once_with(
+            msg='network entry specifies conflicting selectors: network, bridge')
+        self.mock_module.run_command.assert_called_once_with('uname -r')
+        guest.destroy.assert_not_called()
+        guest.undefine.assert_not_called()
 
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.BaseImageOperator')
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_cloud_instance.VirtInstallTool')

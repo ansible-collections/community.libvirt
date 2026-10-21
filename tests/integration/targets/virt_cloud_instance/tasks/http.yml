@@ -1,0 +1,165 @@
+---
+- name: Exercise HTTP downloads without public network dependencies
+  block:
+    - name: Create the server root and cache directories
+      ansible.builtin.file:
+        path: '{{ virt_install_test_dir }}/{{ item }}'
+        state: directory
+        mode: '0755'
+      loop:
+        - http
+        - cache
+
+    - name: Serve the generated qcow2 fixture
+      ansible.builtin.copy:
+        remote_src: true
+        src: '{{ virt_install_test_dir }}/base.qcow2'
+        dest: '{{ virt_install_test_dir }}/http/download.qcow2'
+        mode: '0644'
+
+    - name: Create a checksum file for the HTTP fixture
+      ansible.builtin.copy:
+        content: "{{ virt_install_test_base.stat.checksum }}  download.qcow2\n"
+        dest: '{{ virt_install_test_dir }}/http/SHA256SUMS'
+        mode: '0644'
+
+    # Port zero avoids collisions. Redirect all inherited descriptors so that
+    # the shell exits while the server remains available until the always block.
+    - name: Start an isolated loopback-only HTTP server
+      ansible.builtin.shell: >-
+        {{ ansible_python.executable | quote }} -u -m http.server 0
+        --bind 127.0.0.1 --directory {{ (virt_install_test_dir ~ '/http') | quote }}
+        < /dev/null > {{ (virt_install_test_dir ~ '/http.log') | quote }} 2>&1 &
+        echo $!
+      register: virt_install_test_http_process
+      changed_when: true
+
+    - name: Wait for the HTTP server to publish its port
+      ansible.builtin.wait_for:
+        path: '{{ virt_install_test_dir }}/http.log'
+        search_regex: 'Serving HTTP on 127.0.0.1 port [0-9]+'
+        timeout: 15
+
+    - name: Read the server address
+      ansible.builtin.slurp:
+        src: '{{ virt_install_test_dir }}/http.log'
+      register: virt_install_test_http_log
+
+    - name: Set the local fixture URL
+      ansible.builtin.set_fact:
+        virt_install_test_url: >-
+          http://127.0.0.1:{{ (virt_install_test_http_log.content | b64decode | regex_search('port ([0-9]+)', '\1')) | first }}
+
+    - name: Test first download and checksum validation
+      ansible.builtin.include_tasks: remote_image.yml
+      vars:
+        virt_install_test_remote:
+          cache: '{{ virt_install_test_dir }}/cache'
+          checksum: 'sha256:{{ virt_install_test_base.stat.checksum }}'
+
+    - name: Change the server copy while retaining the cached image
+      ansible.builtin.command:
+        argv: [qemu-io, -f, qcow2, -c, 'write -P 51 1048576 4096', '{{ virt_install_test_dir }}/http/download.qcow2']
+
+    - name: Verify a cache hit still imports the original verified content
+      ansible.builtin.include_tasks: remote_image.yml
+      vars:
+        virt_install_test_remote:
+          cache: '{{ virt_install_test_dir }}/cache'
+          checksum: 'sha256:{{ virt_install_test_base.stat.checksum }}'
+
+    - name: Read requests after the cache hit
+      ansible.builtin.slurp:
+        src: '{{ virt_install_test_dir }}/http.log'
+      register: virt_install_test_http_log
+
+    - name: Assert check mode and cache hits did not redownload the image
+      ansible.builtin.assert:
+        that:
+          - (virt_install_test_http_log.content | b64decode | regex_findall('GET /download.qcow2 ')) | length == 1
+
+    - name: Record the updated server artifact checksum
+      ansible.builtin.stat:
+        path: '{{ virt_install_test_dir }}/http/download.qcow2'
+        checksum_algorithm: sha256
+      register: virt_install_test_http_updated
+
+    - name: Force a fresh download of a cached image
+      ansible.builtin.include_tasks: remote_image.yml
+      vars:
+        virt_install_test_remote:
+          cache: '{{ virt_install_test_dir }}/cache'
+          force_pull: true
+          pattern: 51
+
+    - name: Inspect the refreshed cache
+      ansible.builtin.stat:
+        path: '{{ virt_install_test_dir }}/cache/download.qcow2'
+        checksum_algorithm: sha256
+      register: virt_install_test_cache_after
+
+    - name: Read requests after forced refresh
+      ansible.builtin.slurp:
+        src: '{{ virt_install_test_dir }}/http.log'
+      register: virt_install_test_http_log
+
+    - name: Assert force_pull fetched the changed content into the cache
+      ansible.builtin.assert:
+        that:
+          - (virt_install_test_http_log.content | b64decode | regex_findall('GET /download.qcow2 ')) | length == 2
+          - virt_install_test_cache_after.stat.checksum == virt_install_test_http_updated.stat.checksum
+          - virt_install_test_cache_after.stat.checksum != virt_install_test_base.stat.checksum
+
+    - name: Publish the checksum for the updated artifact
+      ansible.builtin.copy:
+        content: "{{ virt_install_test_http_updated.stat.checksum }}  download.qcow2\n"
+        dest: '{{ virt_install_test_dir }}/http/SHA256SUMS'
+        mode: '0644'
+
+    - name: Test uncached download and checksum file URL
+      ansible.builtin.include_tasks: remote_image.yml
+      vars:
+        virt_install_test_remote:
+          checksum: 'sha256:{{ virt_install_test_url }}/SHA256SUMS'
+          pattern: 51
+
+    - name: Reject a download with the wrong checksum
+      community.libvirt.virt_cloud_instance:
+        base_image: '{{ virt_install_test_url }}/download.qcow2'
+        image_checksum: 'sha256:{{ "0" * 64 }}'
+      register: result
+      ignore_errors: true
+
+    - name: Assert checksum mismatch is reported
+      ansible.builtin.assert:
+        that:
+          - result is failed
+          - "'checksum of the base image does not match' in result.msg"
+
+    - name: Reject a missing HTTP image
+      community.libvirt.virt_cloud_instance:
+        base_image: '{{ virt_install_test_url }}/missing.qcow2'
+      register: result
+      ignore_errors: true
+
+    - name: Assert HTTP failure is reported
+      ansible.builtin.assert:
+        that:
+          - result is failed
+          - "'404' in result.msg"
+
+    - name: Inspect failed download resources
+      ansible.builtin.include_role:
+        name: setup_virt_install
+        tasks_from: inspect
+
+    - name: Assert failed downloads left no guest or system disk
+      ansible.builtin.assert:
+        that:
+          - virt_install_test_state.rc != 0
+          - not virt_install_test_disk.stat.exists
+  always:
+    - name: Stop the HTTP server even after a failed assertion
+      ansible.builtin.command:
+        argv: [kill, '{{ virt_install_test_http_process.stdout | trim }}']
+      when: virt_install_test_http_process.stdout is defined

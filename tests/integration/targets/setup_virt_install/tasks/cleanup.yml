@@ -1,0 +1,40 @@
+---
+- name: List domains for cleanup
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', list, --all, --name]
+  register: virt_install_test_domains
+  changed_when: false
+
+- name: Destroy only domains belonging to this test
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', destroy, '{{ item }}']
+  loop: '{{ virt_install_test_domains.stdout_lines | select("match", "^" ~ virt_install_test_pool ~ "($|-)") | list }}'
+  register: virt_install_test_destroy
+  failed_when: false
+
+- name: Undefine only domains belonging to this test
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', undefine, '{{ item }}']
+  loop: '{{ virt_install_test_domains.stdout_lines | select("match", "^" ~ virt_install_test_pool ~ "($|-)") | list }}'
+
+- name: List pools for cleanup
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', pool-list, --all, --name]
+  register: virt_install_test_pools
+  changed_when: false
+
+- name: Destroy the test pool if it was started
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', pool-destroy, '{{ virt_install_test_pool }}']
+  when: virt_install_test_pool in virt_install_test_pools.stdout_lines
+  failed_when: false
+
+- name: Undefine the test pool
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', pool-undefine, '{{ virt_install_test_pool }}']
+  when: virt_install_test_pool in virt_install_test_pools.stdout_lines
+
+- name: Remove only the allocated test directory
+  ansible.builtin.file:
+    path: '{{ virt_install_test_dir }}'
+    state: absent
