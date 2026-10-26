@@ -1,0 +1,3 @@
+bugfixes:
+  - virt_install - predict recreation of an existing VM in check mode without invoking virt-install against disks still owned by the original VM.
+  - virt_cloud_instance - predict recreation of an existing VM in check mode without rejecting its existing system disk, while validating available base images before replacing the VM.

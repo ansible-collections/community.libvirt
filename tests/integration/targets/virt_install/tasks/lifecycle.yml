@@ -1,0 +1,141 @@
+---
+- name: Predict initial creation
+  community.libvirt.virt_install:
+    state: present
+    recreate: true
+  check_mode: true
+  register: result
+
+- name: Inspect predicted creation
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert check mode created no resources
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - result.commands | select('search', '--dry-run') | list | length == 1
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists
+
+- name: Create a software-emulated guest without installing an OS
+  community.libvirt.virt_install:
+    state: present
+  register: result
+
+- name: Inspect actual creation
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Verify the resource configuration
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - result.commands | length == 1
+      - virt_install_test_state.stdout == 'running'
+      - virt_install_test_disk.stat.exists
+      - "'<vcpu placement=' in virt_install_test_xml.stdout"
+      - "'>1</vcpu>' in virt_install_test_xml.stdout"
+      - "'>131072</memory>' in virt_install_test_xml.stdout"
+      - "'<interface ' not in virt_install_test_xml.stdout"
+      - "'system.qcow2' in virt_install_test_xml.stdout"
+
+- name: Remember the original definition
+  ansible.builtin.set_fact:
+    virt_install_test_original_xml: '{{ virt_install_test_xml.stdout }}'
+
+- name: Predict creation of an existing guest
+  community.libvirt.virt_install:
+    state: present
+    memory: 256
+    vcpus: 2
+  check_mode: true
+  register: result_check
+
+- name: Repeat creation with different requested resources
+  community.libvirt.virt_install:
+    state: present
+    memory: 256
+    vcpus: 2
+  register: result
+
+- name: Inspect the unchanged guest
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert existing guests are left unchanged without recreate
+  ansible.builtin.assert:
+    that:
+      - result_check is not changed
+      - result is not changed
+      - virt_install_test_xml.stdout == virt_install_test_original_xml
+      - virt_install_test_state.stdout == 'running'
+
+- name: Recreate running and stopped guests
+  ansible.builtin.include_tasks: recreate.yml
+  loop:
+    - running
+    - stopped
+  loop_control:
+    loop_var: virt_install_test_recreate_state
+
+- name: Stop the guest before testing inactive deletion
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', destroy, '{{ virt_install_test_name }}']
+  when: virt_install_test_case.deletion_state == 'stopped'
+
+- name: Predict deletion of an existing guest
+  community.libvirt.virt_install:
+    state: absent
+  check_mode: true
+  register: result
+
+- name: Inspect predicted deletion
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert check mode preserved the guest definition, state and disk
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.stdout == ('shut off' if virt_install_test_case.deletion_state == 'stopped' else 'running')
+      - virt_install_test_disk.stat.exists
+      - virt_install_test_xml.stdout == virt_install_test_original_xml
+
+- name: Delete the guest and its managed disk
+  community.libvirt.virt_install:
+    state: absent
+  register: result
+
+- name: Inspect actual deletion
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert the domain and disk were removed
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists
+
+- name: Repeat deletion in check mode
+  community.libvirt.virt_install:
+    state: absent
+  check_mode: true
+  register: result_check
+
+- name: Repeat deletion
+  community.libvirt.virt_install:
+    state: absent
+  register: result
+
+- name: Assert deletion is idempotent
+  ansible.builtin.assert:
+    that:
+      - result_check is not changed
+      - result is not changed

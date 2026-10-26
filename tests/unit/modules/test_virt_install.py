@@ -29,6 +29,46 @@ class TestCoreFunction(unittest.TestCase):
         self.mock_module.fail_json = mock.Mock(
             side_effect=Exception("fail_json called"))
 
+    @mock.patch('ansible_collections.community.libvirt.plugins.module_utils.libvirt.libvirt', create=True)
+    def test_check_mode_recreation_preserves_existing_guest(self, mock_libvirt):
+        self.mock_module.check_mode = True
+        self.mock_module.params['recreate'] = True
+        guest = mock.Mock()
+        guest.name.return_value = 'test-vm'
+        mock_libvirt.open.return_value.listAllDomains.return_value = [guest]
+
+        for active in (False, True):
+            with self.subTest(active=active):
+                guest.isActive.return_value = active
+                self.mock_module.run_command.reset_mock()
+
+                rc, result = core(self.mock_module)
+
+                self.assertEqual(rc, VIRT_SUCCESS)
+                self.assertTrue(result['changed'])
+                self.assertEqual(result['commands'], [])
+                self.mock_module.run_command.assert_called_once_with('uname -r')
+                guest.destroy.assert_not_called()
+                guest.undefine.assert_not_called()
+
+    @mock.patch('ansible_collections.community.libvirt.plugins.module_utils.libvirt.libvirt', create=True)
+    def test_check_mode_recreation_validates_parameter_combinations(self, mock_libvirt):
+        self.mock_module.check_mode = True
+        self.mock_module.params.update(
+            recreate=True, networks=[{'network': 'default', 'bridge': 'br0'}])
+        guest = mock.Mock()
+        guest.name.return_value = 'test-vm'
+        mock_libvirt.open.return_value.listAllDomains.return_value = [guest]
+
+        with self.assertRaises(Exception):
+            core(self.mock_module)
+
+        self.mock_module.fail_json.assert_called_once_with(
+            msg='network entry specifies conflicting selectors: network, bridge')
+        self.mock_module.run_command.assert_called_once_with('uname -r')
+        guest.destroy.assert_not_called()
+        guest.undefine.assert_not_called()
+
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.VirtInstallTool')
     @mock.patch('ansible_collections.community.libvirt.plugins.modules.virt_install.LibvirtWrapper')
     def test_core_missing_vm_name(

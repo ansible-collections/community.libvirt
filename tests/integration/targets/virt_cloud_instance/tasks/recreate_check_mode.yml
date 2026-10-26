@@ -1,0 +1,54 @@
+---
+- name: Read the definition before predicting recreation
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', dumpxml, --inactive, '{{ virt_install_test_name }}']
+  register: virt_install_test_recreate_xml_before
+  changed_when: false
+
+- name: Inspect the disk before predicting recreation
+  ansible.builtin.stat:
+    path: '{{ virt_install_test_dir }}/system.qcow2'
+    get_checksum: '{{ virt_install_test_recreate_state == "stopped" }}'
+    checksum_algorithm: sha256
+  register: virt_install_test_recreate_disk_before
+
+- name: Predict recreation without changing the existing guest
+  community.libvirt.virt_cloud_instance:
+    state: present
+    recreate: true
+    memory: 512
+  check_mode: true
+  register: result
+
+- name: Inspect predicted recreation
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Read the UUID after predicting recreation
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', domuuid, '{{ virt_install_test_name }}']
+  register: virt_install_test_recreate_uuid_after
+  changed_when: false
+
+- name: Inspect the disk after predicting recreation
+  ansible.builtin.stat:
+    path: '{{ virt_install_test_dir }}/system.qcow2'
+    get_checksum: '{{ virt_install_test_recreate_state == "stopped" }}'
+    checksum_algorithm: sha256
+  register: virt_install_test_recreate_disk_after
+
+- name: Assert check mode preserved the original guest and disk
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - result.commands == []
+      - result.base_image_path == ''
+      - virt_install_test_xml.stdout == virt_install_test_recreate_xml_before.stdout
+      - virt_install_test_recreate_uuid_after.stdout == virt_install_test_uuid_before.stdout
+      - virt_install_test_state.stdout == ('running' if virt_install_test_recreate_state == 'running' else 'shut off')
+      - virt_install_test_disk.stat.exists
+      - virt_install_test_recreate_disk_after.stat.inode == virt_install_test_recreate_disk_before.stat.inode
+      - >-
+        virt_install_test_recreate_state != 'stopped' or
+        virt_install_test_recreate_disk_after.stat.checksum == virt_install_test_recreate_disk_before.stat.checksum

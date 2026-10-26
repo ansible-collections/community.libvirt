@@ -1,0 +1,47 @@
+---
+- name: Test virt-install against real libvirt and QEMU
+  block:
+    - name: Prepare isolated storage
+      ansible.builtin.include_role:
+        name: setup_virt_install
+        tasks_from: pool
+      vars:
+        virt_install_test_prefix: ansible-test-virt-install
+
+    - name: Exercise the module lifecycle
+      ansible.builtin.include_tasks: lifecycle.yml
+      loop:
+        - {method: import, deletion_state: running}
+        - {method: no_install, deletion_state: stopped}
+      loop_control:
+        loop_var: virt_install_test_case
+
+    - name: Exercise invalid input without creating resources
+      ansible.builtin.include_tasks: errors.yml
+  rescue:
+    - name: Report service diagnostics before cleaning up a failed test
+      ansible.builtin.include_role:
+        name: setup_virt_install
+        tasks_from: diagnostics
+  always:
+    - name: Clean up test resources even after a failed assertion
+      ansible.builtin.include_role:
+        name: setup_virt_install
+        tasks_from: cleanup
+      when: virt_install_test_directory.path is defined
+  module_defaults:
+    community.libvirt.virt_install:
+      uri: qemu:///system
+      name: '{{ virt_install_test_name }}'
+      memory: 128
+      vcpus: 1
+      virt_type: qemu
+      osinfo:
+        name: generic
+      networks: []
+      import: '{{ virt_install_test_case.method | default("import") == "import" }}'
+      install: '{{ {"no_install": true} if virt_install_test_case.method | default("import") == "no_install" else omit }}'
+      disks:
+        - path: '{{ virt_install_test_dir }}/system.qcow2'
+          size: 1
+          format: qcow2

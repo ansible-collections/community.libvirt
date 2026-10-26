@@ -822,8 +822,8 @@ class VirtInstallTool(object):
         if self.params.get('noreboot') is not None:
             self._add_flag_parameter('--noreboot', self.params['noreboot'])
 
-    def _validate_params(self):
-        """Validate parameter combinations and dependencies according to virt-install requirements"""
+    def validate(self):
+        """Validate parameter combinations without building or executing a command."""
 
         extra_key_pairs = [
             ('memory', 'memory_opts'),
@@ -869,7 +869,7 @@ class VirtInstallTool(object):
 
     def _build_command(self):
         """Build the complete virt-install command"""
-        self._validate_params()
+        self.validate()
 
         # Build command sections
         self._build_basic_options()

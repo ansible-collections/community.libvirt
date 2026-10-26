@@ -1,0 +1,58 @@
+---
+- name: Check the supported test platform
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution in ['Ubuntu', 'Fedora']
+      - ansible_architecture == 'x86_64'
+    fail_msg: These tests require an x86_64 Ubuntu or Fedora test host.
+
+- name: Load distribution packages
+  ansible.builtin.include_vars: '{{ ansible_distribution }}.yml'
+
+- name: Install Ubuntu test dependencies
+  ansible.builtin.apt:
+    name: '{{ virt_install_test_packages }}'
+    install_recommends: false
+    update_cache: true
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Install Fedora test dependencies
+  ansible.builtin.dnf:
+    name: '{{ virt_install_test_packages }}'
+    state: present
+  when: ansible_distribution == 'Fedora'
+
+- name: Detect disposable container markers
+  ansible.builtin.stat:
+    path: '{{ item }}'
+  loop:
+    - /.dockerenv
+    - /run/.containerenv
+  register: virt_install_test_container_markers
+
+# libvirt's nested DAC ownership tracking and private /dev mounts cannot
+# preserve host device ownership in a rootless Podman user namespace.
+# Apply this profile only inside a container, never to a developer's host.
+- name: Configure libvirt for software emulation inside the test container
+  ansible.builtin.lineinfile:
+    path: /etc/libvirt/qemu.conf
+    regexp: '^#?{{ item.key }}\s*='
+    line: '{{ item.key }} = {{ item.value }}'
+  loop:
+    - {key: user, value: '"root"'}
+    - {key: group, value: '"root"'}
+    - {key: dynamic_ownership, value: '0'}
+    - {key: remember_owner, value: '0'}
+    - {key: namespaces, value: '[]'}
+  when: virt_install_test_container_markers.results | selectattr('stat.exists') | list | length > 0
+  register: virt_install_test_config
+
+- name: Start libvirt with the test configuration
+  ansible.builtin.service:
+    name: libvirtd
+    state: "{{ 'restarted' if virt_install_test_config is changed else 'started' }}"
+
+- name: Verify the real QEMU connection
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', capabilities]
+  changed_when: false

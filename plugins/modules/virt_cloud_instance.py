@@ -190,6 +190,10 @@ requirements:
     - "virt-install"
     - "qemu-img"
 notes:
+    - In check mode, recreating an existing VM validates the base image if it is available locally.
+      It then reports a change without preparing disks or running C(virt-install).
+    - An uncached remote image is not downloaded or checked in check mode.
+    - This recreation preview leaves the VM and its disks unchanged and does not validate disk capacity or resource conflicts.
     - The C(virt-install) command is provided by different packages on different distributions.
     - On Debian/Ubuntu, install the C(virtinst) package.
     - On RHEL/CentOS/Fedora and openSUSE, install the C(virt-install) package.
@@ -314,6 +318,7 @@ base_image_path:
     description:
         - Path to the base cloud image file.
         - This is the local path where the image was downloaded to (if URL was provided) or the original local path.
+        - Empty when disk preparation is skipped, including when predicting recreation of an existing VM in check mode.
     type: str
     returned: success
     sample: "/srv/cloud-images/ubuntu-20.04-server-cloudimg-amd64.img"
@@ -322,7 +327,8 @@ commands:
         - List of commands executed by this module during VM provisioning.
         - Includes qemu-img commands for disk preparation and the virt-install command to create the VM.
         - Only populated when a VM is created or recreated (V(state=present) and VM did not already exist, or V(recreate=true)).
-        - In check mode, the virt-install command includes the C(--dry-run) flag.
+        - When executed in check mode, the virt-install command includes the C(--dry-run) flag.
+        - Empty when predicting recreation of an existing VM in check mode, because no command is executed.
     type: list
     elements: str
     returned: when a VM was created or recreated
@@ -816,14 +822,9 @@ def core(module):
         if vm_exists and not recreate:
             result['message'] = "virtual machine '%s' already exists" % name
             return VIRT_SUCCESS, result
-        elif vm_exists and recreate:
-            # In check_mode, skip VM destruction but continue with validation
-            if not module.check_mode:
-                if vm.isActive():
-                    virtConn.destroy(name)
-                virtConn.undefine(name)
 
-        # Create image operator only when we need to process the image
+        # Validate the image before a real recreation removes the old guest
+        # and its disks. Check mode validates local and cached images here too.
         image_operator = BaseImageOperator(module, base_image,
                                            image_cache_dir=image_cache_dir,
                                            image_checksum=image_checksum)
@@ -831,6 +832,18 @@ def core(module):
         if not image_operator.validate_checksum():
             module.fail_json(
                 msg="The checksum of the base image does not match the expected value")
+
+        if vm_exists and recreate:
+            if module.check_mode:
+                # The old guest still owns its disks; do not prepare a system
+                # disk or validate resource conflicts against it.
+                virtInstall.validate()
+                result['changed'] = True
+                result['message'] = "virtual machine '%s' would be recreated" % name
+                return VIRT_SUCCESS, result
+            if vm.isActive():
+                virtConn.destroy(name)
+            virtConn.undefine(name)
 
         decompressed_path = image_operator.decompress_image(image_compression)
         image_operator.base_image_path = decompressed_path

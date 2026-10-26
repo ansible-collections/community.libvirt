@@ -2500,6 +2500,18 @@ class TestVirtInstallToolExecute(unittest.TestCase):
             'graphics': {'type': 'spice'}
         }
 
+    @mock.patch('tempfile.mkstemp')
+    def test_validate_does_not_prepare_or_execute_commands(self, mock_mkstemp):
+        self.mock_module.params['cloud_init'] = {'user_data': {'hostname': 'test-vm'}}
+        tool = VirtInstallTool(self.mock_module)
+
+        tool.validate()
+
+        self.mock_module.fail_json.assert_not_called()
+        self.mock_module.run_command.assert_not_called()
+        mock_mkstemp.assert_not_called()
+        self.assertEqual(tool.get_commands(), [])
+
     def test_execute_success(self):
         """Test successful execution"""
         # Mock successful command execution
@@ -2773,7 +2785,7 @@ class TestVirtInstallToolExecute(unittest.TestCase):
         del self.mock_module.params['memory']
         self.virt_install = VirtInstallTool(self.mock_module)
 
-        # Should raise an exception during _validate_params
+        # Should raise an exception during parameter validation
         with self.assertRaises(Exception):
             self.virt_install.execute()
 

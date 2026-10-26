@@ -1,0 +1,15 @@
+---
+- name: Collect recent libvirt service diagnostics
+  ansible.builtin.command:
+    argv: [journalctl, --unit=libvirtd, --lines=60, --no-pager]
+  register: virt_install_test_journal
+  changed_when: false
+  failed_when: false
+
+- name: Show diagnostics for a failed test
+  ansible.builtin.debug:
+    var: virt_install_test_journal.stdout_lines
+
+- name: Preserve the original test failure
+  ansible.builtin.fail:
+    msg: '{{ ansible_failed_result.msg | default("Integration assertion failed; see the original task and libvirt journal above.") }}'

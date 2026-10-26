@@ -1,0 +1,44 @@
+---
+- name: Stop the guest before testing inactive recreation
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', destroy, '{{ virt_install_test_name }}']
+  when: virt_install_test_recreate_state == 'stopped'
+
+- name: Read the original UUID
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', domuuid, '{{ virt_install_test_name }}']
+  register: virt_install_test_uuid_before
+  changed_when: false
+
+- name: Predict recreation while preserving the original resources
+  ansible.builtin.include_tasks: recreate_check_mode.yml
+
+- name: Recreate the guest with a different memory allocation
+  community.libvirt.virt_cloud_instance:
+    recreate: true
+    memory: 256
+  register: result
+
+- name: Inspect the recreated guest
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Read the new UUID
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', domuuid, '{{ virt_install_test_name }}']
+  register: virt_install_test_uuid_after
+  changed_when: false
+
+- name: Verify recreation replaced the definition and preserved the requested storage
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.stdout == 'running'
+      - virt_install_test_disk.stat.exists
+      - virt_install_test_uuid_before.stdout != virt_install_test_uuid_after.stdout
+      - "'>262144</memory>' in virt_install_test_xml.stdout"
+
+- name: Remember the current definition for deletion checks
+  ansible.builtin.set_fact:
+    virt_install_test_original_xml: '{{ virt_install_test_xml.stdout }}'

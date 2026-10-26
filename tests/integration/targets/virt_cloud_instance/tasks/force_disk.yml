@@ -1,0 +1,92 @@
+---
+- name: Create an orphan disk with different content
+  ansible.builtin.command:
+    argv: [qemu-img, create, -f, qcow2, '{{ virt_install_test_dir }}/system.qcow2', 64M]
+
+- name: Write a marker that force_disk must replace
+  ansible.builtin.command:
+    argv: [qemu-io, -f, qcow2, -c, 'write -P 51 1048576 4096', '{{ virt_install_test_dir }}/system.qcow2']
+
+- name: Remember the orphan disk checksum
+  ansible.builtin.stat:
+    path: '{{ virt_install_test_dir }}/system.qcow2'
+    checksum_algorithm: sha256
+  register: virt_install_test_orphan
+
+- name: Refuse to overwrite an existing disk by default
+  community.libvirt.virt_cloud_instance:
+    state: present
+  register: result
+  ignore_errors: true
+
+- name: Inspect rejected overwrite
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert the disk conflict is reported before creating a guest
+  ansible.builtin.assert:
+    that:
+      - result is failed
+      - "'system disk file already exists' in result.msg"
+      - virt_install_test_state.rc != 0
+
+- name: Predict forced disk replacement
+  community.libvirt.virt_cloud_instance:
+    force_disk: true
+  check_mode: true
+  register: result
+
+- name: Check the orphan disk after the dry run
+  ansible.builtin.stat:
+    path: '{{ virt_install_test_dir }}/system.qcow2'
+    checksum_algorithm: sha256
+  register: virt_install_test_orphan_after
+
+- name: Inspect predicted forced replacement
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert check mode did not replace the orphan disk
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.rc != 0
+      - virt_install_test_orphan_after.stat.checksum == virt_install_test_orphan.stat.checksum
+
+- name: Replace the orphan disk and provision a guest
+  community.libvirt.virt_cloud_instance:
+    force_disk: true
+  register: result
+
+- name: Assert replacement reports a change
+  ansible.builtin.assert:
+    that:
+      - result is changed
+
+- name: Stop the guest to verify the replacement content
+  ansible.builtin.command:
+    argv: [virsh, --connect, 'qemu:///system', destroy, '{{ virt_install_test_name }}']
+
+- name: Verify the base image replaced the orphan marker
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: disk
+
+- name: Remove the forced replacement
+  community.libvirt.virt_cloud_instance:
+    state: absent
+  register: result
+
+- name: Inspect forced replacement cleanup
+  ansible.builtin.include_role:
+    name: setup_virt_install
+    tasks_from: inspect
+
+- name: Assert the forced replacement was deleted
+  ansible.builtin.assert:
+    that:
+      - result is changed
+      - virt_install_test_state.rc != 0
+      - not virt_install_test_disk.stat.exists

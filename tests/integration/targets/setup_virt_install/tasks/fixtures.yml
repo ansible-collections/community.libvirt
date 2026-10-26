@@ -1,0 +1,40 @@
+---
+- name: Create a small sparse raw base image
+  ansible.builtin.command:
+    argv: [qemu-img, create, -f, raw, '{{ virt_install_test_dir }}/base.raw', 64M]
+
+- name: Write a recognizable data block into the base image
+  ansible.builtin.command:
+    argv: [qemu-io, -f, raw, -c, 'write -P 90 1048576 4096', '{{ virt_install_test_dir }}/base.raw']
+
+- name: Prepare the same fixture in qcow2 format
+  ansible.builtin.command:
+    argv: [qemu-img, convert, -f, raw, -O, qcow2, '{{ virt_install_test_dir }}/base.raw', '{{ virt_install_test_dir }}/base.qcow2']
+
+- name: Prepare compressed fixtures without downloading images
+  ansible.builtin.command:
+    argv:
+      - '{{ ansible_python.executable }}'
+      - -c
+      - |
+        import bz2
+        import gzip
+        import lzma
+        import shutil
+        import sys
+        for extension, opener in [('gz', gzip.open), ('bz2', bz2.open), ('xz', lzma.open)]:
+            with open(sys.argv[1], 'rb') as source, opener(sys.argv[1] + '.' + extension, 'wb') as target:
+                shutil.copyfileobj(source, target)
+      - '{{ virt_install_test_dir }}/base.raw'
+
+- name: Record the original qcow2 fixture checksum
+  ansible.builtin.stat:
+    path: '{{ virt_install_test_dir }}/base.qcow2'
+    checksum_algorithm: sha256
+  register: virt_install_test_base
+
+- name: Record the original raw fixture checksum
+  ansible.builtin.stat:
+    path: '{{ virt_install_test_dir }}/base.raw'
+    checksum_algorithm: sha256
+  register: virt_install_test_raw
