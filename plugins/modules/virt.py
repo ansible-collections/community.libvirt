@@ -154,6 +154,12 @@ status:
     type: str
     sample: "success"
     returned: success
+# for get_xml command
+get_xml:
+    description: The XML definition of the VM, as returned by libvirt.
+    type: str
+    returned: when O(command=get_xml)
+    sample: "<domain type='kvm'><name>alpha</name>...</domain>"
 '''
 
 import traceback
