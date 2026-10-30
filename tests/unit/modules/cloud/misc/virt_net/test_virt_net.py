@@ -28,3 +28,26 @@ def test_virt_stop_active(virt_net_obj, monkeypatch):
     virt_net_obj.conn.destroy = mock.Mock()
     virt_net_obj.stop('active_net')
     virt_net_obj.conn.destroy.assert_called_with('active_net')
+
+
+def test_virt_net_facts_network_without_bridge(virt_net_obj, dummy_libvirt, monkeypatch):
+    # hostdev/passthrough networks have no bridge, libvirt raises an error
+    monkeypatch.setattr(dummy_libvirt.libvirtError, "error_code", "VIR_ERR_INTERNAL_ERROR", raising=False)
+    conn = virt_net_obj.conn
+    conn.get_autostart = mock.Mock(return_value="yes")
+    conn.get_persistent = mock.Mock(return_value="yes")
+    conn.get_status = mock.Mock(return_value="active")
+    conn.get_bridge = mock.Mock(side_effect=dummy_libvirt.libvirtError)
+    conn.get_uuid = mock.Mock(return_value="e30530c3-b0e2-494f-8a0f-c8134145e960")
+    conn.get_dhcp_leases = mock.Mock(return_value=[])
+    conn.get_forward = mock.Mock(return_value="hostdev")
+    conn.get_domain = mock.Mock(side_effect=ValueError)
+    conn.get_macaddress = mock.Mock(side_effect=ValueError)
+
+    result = virt_net_obj.info()
+
+    for name in ("inactive_net", "active_net"):
+        net = result["networks"][name]
+        assert "bridge" not in net
+        assert net["forward_mode"] == "hostdev"
+        assert net["state"] == "active"

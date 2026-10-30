@@ -1,0 +1,2 @@
+bugfixes:
+  - virt_net - do not fail when gathering facts or info about networks that have no bridge, such as networks using the ``hostdev`` or ``passthrough`` forward modes. The ``bridge`` key is omitted for those networks (https://github.com/ansible-collections/community.libvirt/issues/193).
