@@ -458,7 +458,12 @@ class VirtNetwork(object):
             results[entry]["autostart"] = self.conn.get_autostart(entry)
             results[entry]["persistent"] = self.conn.get_persistent(entry)
             results[entry]["state"] = self.conn.get_status(entry)
-            results[entry]["bridge"] = self.conn.get_bridge(entry)
+            try:
+                results[entry]["bridge"] = self.conn.get_bridge(entry)
+            # networks without a bridge (for example hostdev or macvtap
+            # forward modes) make libvirt raise an error
+            except libvirt.libvirtError:
+                pass
             results[entry]["uuid"] = self.conn.get_uuid(entry)
             try:
                 results[entry]["dhcp_leases"] = self.conn.get_dhcp_leases(entry)
